@@ -20,7 +20,6 @@ export interface ProcessorConfig {
 let docsLink = `\nPlease read the docs for usage details https://github.com/georgejecook/maestro/blob/master/docs/index.md#maestro-cli`;
 
 export function createProcessorConfig(config: any): ProcessorConfig {
-  console.log('parsing config ' + inspect(config));
   let processorConfig = config;
 
   if (typeof config.bsConfig === 'string') {

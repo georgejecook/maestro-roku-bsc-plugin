@@ -1,18 +1,23 @@
-import { BrsFile, BsDiagnostic, Lexer, XmlFile } from 'brighterscript';
+import { CancellationToken, Range, BrsFile, BsDiagnostic, Lexer, XmlFile,WalkVisitor, WalkOptions } from 'brighterscript';
 import { BinaryExpression, Expression, ExpressionVisitor, FunctionStatement, ParseMode, Parser, Statement } from 'brighterscript/dist/parser';
 import { TranspileState } from 'brighterscript/dist/parser/TranspileState';
-import { CancellationToken, Range } from 'vscode-languageserver';
-
-import { SourceNode } from 'source-map';
 
 import { File } from '../fileProcessing/File';
 import { FileType } from '../fileProcessing/FileType';
 import { ProjectFileMap } from '../fileProcessing/ProjectFileMap';
-import { addErrorDiagnostic, addWarnDiagnostic } from '../utils/Feedback';
+import {
+  addXmlBindingCouldNotParseXML,
+  addXmlBindingDuplicateField,
+  addXmlBindingDuplicateTag,
+  addXmlBindingErrorValidatingBindings,
+  addXmlBindingNoCodeBehind,
+  addXmlBindingParentHasDuplicateField
+} from '../utils/Diagnostics';
 import { getAlternateFileNames, spliceString } from '../utils/Utils';
 import Binding from './Binding';
 import { BindingType } from './BindingType';
 import { XMLTag } from './XMLTag';
+import { SourceNode } from 'source-map';
 
 export class BindingProcessor {
   constructor(fileMap: ProjectFileMap) {
@@ -48,11 +53,7 @@ export class BindingProcessor {
       if (file.associatedFile) {
         this.addBindingMethodsForFile(file);
       } else {
-        addErrorDiagnostic(
-          file,
-          7001,
-          'This XML file has bindings; but there is no code behind file!'
-        );
+        addXmlBindingNoCodeBehind(file);
       }
     }
   }
@@ -135,11 +136,7 @@ export class BindingProcessor {
           if (tag.isTopTag) {
             if (tag.id) {
               if (file.fieldIds.has(tag.id)) {
-                addErrorDiagnostic(
-                  file,
-                  7001,
-                  'xml contains duplicate field id: ' + tag.id
-                );
+                addXmlBindingDuplicateField(file, tag.id, xmlElement.line);
               } else {
                 file.fieldIds.add(tag.id);
               }
@@ -147,11 +144,7 @@ export class BindingProcessor {
           } else {
             if (tag.id) {
               if (file.tagIds.has(tag.id)) {
-                addErrorDiagnostic(
-                  file,
-                  7002,
-                  'xml contains duplicate tag id: ' + tag.id
-                );
+                addXmlBindingDuplicateTag(file, tag.id, xmlElement.line);
               } else {
                 file.tagIds.add(tag.id);
               }
@@ -162,11 +155,7 @@ export class BindingProcessor {
           }
         });
     } catch (e) {
-      addErrorDiagnostic(
-        file,
-        7003,
-        'Could not parse xml in file: ' + e.message
-      );
+      addXmlBindingCouldNotParseXML(file, e.message);
     }
 
     return tagsWithBindings;
@@ -180,11 +169,7 @@ export class BindingProcessor {
       throw new Error('was given a non-xml file');
     }
     if (file.bindings.length > 0 && !file.associatedFile) {
-      addErrorDiagnostic(
-        file,
-        7001,
-        'This XML file has bindings; but there is no code behind file!'
-      );
+      addXmlBindingNoCodeBehind(file);
     }
     let errorCount = 0;
 
@@ -193,30 +178,18 @@ export class BindingProcessor {
       let allParentFieldIds = file.getAllParentFieldIds();
       for (let id of file.fieldIds) {
         if (allParentFieldIds.has(id)) {
-          addErrorDiagnostic(
-            file,
-            7004,
-            'a parent of this xml file contains duplicate field id: ' + id
-          );
+          addXmlBindingParentHasDuplicateField(file, id, 1);
           errorCount++;
         }
       }
       for (let id of file.tagIds) {
         if (allParentIds.has(id)) {
-          addErrorDiagnostic(
-            file,
-            7005,
-            'a parent of this xml file contains duplicate tag id: ' + id
-          );
+          addXmlBindingParentHasDuplicateField(file, id, 1);
           errorCount++;
         }
       }
     } catch (e) {
-      addErrorDiagnostic(
-        file,
-        7007,
-        'Error while validating bindings' + e.message
-      );
+      addXmlBindingErrorValidatingBindings(file, e.message);
       errorCount++;
     }
     for (let d of file.diagnostics) {
@@ -246,12 +219,12 @@ export class BindingProcessor {
           b.properties.type === BindingType.code
       )));
       if (bindingInitStatement) {
-        file.associatedFile.bscFile.parser.functionStatements.push(bindingInitStatement);
         file.associatedFile.bscFile.parser.statements.push(bindingInitStatement);
+        file.associatedFile.isASTChanged = true;
       }
       if (staticBindingStatement) {
-        file.associatedFile.bscFile.parser.functionStatements.push(staticBindingStatement);
         file.associatedFile.bscFile.parser.statements.push(staticBindingStatement);
+        file.associatedFile.isASTChanged = true;
       }
     }
   }
@@ -317,8 +290,8 @@ export class BindingProcessor {
 
       let createNodeVarsFunction = this.makeASTFunction(funcText);
       if (createNodeVarsFunction) {
-        file.associatedFile.bscFile.parser.functionStatements.push(createNodeVarsFunction);
         file.associatedFile.bscFile.parser.statements.push(createNodeVarsFunction);
+        file.associatedFile.isASTChanged = true;
       }
 
     }
@@ -343,10 +316,8 @@ export class BindingExpression implements Expression {
     ];
   }
 
-  public walk(visitor: ExpressionVisitor, parent?: Expression, cancel?: CancellationToken): void {
-    if (!cancel && !cancel.isCancellationRequested) {
-      //what?
-    }
+  walk(visitor: WalkVisitor, options: WalkOptions): any {
+    //generated; so we don't bother
   }
 
 }

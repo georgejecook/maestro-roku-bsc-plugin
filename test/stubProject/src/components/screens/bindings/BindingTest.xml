@@ -1,55 +1,60 @@
-<?xml version='1.0' encoding='UTF-8' ?>
+<?xml version='1.0' encoding='UTF-8'?>
 <component
-    name='BindingTestExtended'
-    extends='BindingTest'>
+    name='BindingTest'
+    extends='Group'>
   <interface>
+    <!-- public fields/functions -->
+    <field
+        id='target'
+        type='string'
+        alias='text.text' />
   </interface>
 
   <children>
     <!--One way binding from vm field "oneWaySource"-->
     <Label
-        id='titleLabelExtended'
-        text='{{vm.titleTextExtended}}' />
+        id='titleLabel'
+        text='{{vm.titleText}}' />
 
     <!--One way to vm function  "oneWaySource"-->
     <Button
-        id='buttonExtended'
+        id='button'
         text='click me'
         clicked='{(vm.onClick())}' />
 
     <!--Two Way binding "twoWay"-->
     <InputBox
-        id='nameInputExtended'
+        id='nameInput'
         text='{{vm.name, mode=TwoWay}}' />
 
     <!--Two Way binding "twoWay" - alternate syntax-->
     <InputBox
-        id='nameInput2Extended'
-        text='{[vm.name]}}' />
+        id='nameInput2'
+        text='{[vm.name]}' />
 
     <!--Transform function -->
     <InputBox
-        id='nameInputTwoWayExtended'
+        id='nameInputTwoWay'
         text='{{vm.name}}' />
     <Group>
       <Group
-          id='innerGroupExtended'
+          id='innerGroup'
           visible='{{vm.isGroupVisible, transform=OM_transform_invertBoolean}}'>
 
         <!-- One Way from node field to observer field -->
         <RowList
-            id='rowListExtended'
+            id='rowList'
             focusedIndex='{{vm.focusedIndex, mode=oneWayTarget}}' />
 
         <!-- One Way from node field to observer field "oneWayTarget"
              - alternate syntax -->
         <RowList
-            id='rowList2Extended'
+            id='rowList2'
             clicked='{(vm.onItemClicked)}' />
 
         <!--Multiple bindings -->
         <RowList
-            id='rowListExtended2'
+            id='rowList3'
             visible='{{vm.isGroupVisible, transform=OM_transform_invertBoolean}}'
             clicked='{{vm.onItemClicked}}'
             jumpToIndex='{{vm.jumpToIndex, mode=oneWaySource}}'

@@ -3,7 +3,16 @@ import { escapeRegExp } from '../utils/Utils';
 import Binding from './Binding';
 import { BindingType } from './BindingType';
 
-import { addErrorDiagnostic } from '../utils/Feedback';
+import {
+  addXMLTagErrorCorruptXMLElement,
+  addXMLTagErrorCouldMissingEndBrackets,
+  addXMLTagErrorCouldNotParseBinding,
+  addXMLTagErrorCouldNotParseBindingDetailsForField,
+  addXMLTagErrorCouldNotParseBindingModeDetailsForField,
+  addXMLTagErrorCouldNotParseBindingTransformFunctionForField,
+  addXMLTagErrorCouldNotParseIsFiringOnceForField,
+  addXMLTagErrorCouldNotParseIsSettingInitialValueForField
+} from '../utils/Diagnostics';
 
 let bindingTypeTextMap = {
   onewaytarget: BindingType.oneWayTarget,
@@ -14,7 +23,7 @@ let bindingTypeTextMap = {
 export class XMLTag {
   constructor(xmlElement: any, tagText: string, file: File) {
     if (!xmlElement || !tagText) {
-      addErrorDiagnostic(file, 9005, `Received corrupt XMLElement "${tagText}"`);
+      addXMLTagErrorCorruptXMLElement(file, tagText);
     }
 
     this.startPosition = xmlElement.startTagPosition;
@@ -60,19 +69,29 @@ export class XMLTag {
   public getBindings(xmlElement: any, tagText: string): Binding[] {
     const staticRegex = new RegExp('^{(\\{\\:|\\{\\=)+(.*)(\\})+\\}$', 'i');
     const regex = new RegExp('^\\{([\\(\\{\\[])+(.*)([\\}\\)\\]])+\\}$', 'i');
+
     this.id = xmlElement.attr.id;
     const bindings = [];
+    let tagLines = tagText.split('\n');
+    let numLines = tagLines.length;
+
     for (const attribute in xmlElement.attr) {
+      const lineNumber = 1 + xmlElement.line - (numLines - tagLines.findIndex((v) => new RegExp('^(( |\\t)*)' + attribute + '(( |\\t)*)=').test(v)));
       if (attribute.toLowerCase() !== 'id') {
         let matches = staticRegex.exec(xmlElement.attr[attribute]);
         matches = matches || regex.exec(xmlElement.attr[attribute]);
-
+        const colRegex = new RegExp('^(( |\\t)*)' + attribute, 'gim');
+        const colMatches = colRegex.exec(tagText);
+        const col = colMatches && colMatches.length > 1 && colMatches[1] ? colMatches[1].length : 0;
         const bindingText = matches && matches.length > 2 ? matches[2] : null;
         const bindingStartType = matches && matches.length > 1 ? matches[1] : null;
         const bindingEndType = matches && matches.length > 3 ? matches[3] : null;
-
         if (bindingText) {
           let indicatedBindingMode = this.getBindingMode(bindingStartType, bindingEndType);
+          if (indicatedBindingMode === BindingType.invalid && bindingStartType) {
+            addXMLTagErrorCouldMissingEndBrackets(this._file, tagText, lineNumber, col);
+            continue;
+          }
           const binding = new Binding();
           binding.nodeId = this.isTopTag ? 'top' : this.id;
           binding.nodeField = this.isTopTag ? this.id : attribute;
@@ -89,18 +108,26 @@ export class XMLTag {
 
             const parts = bindingText.split(',');
             for (let i = 0; i < parts.length; i++) {
-              this.parseBindingPart(i, parts[i].replace(/\s/g, ''), binding, tagText);
+              this.parseBindingPart(i, parts[i].replace(/\s/g, ''), binding, tagText, lineNumber);
             }
             binding.rawValueText = xmlElement.attr[this.isTopTag ? 'value' : attribute];
-
           }
 
+          binding.line = lineNumber;
+          binding.char = col;
           binding.validate();
           if (binding.isValid) {
             bindings.push(binding);
           } else {
-            addErrorDiagnostic(this._file, 9002, `Could not parse binding for tag "${tagText}" reason: ${binding.errorMessage}`, this.line);
+            addXMLTagErrorCouldNotParseBinding(this._file, tagText, binding.errorMessage, binding.line, binding.char);
           }
+        } else {
+          const startRegex = new RegExp('^\\{([\\(\\{\\[])', 'i');
+
+          if (startRegex.test(xmlElement.attr[attribute])) {
+            addXMLTagErrorCouldMissingEndBrackets(this._file, tagText, lineNumber, col);
+          }
+
         }
       }
     }
@@ -108,7 +135,7 @@ export class XMLTag {
     return bindings;
   }
 
-  public parseBindingPart(index: number, partText: string, binding: Binding, tagText: string) {
+  public parseBindingPart(index: number, partText: string, binding: Binding, tagText: string, line: number) {
     if (index === 0) {
       let bindingParts = partText.split('.');
       if (bindingParts.length > 1) {
@@ -117,8 +144,7 @@ export class XMLTag {
         binding.isFunctionBinding = binding.observerField.endsWith('()');
         binding.observerField = binding.observerField.replace('()', '');
       } else {
-        addErrorDiagnostic(this._file, 9003,
-          `Could not parse binding details for field "${partText}" from tag "${tagText}"`, this.line);
+        addXMLTagErrorCouldNotParseBindingDetailsForField(this._file, partText, tagText, line);
       }
     } else if (partText.toLowerCase().includes('mode=')) {
       //mode
@@ -126,8 +152,7 @@ export class XMLTag {
       if (mode) {
         binding.properties.type = mode;
       } else {
-        addErrorDiagnostic(this._file, 9004,
-          `Could not parse binding mode for field "${partText}" from tag "${tagText}"`, this.line);
+        addXMLTagErrorCouldNotParseBindingModeDetailsForField(this._file, partText, tagText, line);
       }
     } else if (partText.toLowerCase().includes('transform=')) {
       //transform function
@@ -135,8 +160,7 @@ export class XMLTag {
       if (transformFunction.trim()) {
         binding.properties.transformFunction = transformFunction;
       } else {
-        addErrorDiagnostic(this._file, 9006,
-          `Could not parse transformFunction for field "${partText}" from tag "${tagText}"`, this.line);
+        addXMLTagErrorCouldNotParseBindingTransformFunctionForField(this._file, partText, tagText, line);
       }
     } else if (partText.toLowerCase().includes('issettinginitialvalue=')) {
       //transform function
@@ -144,8 +168,7 @@ export class XMLTag {
       if (isSettingInitialValueText.trim()) {
         binding.properties.isSettingInitialValue = isSettingInitialValueText === 'true';
       } else {
-        addErrorDiagnostic(this._file, 9005,
-          `Could not parse isSettingInitialValueText for field "${partText}" from tag "${tagText}"`, this.line);
+        addXMLTagErrorCouldNotParseIsSettingInitialValueForField(this._file, partText, tagText, line);
       }
     } else if (partText.toLowerCase().includes('isFiringOnce=')) {
       //transform function
@@ -153,8 +176,7 @@ export class XMLTag {
       if (isFiringOnce.trim()) {
         binding.properties.isFiringOnce = isFiringOnce === 'true';
       } else {
-        addErrorDiagnostic(this._file, 9006,
-          `Could not parse isFiringOnce for field "${partText}" from tag "${tagText}"`, this.line);
+        addXMLTagErrorCouldNotParseIsFiringOnceForField(this._file, partText, tagText, line);
       }
     }
   }

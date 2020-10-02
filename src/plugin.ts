@@ -9,14 +9,14 @@ import {
   XmlFile,
 } from 'brighterscript';
 
-import { ProjectFileMap } from './fileProcessing/ProjectFileMap';
+import { ProjectFileMap } from './lib/fileProcessing/ProjectFileMap';
 
-import { BindingProcessor } from './bindingSupport/BindingProcessor';
-import { File } from './fileProcessing/File';
+import { BindingProcessor } from './lib/bindingSupport/BindingProcessor';
+import { File } from './lib/fileProcessing/File';
 
-import { FileType } from './fileProcessing/FileType';
-import ImportProcessor from './importSupport/ImportProcessor';
-import { getAssociatedFile } from './utils/Utils';
+import { FileType } from './lib/fileProcessing/FileType';
+import ImportProcessor from './lib/importSupport/ImportProcessor';
+import { getAssociatedFile } from './lib/utils/Utils';
 
 let _builder: ProgramBuilder;
 let fileMap: ProjectFileMap;
@@ -24,8 +24,10 @@ let bindingProcessor: BindingProcessor;
 let importProcessor: ImportProcessor;
 
 function beforeProgramCreate(builder: ProgramBuilder): void {
-  fileMap = new ProjectFileMap();
-  bindingProcessor = new BindingProcessor(fileMap);
+  if (!fileMap) {
+    fileMap = new ProjectFileMap();
+    bindingProcessor = new BindingProcessor(fileMap);
+  }
   importProcessor = new ImportProcessor(builder.options);
   _builder = builder;
 }
@@ -59,28 +61,31 @@ function afterFileParse(file: (BrsFile | XmlFile)): void {
   //look up the maestro file and link it
   if (mFile) {
     mFile.bscFile = file;
-
-    //add alternateFile, if we're xml
-    if (file instanceof XmlFile) {
-      let associatedFile = getAssociatedFile(file, fileMap);
-      if (associatedFile) {
-        mFile.associatedFile = associatedFile;
-        associatedFile.associatedFile = mFile;
-      }
-    } else if (file instanceof BrsFile) {
-      importProcessor.processDynamicImports(file);
+  }
+  console.log('afterFileParse', file.pathAbsolute);
+  //add alternateFile, if we're xml
+  if (file instanceof XmlFile) {
+    let associatedFile = getAssociatedFile(file, fileMap);
+    if (associatedFile) {
+      mFile.associatedFile = associatedFile;
+      associatedFile.associatedFile = mFile;
     }
   } else {
-    console.error(`could no2t find maestro file for bc file at path ${file.pathAbsolute}`);
+    importProcessor.processDynamicImports(file, _builder.program);
   }
 }
 
 function afterProgramValidate(program: Program) {
+
   for (let compFile of [...fileMap.allXMLComponentFiles.values()]) {
+
     if (compFile.bscFile) {
       compFile.parentFile = fileMap.allXMLComponentFiles.get(compFile.parentComponentName);
       bindingProcessor.validateBindings(compFile);
-      compFile.bscFile.addDiagnostics(compFile.diagnostics);
+      let bscFile = program.getFileByPathAbsolute(compFile.fullPath);
+      if (bscFile) {
+        bscFile.addDiagnostics(compFile.diagnostics);
+      }
     }
   }
 }

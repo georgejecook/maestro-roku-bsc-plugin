@@ -1,8 +1,6 @@
-import { BrsFile, Token, TokenKind, XmlFile } from 'brighterscript';
+import { Position, Range, BrsFile, Token, TokenKind, XmlFile } from 'brighterscript';
 import { BrsType } from 'brighterscript/dist/brsTypes';
 import * as path from 'path';
-
-import { Position, Range } from 'vscode-languageserver';
 
 import { File } from '../fileProcessing/File';
 import { ProjectFileMap } from '../fileProcessing/ProjectFileMap';

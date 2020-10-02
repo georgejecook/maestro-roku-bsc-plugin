@@ -9,7 +9,7 @@ import { addSetItems } from '../utils/Utils';
 import { FileType } from './FileType';
 import { ProjectFileMap } from './ProjectFileMap';
 
-import { addErrorDiagnostic } from '../utils/Feedback';
+import { addFileErrorCouldNotParseXML, addFileErrorCouldNotSave } from '../utils/Diagnostics';
 
 const xmldoc = require('../utils/xmldoc');
 
@@ -65,6 +65,8 @@ export class File {
     }
   }
 
+  public isASTChanged = false;
+  
   public get isDirty(): boolean {
     return this._isDirty;
   }
@@ -93,7 +95,7 @@ export class File {
     try {
       fs.writeFileSync(this.fullPath, this._fileContents, 'utf8');
     } catch (e) {
-      addErrorDiagnostic(this, 9007, `could not save file at path ${this.fullPath} - does the path exist?`);
+      addFileErrorCouldNotSave(this);
     }
 
     this._isDirty = false;
@@ -164,7 +166,7 @@ export class File {
           }
         }
       } catch (e) {
-        addErrorDiagnostic(this, 9008, 'Could not parse xml in file: ' + e.message);
+        addFileErrorCouldNotParseXML(this, e.message);
       }
     }
   }

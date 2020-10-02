@@ -1,13 +1,9 @@
 import { expect } from 'chai';
 import * as chai from 'chai';
 import * as _ from 'lodash';
-import * as path from 'path';
 
 import { BrsFile, Program } from 'brighterscript';
 
-import { File } from '../fileProcessing/File';
-import { ProjectFileMap } from '../fileProcessing/ProjectFileMap';
-import { getRegexMatchesValues } from '../utils/Utils';
 import ImportProcessor from './ImportProcessor';
 
 const chaiSubset = require('chai-subset');
@@ -30,7 +26,7 @@ function Init() as void
     m.screenStack = createObject("roArray", 0, true)
     m.top.topScreen = invalid
 end function`);
-    importProcessor.processDynamicImports(file);
+    importProcessor.processDynamicImports(file, program);
     expect(file.getDiagnostics).to.be.empty;
   });
 
@@ -49,8 +45,8 @@ end function
 import "pkg:/source/b2.bs"
 import "pkg:/source/b3.bs"
 `);
-    importProcessor.processDynamicImports(file);
-    expect(() => importProcessor.processDynamicImports(file)).to.throw(Error);
+    importProcessor.processDynamicImports(file, program);
+    expect(() => importProcessor.processDynamicImports(file, program)).to.throw(Error);
   });
 
 });

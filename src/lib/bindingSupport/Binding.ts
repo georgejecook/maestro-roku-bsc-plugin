@@ -1,3 +1,5 @@
+import { Parser } from 'brighterscript';
+
 import { BindingProperties } from './BindingProperties';
 import { BindingType } from './BindingType';
 
@@ -17,6 +19,8 @@ export default class Binding {
   public properties: BindingProperties;
   public errorMessage: string;
   public rawValueText: string;
+  public line: number = 0;
+  public char: number = 0;
 
   public validate() {
     this.isValid = this.validateImpl();
@@ -47,6 +51,15 @@ export default class Binding {
       this.errorMessage = 'observer callbacks on functions are only supported for oneWayTarget (i.e. node to vm) bindings';
       return false;
     }
+
+    if (this.properties.type === BindingType.code) {
+      let { statements, diagnostics } = Parser.parse(`a=${this.rawValueText}`);
+      if (diagnostics.length > 0) {
+        this.errorMessage = `Could not parse inline brightscript code: '${diagnostics[0].message}'`;
+        return false;
+      }
+    }
+
     return true;
   }
 

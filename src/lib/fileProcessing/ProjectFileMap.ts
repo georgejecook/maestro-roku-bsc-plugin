@@ -4,7 +4,7 @@ import { getAlternateFileNames } from '../utils/Utils';
 import { File } from './File';
 import { FileType } from './FileType';
 
-import { addErrorDiagnostic } from '../utils/Feedback';
+import { addProjectFileMapErrorDuplicateXMLComp } from '../utils/Diagnostics';
 
 export class ProjectFileMap {
   constructor() {
@@ -31,11 +31,11 @@ export class ProjectFileMap {
 
   public addXMLComponent(file: File) {
     if (file.fileType === FileType.Xml) {
-      if (!this.allXMLComponentFiles.has(file.componentName)) {
+      if (!this.allXMLComponentFiles.has(file.componentName) || file.fullPath === this.allXMLComponentFiles.get(file.componentName).fullPath) {
         this.allXMLComponentFiles.set(file.componentName, file);
       } else {
         const duplicateFile = this.allXMLComponentFiles.get(file.componentName);
-        addErrorDiagnostic(file, 9008, `Found duplicate named xml component ${file.componentName}. The name is already used by ${duplicateFile.fullPath}`);
+        addProjectFileMapErrorDuplicateXMLComp(file, duplicateFile.fullPath);
       }
     }
   }
