@@ -1,4 +1,4 @@
-import { XmlFile } from 'brighterscript';
+import { BsConfig, BrsFile, ParseMode, XmlFile } from 'brighterscript';
 import * as path from 'path';
 
 import { File } from '../fileProcessing/File';
@@ -15,11 +15,11 @@ export default class ReflectionUtil {
   }
 
   private fileMap: ProjectFileMap;
-  private config: ProcessorConfig;
 
   public getClassMapFunction(namespace: string): string {
     let text = `
     function ${namespace}_getClass(name)
+    name = name.replace(".", "_")
     `;
     this.fileMap.classNames.length;
 
@@ -55,10 +55,10 @@ export default class ReflectionUtil {
     return text;
   }
 
-  public createUtilFile() {
+  public createUtilFile(bsConfig: BsConfig) {
     // todo probs the wrong path
     const filePath = path.join(
-      this.config.bsConfig.stagingFolderPath,
+      bsConfig.stagingFolderPath,
       'source',
       'MRuntime.brs'
     );
@@ -73,5 +73,12 @@ export default class ReflectionUtil {
 
     file.setFileContents(text);
     file.saveFileContents();
+  }
+
+  addFile(file: BrsFile) {
+    for(let cs of file.parser.references.classStatements) {
+      console.log(cs.getName(ParseMode.BrightScript));
+      this.fileMap.addClassName(cs.getName(ParseMode.BrightScript));
+    }
   }
 }

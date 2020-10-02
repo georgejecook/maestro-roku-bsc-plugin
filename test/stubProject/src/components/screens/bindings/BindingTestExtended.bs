@@ -1,3 +1,4 @@
+import "pkg:/source/bindings/BindingTestVM_namespaced.bs"
 import "pkg:/source/bindings/BindingTestVM.bs"
 
 function Init() as void

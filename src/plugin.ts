@@ -5,6 +5,7 @@ import {
   Program,
   ProgramBuilder,
   SourceObj,
+  TranspileObj,
   Util,
   XmlFile,
 } from 'brighterscript';
@@ -17,17 +18,20 @@ import { File } from './lib/fileProcessing/File';
 import { FileType } from './lib/fileProcessing/FileType';
 import ImportProcessor from './lib/importSupport/ImportProcessor';
 import { getAssociatedFile } from './lib/utils/Utils';
+import ReflectionUtil from './lib/reflection-support/ReflectionUtil';
 
 let _builder: ProgramBuilder;
 let fileMap: ProjectFileMap;
 let bindingProcessor: BindingProcessor;
 let importProcessor: ImportProcessor;
+let reflectionUtil: ReflectionUtil;
 
 function beforeProgramCreate(builder: ProgramBuilder): void {
   if (!fileMap) {
     fileMap = new ProjectFileMap();
     bindingProcessor = new BindingProcessor(fileMap);
   }
+  reflectionUtil = new ReflectionUtil(fileMap);
   importProcessor = new ImportProcessor(builder.options);
   _builder = builder;
 }
@@ -39,7 +43,8 @@ const pluginInterface: CompilerPlugin = {
   beforePublish: beforePublish,
   beforeFileParse: beforeFileParse,
   afterFileParse: afterFileParse,
-  afterProgramValidate: afterProgramValidate
+  afterProgramValidate: afterProgramValidate,
+  afterProgramTranspile: afterProgramTranspile
 };
 
 export default pluginInterface;
@@ -65,13 +70,16 @@ function afterFileParse(file: (BrsFile | XmlFile)): void {
   console.log('afterFileParse', file.pathAbsolute);
   //add alternateFile, if we're xml
   if (file instanceof XmlFile) {
-    let associatedFile = getAssociatedFile(file, fileMap);
-    if (associatedFile) {
-      mFile.associatedFile = associatedFile;
-      associatedFile.associatedFile = mFile;
+    if (mFile) {
+      let associatedFile = getAssociatedFile(file, fileMap);
+      if (associatedFile) {
+        mFile.associatedFile = associatedFile;
+        associatedFile.associatedFile = mFile;
+      }
     }
   } else {
     importProcessor.processDynamicImports(file, _builder.program);
+    reflectionUtil.addFile(file);
   }
 }
 
@@ -96,4 +104,9 @@ function beforePublish(builder: ProgramBuilder, files: FileObj[]): void {
       bindingProcessor.generateCodeForXMLFile(compFile);
     }
   }
+}
+
+function afterProgramTranspile(program: Program, entries: TranspileObj[]) {
+  console.log(fileMap);
+  reflectionUtil.createUtilFile(program.options);
 }

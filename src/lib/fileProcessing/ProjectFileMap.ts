@@ -26,7 +26,7 @@ export class ProjectFileMap {
   }
 
   get classNames(): string[] {
-    return [...this.classNames.values()];
+    return [...this.allClassNames.values()];
   }
 
   public addXMLComponent(file: File) {
