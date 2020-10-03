@@ -4,8 +4,7 @@ import * as path from 'path';
 
 import { Position, Range } from 'vscode-languageserver';
 
-import { File } from '../fileProcessing/File';
-import { ProjectFileMap } from '../fileProcessing/ProjectFileMap';
+// import { ProjectFileMap } from '../fileProcessing/ProjectFileMap';
 
 export function spliceString(str: string, index: number, add?: string): string {
   // We cannot pass negative indexes directly to the 2nd slicing operation.
@@ -77,15 +76,15 @@ export function getAlternateFileNames(fileName: string): string[] {
   }
 }
 
-export function getAssociatedFile(file: XmlFile | BrsFile, fileMap: ProjectFileMap): File | undefined {
-  for (let filePath of getAlternateFileNames(file.pathAbsolute)) {
-    let mFile = fileMap.allFiles.get(filePath);
-    if (mFile) {
-      return mFile;
-    }
-  }
-  return undefined;
-}
+// export function getAssociatedFile(file: XmlFile | BrsFile, fileMap: ProjectFileMap): File | undefined {
+//   for (let filePath of getAlternateFileNames(file.pathAbsolute)) {
+//     let mFile = fileMap.allFiles.get(filePath);
+//     if (mFile) {
+//       return mFile;
+//     }
+//   }
+//   return undefined;
+// }
 
 export function createToken(kind: TokenKind, pos: Position, text?: string, literal?: BrsType): Token {
   return {

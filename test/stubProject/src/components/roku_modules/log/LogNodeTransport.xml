@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component
+	name="log_LogNodeTransport"
+	extends="ContentNode"
+>
+	<interface>
+		<!-- public fields/functions -->
+    <field id="_logOutput" type="stringarray" />
+    <field id="_logText" type="string" />
+    <field id="_jsonOutput" type="string" />
+    <field id="_rawItems" type="array" />
+    
+    <!-- pointer to mLog -->
+    <field id="mLog" type="node" />
+    
+    <field id="updateNow" type="boolean" onChange="updateLogOutput" alwaysNotify="true"/>    
+    <field id="maxItems" type="integer" value="500" />
+    
+    <function name="log" />
+	</interface>
+
+
+
+	<children>
+
+	</children>
+
+    <script type="text/brightscript" uri="pkg:/components/roku_modules/log/LogNodeTransport.brs" />
+    <script type="text/brightscript" uri="pkg:/source/roku_modules/log/bslib.brs" />
+</component>

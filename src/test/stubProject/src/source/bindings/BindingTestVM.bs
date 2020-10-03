@@ -1,3 +1,0 @@
-
-class BindingTestVM
-end class

@@ -1,0 +1,18 @@
+{
+  "rootDir": "src",
+  "files": [
+    "manifest",
+    "source/**/*.*",
+    "components/**/*.*"
+  ],
+  "autoImportComponentScript": true,
+  "createPackage": false,
+  "stagingFolderPath": "out",
+  "plugins": [
+    "/home/george/hope/open-source/rooibos/rooibos-roku-vsc-extension-plugin/dist/plugin.js"
+  ],
+  "rooibos": {
+    "isRecordingCodeCoverage": false,
+    "testsFilePattern": null
+  }
+}
