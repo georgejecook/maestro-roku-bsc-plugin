@@ -48,7 +48,6 @@ function beforeFileParse(source: SourceObj): void {
 
 function afterFileParse(file: (BrsFile | XmlFile)): void {
   if (isBrsFile(file)) {
-
     if (session.processFile(file)) {
       //
     } else {

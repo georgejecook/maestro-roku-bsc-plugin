@@ -204,37 +204,38 @@ export class CodeCoverageProcessor {
   }
 
   private addStatement(statement: Statement, lineNumber?: number) {
-    if (!lineNumber) {
-      lineNumber = statement.range.start.line - 1;
-    }
-    if (!this.visitableLines.has(lineNumber)) {
-      this.visitableLines.set(lineNumber, statement);
-    } else {
-      `line was already registered`);
-    }
+    // if (!lineNumber) {
+    //   lineNumber = statement.range.start.line - 1;
+    // }
+    // if (!this.visitableLines.has(lineNumber)) {
+    //   this.visitableLines.set(lineNumber, statement);
+    // } else {
+    //   `line was already registered`);
+    // }
   }
 
   private getVisitableLinesForExpression(expressions: Expression[]) {
     //TODOD - walk the expression
-    for (let expression of expressions) {
-      if (expression instanceof AALiteralExpression) {
-        this.getVisitableLinesForExpression(expression.elements.map((e) => null));
-      } else if (expression instanceof ArrayLiteralExpression) {
-        this.getVisitableLinesForExpression(expression.elements);
-      } else if (expression instanceof CallExpression) {
-        this.getVisitableLinesForExpression(expression.args);
-      } else if (expression instanceof BinaryExpression) {
-        this.getVisitableLinesForExpression([expression.left]);
-        this.getVisitableLinesForExpression([expression.right]);
-      } else if (expression instanceof FunctionExpression) {
-        this.getVisitableLinesForStatements(expression.body.statements);
-      } else if (expression instanceof LiteralExpression
-        || expression instanceof VariableExpression
-        || expression instanceof DottedGetExpression) {
-        'known non-visitable expression: ' + expression.constructor.name);
-      } else {
-        `unknown expression`);
-      }
-    }
+    //   for (let expression of expressions) {
+    //     if (expression instanceof AALiteralExpression) {
+    //       this.getVisitableLinesForExpression(expression.elements.map((e) => null));
+    //     } else if (expression instanceof ArrayLiteralExpression) {
+    //       this.getVisitableLinesForExpression(expression.elements);
+    //     } else if (expression instanceof CallExpression) {
+    //       this.getVisitableLinesForExpression(expression.args);
+    //     } else if (expression instanceof BinaryExpression) {
+    //       this.getVisitableLinesForExpression([expression.left]);
+    //       this.getVisitableLinesForExpression([expression.right]);
+    //     } else if (expression instanceof FunctionExpression) {
+    //       this.getVisitableLinesForStatements(expression.body.statements);
+    //     } else if (expression instanceof LiteralExpression
+    //       || expression instanceof VariableExpression
+    //       || expression instanceof DottedGetExpression) {
+    //       'known non-visitable expression: ' + expression.constructor.name);
+    //     } else {
+    //       `unknown expression`);
+    //     }
+    //   }
+    return [];
   }
 }

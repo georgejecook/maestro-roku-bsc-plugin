@@ -1,5 +1,20 @@
 
-import { BrsFile, ClassStatement, CommentStatement, createVisitor, FunctionStatement, isClassStatement, isCommentStatement, isFunctionStatement, NamespaceStatement, ParseMode, WalkMode, WalkOptions } from 'brighterscript';
+import {
+  BrsFile,
+  ClassMethodStatement,
+  ClassStatement,
+  CommentStatement,
+  createVisitor,
+  FunctionStatement,
+  isClassMethodStatement,
+  isClassStatement,
+  isCommentStatement,
+  isFunctionStatement,
+  NamespaceStatement,
+  ParseMode,
+  WalkMode,
+  WalkOptions
+} from 'brighterscript';
 
 import { TestGroup } from './TestGroup';
 
@@ -33,8 +48,8 @@ export class TestSuiteBuilder {
         for (let s of ns.body.statements) {
           if (isClassStatement(s)) {
             if (annotation) {
-              if (annotation.annotationType === AnnotationType.TEST_SUITE) {
-                suites.push(this.processClass(file, s as ClassStatement));
+              if (annotation.annotationType === AnnotationType.TestSuite) {
+                suites.push(this.processClass(annotation, s as ClassStatement));
               } else {
                 diagnosticWrongAnnotation(file, s, 'Expected a TestSuite annotation');
                 throw new Error('bad test suite');
@@ -42,7 +57,8 @@ export class TestSuiteBuilder {
             }
             annotation = null; //clear out old annotation
           } else if (isCommentStatement(s)) {
-            annotation = Annotation.withStatement(s as CommentStatement);
+            let { blockAnnotation } = Annotation.parseCommentStatement(file, s as CommentStatement);
+            annotation = blockAnnotation;
           }
         }
       }
@@ -53,24 +69,24 @@ export class TestSuiteBuilder {
     return suites;
   }
 
-  public processClass(file: BrsFile, classStatement: ClassStatement): TestSuite {
-    this.testSuite = new TestSuite(file);
+  public processClass(annotation: Annotation, classStatement: ClassStatement): TestSuite {
+    this.testSuite = new TestSuite(annotation);
     this.currentGroup = null;
     this.annotation = null;
 
     for (let s of classStatement.body) {
-      if (isFunctionStatement(s)) {
-        this.processFunction(s);
+      if (isClassMethodStatement(s)) {
+        this.processClassMethod(s);
         this.annotation = null;
       } else if (isCommentStatement(s)) {
-        this.annotation = Annotation.withStatement(s as CommentStatement);
-        if (this.annotation.annotationType === AnnotationType.GROUP) {
+        let { blockAnnotation, testAnnotation } = Annotation.parseCommentStatement(this.file, s as CommentStatement);
+        if (blockAnnotation) {
           if (this.currentGroup) {
             this.testSuite.addGroup(this.currentGroup);
           }
-          this.currentGroup = new TestGroup(this.testSuite, this.annotation);
-          this.annotation = null;
+          this.currentGroup = new TestGroup(this.testSuite, blockAnnotation);
         }
+        this.annotation = testAnnotation;
       }
     }
 
@@ -80,59 +96,63 @@ export class TestSuiteBuilder {
     return this.testSuite;
   }
 
-  public processFunction(statement: FunctionStatement) {
+  public processClassMethod(statement: ClassMethodStatement) {
+    let block = this.currentGroup ?? this.testSuite;
+
     if (this.annotation) {
       switch (this.annotation.annotationType) {
-        case AnnotationType.TEST:
+        case AnnotationType.Test:
           if (!this.currentGroup) {
             diagnosticNoGroup(this.file, statement);
           } else {
             this.createTestCases(statement, this.annotation);
           }
-        case AnnotationType.SETUP:
-          if (this.currentGroup) {
-            this.annotation.setupFunctionName = statement.name.text;
-          } else {
-            this.testSuite.setupFunctionName = statement.name.text;
-          }
+          break;
+        case AnnotationType.Setup:
+          block.setupFunctionName = statement.name.text;
           if (statement.func.parameters.length > 0) {
             diagnosticWrongParameterCount(this.file, statement, 0);
           }
-        case AnnotationType.TEAR_DOWN:
-          if (this.currentGroup) {
-            this.annotation.tearDownFunctionName = statement.name.text;
-          } else {
-            this.testSuite.tearDownFunctionName = statement.name.text;
-          }
+        case AnnotationType.TearDown:
+          block.tearDownFunctionName = statement.name.text;
           if (statement.func.parameters.length > 0) {
             diagnosticWrongParameterCount(this.file, statement, 0);
           }
-        case AnnotationType.BEFORE_EACH:
-          if (this.currentGroup) {
-            this.annotation.beforeEachFunctionName = statement.name.text;
-          } else {
-            this.testSuite.beforeEachFunctionName = statement.name.text;
-          }
+          break;
+        case AnnotationType.BeforeEach:
+          block.beforeEachFunctionName = statement.name.text;
           if (statement.func.parameters.length > 0) {
             diagnosticWrongParameterCount(this.file, statement, 0);
           }
-        case AnnotationType.AFTER_EACH:
-          if (this.currentGroup) {
-            this.annotation.afterEachFunctionName = statement.name.text;
-          } else {
-            this.testSuite.afterEachFunctionName = statement.name.text;
-          }
+          break;
+        case AnnotationType.AfterEach:
+          block.afterEachFunctionName = statement.name.text;
           if (statement.func.parameters.length > 0) {
             diagnosticWrongParameterCount(this.file, statement, 0);
           }
+          break;
       }
     }
   }
 
-  public createTestCases(statement: FunctionStatement, annotation: Annotation) {
-    //it is possible that a test case has multiple params
-    //TODO - van't remember what these look like
-    // let testCase = new TestCase()
+  public createTestCases(statement: ClassMethodStatement, annotation: Annotation) {
+    let testCases = this.currentGroup.testCases;
+    const lineNumber = statement.func.range.start.line;
+    const numberOfArgs = statement.func.parameters.length;
+    if (annotation.params.length > 0) {
+      let index = 0;
+      for (const param of annotation.params) {
+        testCases.push(
+          new TestCase(param.text, statement.name.text, param.isSolo, param.isIgnore, lineNumber, param.params, index, param.lineNumber, numberOfArgs)
+        );
+        index++;
+      }
+
+    } else {
+      testCases.push(
+        new TestCase(annotation.name, statement.name.text, annotation.isSolo, annotation.isIgnore, lineNumber)
+      );
+    }
   }
 
 }

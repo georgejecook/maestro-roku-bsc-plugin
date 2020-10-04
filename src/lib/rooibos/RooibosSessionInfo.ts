@@ -15,17 +15,21 @@ export class SessionInfo {
   public hasSoloGroups: boolean = false;
   public hasSoloTests: boolean = false;
 
-  public updateTestSuite(file: BrsFile, testSuite: TestSuite | null) {
-    if (testSuite?.isValid) {
-      this.testSuites.set(testSuite.name, testSuite);
-      if (testSuite.isSolo) {
-        this.hasSoloSuites = true;
-      }
-      if (testSuite.hasSoloTests) {
-        this.hasSoloTests = true;
-      }
-      if (testSuite.hasSoloGroups) {
-        this.hasSoloGroups = true;
+  public updateTestSuites(testSuites: TestSuite[]) {
+    //we can assume at this point that all suites coming in belong to same file
+    //incase that is useful in future
+    for (let testSuite of testSuites) {
+      if (testSuite.isValid) {
+        this.testSuites.set(testSuite.name, testSuite);
+        if (testSuite.isSolo) {
+          this.hasSoloSuites = true;
+        }
+        if (testSuite.hasSoloTests) {
+          this.hasSoloTests = true;
+        }
+        if (testSuite.hasSoloGroups) {
+          this.hasSoloGroups = true;
+        }
       }
     }
   }
@@ -85,22 +89,21 @@ export class SessionInfo {
 
         //'GROUP  ' + testGroup.name);
         if (testGroup.isIgnored) {
-          this.ignoredCount += testGroup.testCases.;
-          this.ignoredTestNames.push('  |-' + testGroup.name + ' [WHOLE GROUP]');
+          this.ignoredCount += testGroup.ignoredTestCases.length;
+          this.ignoredTestNames.push(testGroup.name + ' [WHOLE GROUP]');
         } else {
-          let ignoredTests = testGroup.getIgnoredTests();
-          if (testGroup.ignoredTests.length > 0) {
-            this.ignoredTestNames.push('  |-' + testGroup.name);
+          if (testGroup.ignoredTestCases.length > 0) {
+            this.ignoredTestNames.push(testGroup.name);
             this.ignoredCount += testGroup.ignoredTestCases.length;
             testGroup.ignoredTestCases.forEach((ignoredTestCase) => {
               if (!ignoredTestCase.isParamTest) {
-                this.ignoredTestNames.push('  | |--' + ignoredTestCase.name);
+                this.ignoredTestNames.push(ignoredTestCase.name);
               } else if (ignoredTestCase.paramTestIndex === 0) {
                 let testCaseName = ignoredTestCase.name;
                 if (testCaseName.length > 1 && testCaseName.substr(testCaseName.length - 1) === '0') {
                   testCaseName = testCaseName.substr(0, testCaseName.length - 1);
                 }
-                this.ignoredTestNames.push('  | |--' + testCaseName);
+                this.ignoredTestNames.push(testCaseName);
               }
             });
           }

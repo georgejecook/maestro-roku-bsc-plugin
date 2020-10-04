@@ -39,21 +39,10 @@ export class TestBlock {
   public hasSoloTests: boolean;
   public hasIgnoredTests: boolean;
 
-  public get setupFunctionName(): boolean {
-    return this.annotation.setupFunctionName;
-  }
-
-  public get tearDownFunctionName(): boolean {
-    return this.annotation.tearDownFunctionName;
-  }
-
-  public get beforeEachFunctionName(): boolean {
-    return this.annotation.beforeEachFunctionName;
-  }
-
-  public get afterEachFunctionName(): boolean {
-    return this.annotation.afterEachFunctionName;
-  }
+  public setupFunctionName: string;
+  public tearDownFunctionName: string;
+  public beforeEachFunctionName: string;
+  public afterEachFunctionName: string;
 
 }
 

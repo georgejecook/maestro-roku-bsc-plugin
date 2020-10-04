@@ -7,7 +7,7 @@ import { SessionInfo } from './RooibosSessionInfo';
 import { TestSuite } from './TestSuite';
 import { TestSuiteBuilder } from './TestSuiteBuilder';
 
-const pkg = require('../../../package.json');
+const pkg = require('../../package.json');
 
 export class RooibosSession {
   constructor(builder: ProgramBuilder) {
@@ -31,10 +31,10 @@ export class RooibosSession {
     this.sessionInfo.updateInfo();
   }
 
-  public processFile(file: BrsFile): TestSuite {
-    let testSuite = this._suiteBuilder.processFile(file);
-    this.sessionInfo.updateTestSuite(file, testSuite);
-    return testSuite;
+  public processFile(file: BrsFile): boolean {
+    let testSuites = this._suiteBuilder.processFile(file);
+    this.sessionInfo.updateTestSuites(testSuites);
+    return testSuites.length > 0;
   }
 
   public getRuntimeConfigText(): string {
