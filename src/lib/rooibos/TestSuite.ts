@@ -3,7 +3,7 @@ import { BrsFile, ClassStatement } from 'brighterscript';
 import { Annotation } from './Annotation';
 
 import { TestGroup } from './TestGroup';
-import { addOverriddenMethod, changeFunctionBody } from './Utils';
+import { addOverriddenMethod, changeFunctionBody, sanitizeBsJsonString } from './Utils';
 
 /**
  * base of test suites and blocks..
@@ -107,22 +107,22 @@ export class TestSuite extends TestBlock {
     let testGroups = this.testGroups.filter((testGroup) => testGroup.isIncluded)
       .map((testGroup) => testGroup.asText());
     return `{
-      name: "${this.name}"
+      name: ${sanitizeBsJsonString(this.name)}
+      isSolo: ${this.isSolo}
+      isIgnored: ${this.isIgnored}
       filePath: "${this.pkgPath}"
       valid: ${this.isValid}
       hasFailures: ${this.hasFailures}
       hasSoloTests: ${this.hasSoloTests}
       hasIgnoredTests: ${this.hasIgnoredTests}
       hasSoloGroups: ${this.hasSoloGroups}
-      isSolo: ${this.isSolo}
-      isIgnored: ${this.isIgnored}
-      testGroups: [${testGroups}]
       setupFunctionName: "${this.setupFunctionName || ''}"
       tearDownFunctionName: "${this.tearDownFunctionName || ''}"
-      isNodeTest: ${this.isNodeTest}
-      nodeName: "${this.nodeName || ''}"
       beforeEachFunctionName: "${this.beforeEachFunctionName || ''}"
       afterEachFunctionName: "${this.afterEachFunctionName || ''}"
+      isNodeTest: ${this.isNodeTest}
+      nodeName: "${this.nodeName || ''}"
+      testGroups: [${testGroups}]
     }`;
   }
 }

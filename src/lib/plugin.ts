@@ -81,6 +81,7 @@ function beforePublish(builder: ProgramBuilder, files: FileObj[]) {
   for (let testSuite of [...session.sessionInfo.testSuitesToRun.values()]) {
     testSuite.addDataFunctions();
   }
+  session.addTestRunnerMetadata();
 
 }
 

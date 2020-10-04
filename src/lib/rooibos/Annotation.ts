@@ -126,7 +126,7 @@ export class Annotation {
       let jsonText = rawParams.replace(paramsInvalidToNullRegex, '$1$2null');
       let jsonParams = getJsonFromString(jsonText);
       if (jsonParams) {
-        this.params.push(new AnnotationParams(jsonText.replace('"', '""'), comment.range.start.line, jsonParams, isIgnore, isSolo));
+        this.params.push(new AnnotationParams(jsonText, comment.range.start.line, jsonParams, isIgnore, isSolo));
       } else {
         // this.errors.push(`illegal params found at ${currentLocation}. Not adding test - params were : ${line}`);
       }

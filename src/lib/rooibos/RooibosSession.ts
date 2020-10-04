@@ -1,11 +1,12 @@
 import * as path from 'path';
 
-import { BrsFile, ProgramBuilder } from 'brighterscript';
+import { BrsFile, ClassStatement, NamespaceStatement, ProgramBuilder, ParseMode } from 'brighterscript';
 
 import { RooibosConfig } from './RooibosConfig';
 import { SessionInfo } from './RooibosSessionInfo';
 import { TestSuite } from './TestSuite';
 import { TestSuiteBuilder } from './TestSuiteBuilder';
+import { changeClassMethodBody } from './Utils';
 
 const pkg = require('../../package.json');
 
@@ -37,10 +38,20 @@ export class RooibosSession {
     return testSuites.length > 0;
   }
 
+  public addTestRunnerMetadata() {
+    let runtimeConfig = this._builder.program.getFileByPkgPath('source/rooibos/RuntimeConfig.bs') as BrsFile;
+    if (runtimeConfig) {
+      let classStatement = (runtimeConfig.ast.statements[0] as NamespaceStatement).body.statements[0] as ClassStatement;
+      //add
+      changeClassMethodBody(classStatement, 'getRuntimeConfig', this.getRuntimeConfigText());
+      changeClassMethodBody(classStatement, 'getVersionText', this.getVersionText());
+      changeClassMethodBody(classStatement, 'getTestSuiteClassWithName', this.getTestSuiteClassWithNameText());
+      changeClassMethodBody(classStatement, 'getGlobalScopeTestSuitesNames', this.getGlobalScopeTestSuitesNamesText());
+    }
+  }
+
   public getRuntimeConfigText(): string {
     return `
-
-    function RBSFM_getRuntimeConfig()
         return {
           "failFast": ${this._config.failFast}
           "logLevel": ${this._config.logLevel}
@@ -49,15 +60,36 @@ export class RooibosSession {
           "rooibosPreprocessorVersion": "${pkg.version}"
           "port": ${this._config.port || 'Invalid'}
           }
-    end function
     `;
   }
 
   public getVersionText(): string {
     return `
-    function RBSFM_getPreprocessorVersion()
         return "${pkg.version}"
-    end function
+    `;
+  }
+
+  public getTestSuiteClassWithNameText(): string {
+    let ifText = 'if ';
+    let blockText = this.sessionInfo.testSuitesToRun
+      .map((s) => {
+        let text = `${ifText} name = "${s.name}" then return ${s.classStatement.getName(ParseMode.BrightScript)},\n`;
+        ifText = 'else if';
+        return text;
+      });
+    return `
+    ${blockText}
+      end if
+    `;
+  }
+
+  public getGlobalScopeTestSuitesNamesText(): string {
+    return `
+        return [
+          ${this.sessionInfo.testSuitesToRun.filter((s) => !s.isNodeTest)
+        .map((s) => `"${s.classStatement.getName(ParseMode.BrightScript)}",\n`)
+      }
+        ]
     `;
   }
 

@@ -1,3 +1,5 @@
+import { sanitizeBsJsonString } from './Utils';
+
 export class TestCase {
   constructor(name: string, funcName: string, isSolo: boolean, isIgnored: boolean, lineNumber: number,
               params: any[] = null, paramTestIndex: number = 0, paramLineNumber: number = 0, expectedNumberOfParams: number = 0) {
@@ -15,9 +17,6 @@ export class TestCase {
     this.paramTestIndex = paramTestIndex;
     this.isParamTest = false;
 
-    if (params) {
-      this.name += this.paramTestIndex.toString().trim();
-    }
   }
 
   public isIncluded: boolean;
@@ -59,7 +58,7 @@ export class TestCase {
           funcName: "${this.funcName || ''}"
           isIgnored: ${this.isIgnored}
           isParamTest: ${this.isParamTest}
-          name: "${this.name || ''}"
+          name: ${sanitizeBsJsonString(this.name)}
           lineNumber: ${this.lineNumber}
           paramLineNumber: ${this.paramLineNumber}
           assertIndex: ${this.assertIndex}

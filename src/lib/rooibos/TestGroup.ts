@@ -2,6 +2,7 @@ import { Annotation } from './Annotation';
 import { getSessionInfo } from './RooibosSessionInfo';
 import { TestCase } from './TestCase';
 import { TestBlock, TestSuite } from './TestSuite';
+import { sanitizeBsJsonString } from './Utils';
 
 export class TestGroup extends TestBlock {
 
@@ -50,15 +51,15 @@ export class TestGroup extends TestBlock {
 
     return `
       {
-        testCases: [${testCaseText.join(',\n')}]
+        name: ${sanitizeBsJsonString(this.name)}
+        isSolo: ${this.isSolo}
+        isIgnored: ${this.isIgnored}
         filename: "${this.pkgPath}"
         setupFunctionName: "${this.setupFunctionName || ''}"
         tearDownFunctionName: "${this.tearDownFunctionName || ''}"
         beforeEachFunctionName: "${this.beforeEachFunctionName || ''}"
         afterEachFunctionName: "${this.afterEachFunctionName || ''}"
-        isSolo: ${this.isSolo}
-        isIgnored: ${this.isIgnored}
-        name: "${this.name || ''}"
+        testCases: [${testCaseText.join(',\n')}]
       }`;
   }
 

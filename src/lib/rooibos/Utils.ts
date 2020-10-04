@@ -1,4 +1,4 @@
-import { ClassMethodStatement, ClassStatement, FunctionStatement, isClassStatement, Lexer, ParseMode, Parser, Statement } from 'brighterscript';
+import { ClassMethodStatement, ClassStatement, FunctionStatement, isClassMethodStatement, isClassStatement, Lexer, ParseMode, Parser, Statement } from 'brighterscript';
 
 export function spliceString(str: string, index: number, count: number, add: string): string {
   // We cannot pass negative indexes directly to the 2nd slicing operation.
@@ -61,7 +61,7 @@ export function getFunctionBody(source: string): Statement[] {
   return funcStatement ? funcStatement.func.body.statements : [];
 }
 
-export function changeFunctionBody(statement: FunctionStatement, source: string) {
+export function changeFunctionBody(statement: FunctionStatement | ClassMethodStatement, source: string) {
   let statements = statement.func.body.statements;
   statements.splice(0, statements.length);
   let newStatements = getFunctionBody(source);
@@ -84,4 +84,17 @@ export function addOverriddenMethod(target: ClassStatement, name: string, source
     return true;
   }
   return false;
+}
+
+export function changeClassMethodBody(target: ClassStatement, name: string, source: string): boolean {
+  let method = target.methods.find((m) => m.name.text === name);
+  if (isClassMethodStatement(method)) {
+    changeFunctionBody(method, source);
+    return true;
+  }
+  return false;
+}
+
+export function sanitizeBsJsonString(text: string) {
+  return `"${text ? text.replace(/"/g, '\'') : ''}"`;
 }
