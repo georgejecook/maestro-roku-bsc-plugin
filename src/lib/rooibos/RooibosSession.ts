@@ -46,26 +46,30 @@ export class RooibosSession {
       changeClassMethodBody(classStatement, 'getRuntimeConfig', this.getRuntimeConfigText());
       changeClassMethodBody(classStatement, 'getVersionText', this.getVersionText());
       changeClassMethodBody(classStatement, 'getTestSuiteClassWithName', this.getTestSuiteClassWithNameText());
-      changeClassMethodBody(classStatement, 'getGlobalScopeTestSuitesNames', this.getGlobalScopeTestSuitesNamesText());
+      changeClassMethodBody(classStatement, 'getAllTestSuitesNames', this.getAllTestSuitesNamesText());
     }
   }
 
   public getRuntimeConfigText(): string {
     return `
-        return {
-          "failFast": ${this._config.failFast}
-          "logLevel": ${this._config.logLevel}
-          "showOnlyFailures": ${this._config.showFailuresOnly}
-          "printLcov": ${this._config.printLcov === true}
-          "rooibosPreprocessorVersion": "${pkg.version}"
-          "port": ${this._config.port || 'Invalid'}
-          }
+    function wrapper()
+    return {
+      "failFast": ${this._config.failFast}
+      "logLevel": ${this._config.logLevel}
+      "showOnlyFailures": ${this._config.showFailuresOnly}
+      "printLcov": ${this._config.printLcov === true}
+      "rooibosPreprocessorVersion": "${pkg.version}"
+      "port": ${this._config.port || 'Invalid'}
+    }
+    end function
     `;
   }
 
   public getVersionText(): string {
     return `
-        return "${pkg.version}"
+    function wrapper()
+    return "${pkg.version}"
+    end function
     `;
   }
 
@@ -73,23 +77,27 @@ export class RooibosSession {
     let ifText = 'if ';
     let blockText = this.sessionInfo.testSuitesToRun
       .map((s) => {
-        let text = `${ifText} name = "${s.name}" then return ${s.classStatement.getName(ParseMode.BrightScript)},\n`;
+        let text = `${ifText} name = "${s.name}" \nreturn ${s.classStatement.getName(ParseMode.BrightScript)}`;
         ifText = 'else if';
         return text;
-      });
+      }).join('\n');
     return `
+    function wrapper()
     ${blockText}
-      end if
+    end if
+    end function
     `;
   }
 
-  public getGlobalScopeTestSuitesNamesText(): string {
+  public getAllTestSuitesNamesText(): string {
     return `
-        return [
-          ${this.sessionInfo.testSuitesToRun.filter((s) => !s.isNodeTest)
-        .map((s) => `"${s.classStatement.getName(ParseMode.BrightScript)}",\n`)
+    function wrapper()
+    return [
+      ${this.sessionInfo.testSuitesToRun.filter((s) => !s.isNodeTest)
+        .map((s) => `"${s.classStatement.getName(ParseMode.BrightScript)}"`).join('\n')
       }
-        ]
+    ]
+    end function
     `;
   }
 
