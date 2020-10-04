@@ -2,7 +2,7 @@
 namespace Tests
 
   '@TestSuite ET ExpectTests
-  class ExpectTests extends BaseTestSuite
+  class ExpectTests extends Rooibos.BaseTestSuite
 
     '+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     '@It tests bug with expectOnce not matching values

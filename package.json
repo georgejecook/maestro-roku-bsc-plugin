@@ -13,6 +13,7 @@
     "brighterscript": "file:/home/george/hope/open-source/vsc/brighterscript"
   },
   "devDependencies": {
+    "fs-extra": "^9.0.1",
     "typescript": "^4.0.3"
   },
   "scripts": {

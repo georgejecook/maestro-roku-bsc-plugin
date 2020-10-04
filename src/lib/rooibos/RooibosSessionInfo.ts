@@ -8,9 +8,10 @@ export class SessionInfo {
   }
 
   public ignoredCount: number = 0;
-  public ignoredTestNames: string[];
+  public ignoredTestNames: string[] = [];
   public testSuites: Map<string, TestSuite> = new Map();
-  public testSuitesToRun: TestSuite[];
+  public testSuitesByPath: Map<string, TestSuite[]> = new Map();
+  public testSuitesToRun: TestSuite[] = [];
   public hasSoloSuites: boolean = false;
   public hasSoloGroups: boolean = false;
   public hasSoloTests: boolean = false;
@@ -21,6 +22,8 @@ export class SessionInfo {
     for (let testSuite of testSuites) {
       if (testSuite.isValid) {
         this.testSuites.set(testSuite.name, testSuite);
+
+        this.addTestSuiteToPath(testSuite);
         if (testSuite.isSolo) {
           this.hasSoloSuites = true;
         }
@@ -32,6 +35,13 @@ export class SessionInfo {
         }
       }
     }
+  }
+
+  private addTestSuiteToPath(testSuite: TestSuite) {
+    let suites = this.testSuitesByPath.get(testSuite.file.pkgPath) || [];
+    //TODO - I think we could end up with duplicate suites in this case..
+    suites.push(testSuite);
+    this.testSuitesByPath.set(testSuite.file.pkgPath, suites);
   }
 
   public createIgnoredTestsInfoFunction(): string {
@@ -127,6 +137,7 @@ export class SessionInfo {
         }
       });
     }
+    this.testSuitesToRun = [...this.testSuites.values()].filter((s) => s.isIncluded);
   }
 
   public asJson(): object[] {

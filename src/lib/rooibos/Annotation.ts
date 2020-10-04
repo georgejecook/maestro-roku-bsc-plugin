@@ -126,7 +126,7 @@ export class Annotation {
       let jsonText = rawParams.replace(paramsInvalidToNullRegex, '$1$2null');
       let jsonParams = getJsonFromString(jsonText);
       if (jsonParams) {
-        this.params.push(new AnnotationParams(text, comment.range.start.line, jsonParams, isIgnore, isSolo));
+        this.params.push(new AnnotationParams(jsonText.replace('"', '""'), comment.range.start.line, jsonParams, isIgnore, isSolo));
       } else {
         // this.errors.push(`illegal params found at ${currentLocation}. Not adding test - params were : ${line}`);
       }
@@ -155,26 +155,9 @@ function getAnnotationText(text: string, annotationType: AnnotationType): string
   return matches && matches.length === 2 ? matches[1] : '';
 }
 
-function addParamsForLine(line: string, tag: AnnotationType, lineNumber: number, targetParamLinesArray: number[], targetParamsArray: object[], currentLocation: string) {
-  let rawParams = this.getTagText(line, tag);
-  try {
-    let jsonText = rawParams.replace(this.paramsInvalidToNullRegex, '$1$2null');
-    let jsonParams = getJsonFromString(jsonText);
-    if (jsonParams) {
-      targetParamsArray.push(jsonParams);
-      targetParamLinesArray.push(lineNumber);
-    } else {
-      this.errors.push(`illegal params found at ${currentLocation}. Not adding test - params were : ${line}`);
-    }
-  } catch (e) {
-    this.errors.push(`illegal params found at ${currentLocation}. Not adding test - params were : ${line}`);
-  }
-}
-
 function getJsonFromString(text) {
   let value = null;
   // tslint:disable-next-line:no-eval
   eval('value = ' + text);
   return value;
 }
-

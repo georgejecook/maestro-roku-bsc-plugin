@@ -1,8 +1,9 @@
-import { BrsFile } from 'brighterscript';
+import { BrsFile, ClassStatement } from 'brighterscript';
 
 import { Annotation } from './Annotation';
 
 import { TestGroup } from './TestGroup';
+import { addOverriddenMethod, changeFunctionBody } from './Utils';
 
 /**
  * base of test suites and blocks..
@@ -47,13 +48,15 @@ export class TestBlock {
 }
 
 export class TestSuite extends TestBlock {
-  constructor(annotation: Annotation) {
+  constructor(annotation: Annotation, classStatement: ClassStatement) {
     super(annotation);
+    this.classStatement = classStatement;
   }
 
   //state
+  public classStatement: ClassStatement;
   public testGroups: TestGroup[] = [];
-  public nodeTestFileName: string;
+  public nodeName: string;
   public hasSoloGroups: boolean;
   public isNodeTest: boolean;
 
@@ -62,6 +65,20 @@ export class TestSuite extends TestBlock {
     this.hasIgnoredTests = group.ignoredTestCases.length > 0;
     this.hasSoloTests = group.hasSoloTests;
     this.isValid = true;
+  }
+
+  public addDataFunctions() {
+    //add the data body to the test subclass
+    addOverriddenMethod(this.classStatement, 'getTestSuiteData', `return ${this.asText()}`);
+
+    if (this.isNodeTest) {
+      let nodeFile = this.file.program.getComponent(this.nodeName);
+      if (nodeFile) {
+        console.log(nodeFile.file.scriptTagImports);
+      } else {
+        //ERROR HERE
+      }
+    }
   }
 
   public asJson(): object {
@@ -80,7 +97,7 @@ export class TestSuite extends TestBlock {
       setupFunctionName: this.setupFunctionName,
       tearDownFunctionName: this.tearDownFunctionName,
       isNodeTest: this.isNodeTest,
-      nodeTestFileName: this.nodeTestFileName,
+      nodeName: this.nodeName,
       beforeEachFunctionName: this.beforeEachFunctionName,
       afterEachFunctionName: this.afterEachFunctionName,
     };
@@ -103,7 +120,7 @@ export class TestSuite extends TestBlock {
       setupFunctionName: "${this.setupFunctionName || ''}"
       tearDownFunctionName: "${this.tearDownFunctionName || ''}"
       isNodeTest: ${this.isNodeTest}
-      nodeTestFileName: "${this.nodeTestFileName || ''}"
+      nodeName: "${this.nodeName || ''}"
       beforeEachFunctionName: "${this.beforeEachFunctionName || ''}"
       afterEachFunctionName: "${this.afterEachFunctionName || ''}"
     }`;

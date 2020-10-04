@@ -70,7 +70,7 @@ export class TestSuiteBuilder {
   }
 
   public processClass(annotation: Annotation, classStatement: ClassStatement): TestSuite {
-    this.testSuite = new TestSuite(annotation);
+    this.testSuite = new TestSuite(annotation, classStatement);
     this.currentGroup = null;
     this.annotation = null;
 

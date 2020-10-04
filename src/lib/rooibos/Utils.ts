@@ -1,3 +1,5 @@
+import { ClassMethodStatement, ClassStatement, FunctionStatement, isClassStatement, Lexer, ParseMode, Parser, Statement } from 'brighterscript';
+
 export function spliceString(str: string, index: number, count: number, add: string): string {
   // We cannot pass negative indexes directly to the 2nd slicing operation.
   if (index < 0) {
@@ -43,4 +45,43 @@ export function pad(pad: string, str: string, padLeft: number): string {
   } else {
     return (str + pad).substring(0, pad.length);
   }
+}
+
+export function makeASTFunction(source: string): FunctionStatement | undefined {
+  let tokens = Lexer.scan(source).tokens;
+  let { statements, diagnostics } = Parser.parse(tokens, { mode: ParseMode.BrighterScript });
+  if (statements && statements.length > 0) {
+    return statements[0] as FunctionStatement;
+  }
+  return undefined;
+}
+
+export function getFunctionBody(source: string): Statement[] {
+  let funcStatement = makeASTFunction(source);
+  return funcStatement ? funcStatement.func.body.statements : [];
+}
+
+export function changeFunctionBody(statement: FunctionStatement, source: string) {
+  let statements = statement.func.body.statements;
+  statements.splice(0, statements.length);
+  let newStatements = getFunctionBody(source);
+  for (let newStatement of newStatements) {
+    statements.push(newStatement);
+  }
+}
+
+export function addOverriddenMethod(target: ClassStatement, name: string, source: string): boolean {
+  let statement = makeASTFunction(`
+  class wrapper
+  override function ${name}()
+    ${source}
+  end function
+  end class
+  `);
+  if (isClassStatement(statement)) {
+    let classStatement = statement as ClassStatement;
+    target.body.push(classStatement.methods[0]);
+    return true;
+  }
+  return false;
 }

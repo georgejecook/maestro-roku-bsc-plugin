@@ -1,7 +1,7 @@
 namespace Tests
 
   '@TestSuite Basic tests
-  class BasicTests extends BaseTestSuite
+  class BasicTests extends Rooibos.BaseTestSuite
 
     '+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     '@It tests the node context is available for a Node scope function

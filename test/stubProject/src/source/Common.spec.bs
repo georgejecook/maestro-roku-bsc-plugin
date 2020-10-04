@@ -1,7 +1,7 @@
 namespace Tests
 
   '@TestSuite RCMT Common tests
-  class Common extends BaseTestSuite
+  class Common extends Rooibos.BaseTestSuite
     '+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     '@It tests EqArray
     '+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -21,7 +21,7 @@ namespace Tests
     '@Params[[3, 2, 1], [1, 2, 3], false]
     function eqArray_Pass(values, values2, expected) as void
 
-      result = Common.eqArray(values, values2)
+      result = Rooibos.Common.eqArray(values, values2)
       m.assertEqual(result, expected)
 
     end function

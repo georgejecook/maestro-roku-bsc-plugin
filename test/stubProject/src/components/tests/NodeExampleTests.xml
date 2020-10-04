@@ -3,8 +3,6 @@
     name='NodeExampleTests'
     extends='NodeExample'>
   <interface>
-    <!-- public fields/functions -->
-    <function name='Rooibos_RunNodeTests' />
   </interface>
 
 </component>
