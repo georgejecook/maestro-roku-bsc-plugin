@@ -1,9 +1,10 @@
-import { Position, Range, BrsFile, Token, TokenKind, XmlFile, isClassMethodStatement, isClassStatement, ClassStatement, FunctionStatement, ClassMethodStatement, Statement, Parser, Lexer, ParseMode } from 'brighterscript';
+import { Position, Range, BrsFile, Token, TokenKind, XmlFile, isClassMethodStatement, isClassStatement, ClassStatement, FunctionStatement, ClassMethodStatement, Statement, Parser, Lexer, ParseMode, Expression, ElseIf, Block, createToken, VariableExpression, createIdentifier, createStringLiteral, BinaryExpression } from 'brighterscript';
 import { BrsType } from 'brighterscript/dist/brsTypes';
 import * as path from 'path';
 
 import { File } from '../fileProcessing/File';
 import { ProjectFileMap } from '../fileProcessing/ProjectFileMap';
+import { RawCodeStatement } from './RawCodeStatement';
 
 export function spliceString(str: string, index: number, add?: string): string {
   // We cannot pass negative indexes directly to the 2nd slicing operation.
@@ -69,7 +70,7 @@ export function getAlternateFileNames(fileName: string): string[] {
     fileName.toLowerCase().endsWith('.xml')
   ) {
     return [fileName.substring(0, fileName.length - 4) + '.brs',
-      fileName.substring(0, fileName.length - 4) + '.bs'];
+    fileName.substring(0, fileName.length - 4) + '.bs'];
   } else {
     return [];
   }
@@ -142,3 +143,39 @@ export function sanitizeBsJsonString(text: string) {
   return `"${text ? text.replace(/"/g, '\'') : ''}"`;
 }
 
+export function createElseIf(condition: Expression, statements: Statement[]): ElseIf {
+  let elseIfToken = createToken(TokenKind.ElseIf, Position.create(1, 1));
+  elseIfToken.text = 'else if';
+
+  return {
+    condition: condition,
+    thenBranch: new Block(statements, Range.create(1, 1, 1, 1)),
+    thenToken: createToken(TokenKind.Then, Position.create(1, 1)),
+    elseIfToken: elseIfToken
+  };
+}
+
+export function createVarExpression(varName: string, operator: TokenKind, value: string): BinaryExpression {
+  let variable = createIdentifier(varName, Position.create(1, 1));
+  let v = createStringLiteral(value, Position.create(1, 1));
+
+  let t = createToken(operator, Position.create(1, 1));
+  t.text = getTokenText(operator);
+  return new BinaryExpression(variable, t, v);
+}
+
+export function getTokenText(operator: TokenKind): string {
+  switch (operator) {
+    case TokenKind.Equal:
+      return '=';
+    case TokenKind.Plus:
+      return '+';
+    case TokenKind.Minus:
+      return '-';
+    case TokenKind.Less:
+      return '<';
+    case TokenKind.Greater:
+      return '>';
+  }
+  return '';
+}

@@ -1,5 +1,4 @@
 import { createRange, Parser, Position, Range } from 'brighterscript';
-import { RawCodeStatement } from './BindingProcessor';
 
 import { BindingProperties } from './BindingProperties';
 import { BindingType } from './BindingType';

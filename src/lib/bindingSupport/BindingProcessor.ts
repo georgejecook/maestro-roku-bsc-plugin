@@ -35,6 +35,7 @@ import Binding from './Binding';
 import { BindingType } from './BindingType';
 import { XMLTag } from './XMLTag';
 import { SourceNode } from 'source-map';
+import { RawCodeStatement } from '../utils/RawCodeStatement';
 
 export class BindingProcessor {
   constructor(fileMap: ProjectFileMap) {
@@ -268,14 +269,14 @@ export class BindingProcessor {
       ];
 
       if (nodeIds.length > 0) {
-        ifStatement.thenBranch.statements.push(new RawCodeStatement(file, Range.create(1, 1, 1, 99999), 'M_createNodeVars()'));
+        ifStatement.thenBranch.statements.push(new RawCodeStatement('M_createNodeVars()'));
       }
 
       for (let binding of bindings) {
-        ifStatement.thenBranch.statements.push(new RawCodeStatement(file, binding.getRange(), binding.getInitText()));
+        ifStatement.thenBranch.statements.push(new RawCodeStatement(binding.getInitText(), file, binding.getRange()));
 
       }
-      ifStatement.thenBranch.statements.push(new RawCodeStatement(file, Range.create(1, 1, 1, 99999), 'm.vm.onBindingsConfigured()'));
+      ifStatement.thenBranch.statements.push(new RawCodeStatement('m.vm.onBindingsConfigured()'));
     }
 
     return func;
@@ -293,11 +294,11 @@ export class BindingProcessor {
         ...new Set(bindings.filter((b) => !b.isTopBinding).map((b) => b.nodeId)),
       ];
       if (nodeIds.length > 0) {
-        ifStatement.thenBranch.statements.push(new RawCodeStatement(file, Range.create(1, 1, 1, 99999), 'M_createNodeVars()'));
+        ifStatement.thenBranch.statements.push(new RawCodeStatement('M_createNodeVars()'));
       }
 
       for (let binding of bindings) {
-        ifStatement.thenBranch.statements.push(new RawCodeStatement(file, binding.getRange(), binding.getStaticText()));
+        ifStatement.thenBranch.statements.push(new RawCodeStatement(binding.getStaticText(), file, binding.getRange(),));
 
       }
     }
@@ -325,27 +326,5 @@ export class BindingProcessor {
       }
 
     }
-  }
-}
-
-export class RawCodeStatement extends Statement {
-  constructor(
-    public sourceFile: BrsFile | XmlFile,
-    public range: Range = Range.create(1, 1, 1, 99999),
-    public source: string
-  ) {
-    super();
-  }
-
-  transpile(state: TranspileState) {
-    return [new SourceNode(
-      this.range.start.line + 1,
-      this.range.start.character,
-      this.sourceFile.pathAbsolute,
-      this.source
-    )];
-  }
-  walk(visitor: WalkVisitor, options: WalkOptions) {
-    //nothing to walk
   }
 }

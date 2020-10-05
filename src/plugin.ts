@@ -19,17 +19,21 @@ import { FileType } from './lib/fileProcessing/FileType';
 import ImportProcessor from './lib/importSupport/ImportProcessor';
 import { getAssociatedFile } from './lib/utils/Utils';
 import ReflectionUtil from './lib/reflection-support/ReflectionUtil';
+import { FileFactory } from './lib/utils/FileFactory';
 
 let _builder: ProgramBuilder;
 let fileMap: ProjectFileMap;
 let bindingProcessor: BindingProcessor;
 let importProcessor: ImportProcessor;
 let reflectionUtil: ReflectionUtil;
+let isFrameworkAdded = false;
+let fileFactory: FileFactory;
 
 // entry point
 const pluginInterface: CompilerPlugin = {
   name: 'maestroPlugin',
   beforeProgramCreate: beforeProgramCreate,
+  afterProgramCreate: afterProgramCreate,
   beforePublish: beforePublish,
   beforeFileParse: beforeFileParse,
   afterFileParse: afterFileParse,
@@ -43,10 +47,18 @@ function beforeProgramCreate(builder: ProgramBuilder): void {
   if (!fileMap) {
     fileMap = new ProjectFileMap();
     bindingProcessor = new BindingProcessor(fileMap);
+    fileFactory = new FileFactory(builder);
+    if (!isFrameworkAdded) {
+      fileFactory.preAddFrameworkFiles();
+      isFrameworkAdded = true;
+    }
   }
-  reflectionUtil = new ReflectionUtil(fileMap);
+  reflectionUtil = new ReflectionUtil(fileMap, builder);
   importProcessor = new ImportProcessor(builder.options);
   _builder = builder;
+}
+function afterProgramCreate(program: Program): void {
+  fileFactory.addFrameworkFiles(program);
 }
 
 function beforeFileParse(source: SourceObj): void {
@@ -103,9 +115,9 @@ function beforePublish(builder: ProgramBuilder, files: FileObj[]): void {
       bindingProcessor.generateCodeForXMLFile(compFile);
     }
   }
+  reflectionUtil.updateRuntimeFile();
 }
 
 function afterProgramTranspile(program: Program, entries: TranspileObj[]) {
   console.log(fileMap);
-  reflectionUtil.createUtilFile(program.options);
 }
