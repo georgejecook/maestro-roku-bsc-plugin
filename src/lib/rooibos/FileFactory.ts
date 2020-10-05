@@ -34,9 +34,6 @@ export class FileFactory {
   }
 
   public preAddFrameworkFiles(builder: ProgramBuilder) {
-    // for (let fileName of this.frameworkFileNames) {
-    //   builder.options.files.push(path.join(this.targetPath, `${fileName}.bs`));
-    // }
     for (let fileName of this.frameworkFileNames) {
       let sourcePath = path.resolve(path.join(this.sourcePath, `${fileName}.bs`));
       let destPath = path.join(this.targetPath, `${fileName}.bs`);

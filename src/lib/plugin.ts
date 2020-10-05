@@ -83,7 +83,6 @@ function beforePublish(builder: ProgramBuilder, files: FileObj[]) {
     testSuite.addDataFunctions();
   }
   session.addTestRunnerMetadata();
-
 }
 
 function afterProgramValidate(program: Program) {
