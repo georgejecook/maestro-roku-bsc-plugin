@@ -1,7 +1,4 @@
-import { BrsFile, ClassStatement, FunctionStatement, Statement, Token, XmlFile } from 'brighterscript';
-import { head } from 'lodash';
-
-import { DiagnosticSeverity, Range } from 'vscode-languageserver';
+import { BrsFile, ClassStatement, DiagnosticSeverity, FunctionStatement, Statement, Token, XmlFile, Range } from 'brighterscript';
 
 import { Annotation } from '../rooibos/Annotation';
 
@@ -135,7 +132,7 @@ export function diagnosticNodeTestRequiresNode(file: BrsFile, token: Token) {
   addDiagnosticForToken(
     file,
     2207,
-    `Node name must be declared for a node test`,
+    `Node name must be declared for a node test. This is the component that the generated test will extend.`,
     token
   );
 }
@@ -144,7 +141,7 @@ export function diagnosticNodeTestIllegalNode(file: BrsFile, token: Token, nodeN
   addDiagnosticForToken(
     file,
     2208,
-    `Node name ${nodeName}, is not found in this project. Node tests require that the given node exists in the project`,
+    `Component ${nodeName}, is not found in this project. Node tests generate a new component that extends the component you wish to test. Please make sure that component exists and compiles.`,
     token
   );
 }
@@ -169,8 +166,16 @@ export function diagnosticTestWithNameAlreadyDefined(annotation: Annotation) {
 export function diagnosticIncompatibleAnnotation(annotation: Annotation) {
   addDiagnosticForToken(
     annotation.file,
-    2210,
+    2211,
     `Was expecting a function, got a test annotation`,
     annotation.token
+  );
+}
+
+export function diagnosticErrorProcessingFile(file: BrsFile, message: string) {
+  addDiagnostic(
+    file,
+    2212,
+    `General error : ` + message
   );
 }

@@ -25,6 +25,7 @@ import { TestSuite } from './TestSuite';
 
 import {
   diagnosticDuplicateSuite,
+  diagnosticErrorProcessingFile,
   diagnosticGroupWithNameAlreadyDefined,
   diagnosticIncompatibleAnnotation,
   diagnosticNoGroup,
@@ -82,7 +83,8 @@ export class TestSuiteBuilder {
         walkMode: WalkMode.visitStatements
       });
     } catch (e) {
-
+      console.log(e);
+      diagnosticErrorProcessingFile(file, e.message);
     }
 
     return suites;

@@ -53,12 +53,17 @@ export class TestSuite extends TestBlock {
   constructor(annotation: Annotation, classStatement: ClassStatement) {
     super(annotation);
     this.classStatement = classStatement;
+    this.isNodeTest = annotation.nodeName && annotation.nodeName.trim() !== '';
+    this.nodeName = annotation.nodeName;
+    this.generatedNodeName = this.name.replace(/[^a-zA-Z0-9]/g, "_");
+
   }
 
   //state
   public classStatement: ClassStatement;
   public testGroups = new Map<string, TestGroup>();
   public nodeName: string;
+  public generatedNodeName: string;
   public hasSoloGroups: boolean;
   public isNodeTest: boolean;
 
@@ -72,17 +77,6 @@ export class TestSuite extends TestBlock {
   public addDataFunctions() {
     //add the data body to the test subclass
     addOverriddenMethod(this.classStatement, 'getTestSuiteData', `return ${this.asText()}`);
-
-    if (this.isNodeTest) {
-      let nodeFile = this.file.program.getComponent(this.nodeName);
-      if (nodeFile) {
-        console.log(nodeFile.file.scriptTagImports);
-        //TODO - add imports and function interface methods
-        //TODO - I think generate the node file..
-      } else {
-        //already handled by vaildation
-      }
-    }
   }
 
   public validate() {
@@ -136,6 +130,7 @@ export class TestSuite extends TestBlock {
       afterEachFunctionName: "${this.afterEachFunctionName || ''}"
       isNodeTest: ${this.isNodeTest}
       nodeName: "${this.nodeName || ''}"
+      generatedNodeName: "${this.generatedNodeName || ''}"
       testGroups: [${testGroups}]
     }`;
   }

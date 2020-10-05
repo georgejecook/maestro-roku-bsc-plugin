@@ -1,4 +1,4 @@
-import { ClassMethodStatement, ClassStatement, FunctionStatement, isClassMethodStatement, isClassStatement, Lexer, ParseMode, Parser, Statement } from 'brighterscript';
+import { BinaryExpression, Block, ClassMethodStatement, ClassStatement, createIdentifier, createStringLiteral, createToken, ElseIf, Expression, FunctionStatement, isClassMethodStatement, isClassStatement, Lexer, ParseMode, Parser, Position, Statement, TokenKind, Range } from 'brighterscript';
 
 export function spliceString(str: string, index: number, count: number, add: string): string {
   // We cannot pass negative indexes directly to the 2nd slicing operation.
@@ -61,10 +61,10 @@ export function getFunctionBody(source: string): Statement[] {
   return funcStatement ? funcStatement.func.body.statements : [];
 }
 
-export function changeFunctionBody(statement: FunctionStatement | ClassMethodStatement, source: string) {
+export function changeFunctionBody(statement: FunctionStatement | ClassMethodStatement, source: string | Statement[]) {
   let statements = statement.func.body.statements;
   statements.splice(0, statements.length);
-  let newStatements = getFunctionBody(source);
+  let newStatements = (typeof source === 'string') ? getFunctionBody(source) : source;
   for (let newStatement of newStatements) {
     statements.push(newStatement);
   }
@@ -86,7 +86,7 @@ export function addOverriddenMethod(target: ClassStatement, name: string, source
   return false;
 }
 
-export function changeClassMethodBody(target: ClassStatement, name: string, source: string): boolean {
+export function changeClassMethodBody(target: ClassStatement, name: string, source: string | Statement[]): boolean {
   let method = target.methods.find((m) => m.name.text === name);
   if (isClassMethodStatement(method)) {
     changeFunctionBody(method, source);
@@ -97,4 +97,41 @@ export function changeClassMethodBody(target: ClassStatement, name: string, sour
 
 export function sanitizeBsJsonString(text: string) {
   return `"${text ? text.replace(/"/g, '\'') : ''}"`;
+}
+
+export function createElseIf(condition: Expression, statements: Statement[]): ElseIf {
+  let elseIfToken = createToken(TokenKind.ElseIf, Position.create(1, 1));
+  elseIfToken.text = 'else if';
+
+  return {
+    condition: condition,
+    thenBranch: new Block(statements, Range.create(1, 1, 1, 1)),
+    thenToken: createToken(TokenKind.Then, Position.create(1, 1)),
+    elseIfToken: elseIfToken
+  };
+}
+
+export function createVarExpression(varName: string, operator: TokenKind, value: string): BinaryExpression {
+  let variable = createIdentifier(varName, Position.create(1, 1));
+  let v = createStringLiteral(value, Position.create(1, 1));
+
+  let t = createToken(operator, Position.create(1, 1));
+  t.text = getTokenText(operator);
+  return new BinaryExpression(variable, t, v);
+}
+
+export function getTokenText(operator: TokenKind): string {
+  switch (operator) {
+    case TokenKind.Equal:
+      return '=';
+    case TokenKind.Plus:
+      return '+';
+    case TokenKind.Minus:
+      return '-';
+    case TokenKind.Less:
+      return '<';
+    case TokenKind.Greater:
+      return '>';
+  }
+  return '';
 }

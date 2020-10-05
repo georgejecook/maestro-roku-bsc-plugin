@@ -67,7 +67,8 @@ export class Annotation {
     public name: string,
     public isIgnore: boolean = false,
     public isSolo: boolean = false,
-    public params: AnnotationParams[] = []
+    public params: AnnotationParams[] = [],
+    public nodeName?: string
   ) {
 
   }
@@ -79,6 +80,7 @@ export class Annotation {
     let testAnnotation: Annotation;
     let isSolo = false;
     let isIgnore = false;
+    let nodeName = null;
 
     for (let comment of statement.comments) {
       const text = comment.text;
@@ -91,6 +93,9 @@ export class Annotation {
         case AnnotationType.Solo:
           isSolo = true;
           break;
+        case AnnotationType.NodeTest:
+          nodeName = getAnnotationText(text, annotationType);
+          break;
         case AnnotationType.Ignore:
           isIgnore = true;
           break;
@@ -98,7 +103,8 @@ export class Annotation {
         case AnnotationType.Group:
         case AnnotationType.TestSuite:
           const groupName = getAnnotationText(text, annotationType);
-          blockAnnotation = new Annotation(file, comment, annotationType, text, groupName, isIgnore, isSolo);
+          blockAnnotation = new Annotation(file, comment, annotationType, text, groupName, isIgnore, isSolo,null, nodeName);
+          nodeName = null;
           isSolo = false;
           isIgnore = false;
           break;

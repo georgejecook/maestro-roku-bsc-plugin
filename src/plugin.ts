@@ -14,10 +14,12 @@ import {
 
 import { isBrsFile } from 'brighterscript/dist/astUtils';
 
-import { RooibosSession } from './rooibos/RooibosSession';
+import { RooibosSession } from './lib/rooibos/RooibosSession';
 
-import { CodeCoverageProcessor } from './rooibos/CodeCoverageProcessor';
-import { FileFactory } from './rooibos/FileFactory';
+import { CodeCoverageProcessor } from './lib/rooibos/CodeCoverageProcessor';
+import { FileFactory } from './lib/rooibos/FileFactory';
+
+const path = require('path');
 
 const pluginInterface: CompilerPlugin = {
   name: 'rooibosPlugin',
@@ -30,7 +32,8 @@ const pluginInterface: CompilerPlugin = {
   beforePublish: beforePublish,
   beforeFileTranspile: beforeFileTranspile,
   afterFileTranspile: afterFileTranspile,
-  beforeScopeValidate: beforeScopeValidate
+  beforeScopeValidate: beforeScopeValidate,
+  afterPublish: afterPublish
 };
 
 export default pluginInterface;
@@ -44,17 +47,15 @@ function beforeProgramCreate(builder: ProgramBuilder): void {
   if (!session) {
     session = new RooibosSession(builder);
     codeCoverageProcessor = new CodeCoverageProcessor(builder);
-    fileFactory.preAddFrameworkFiles(builder);
+    if (!isFrameworkAdded) {
+      fileFactory.preAddFrameworkFiles(builder);
+      isFrameworkAdded = true;
+    }
   }
 }
 
 function afterProgramCreate(program: Program) {
-  //TODO add rooibos.d file
-  if (!isFrameworkAdded) {
-    fileFactory.addFrameworkFiles(program);
-    // program.addOrReplaceFile('components/RooibosScene.xml', fileFactory.createTestSceneContents());
-    isFrameworkAdded = true;
-  }
+  fileFactory.addFrameworkFiles(program);
 }
 
 function afterScopeCreate(scope: Scope) {
@@ -104,3 +105,9 @@ function afterFileTranspile(entry: TranspileObj) {
 function beforeScopeValidate(scope: Scope, files: (BrsFile | XmlFile)[], callables: CallableContainerMap) {
   console.log('beforeScopeValidate');
 }
+
+function afterPublish(builder: ProgramBuilder, files: FileObj[]) {
+  //create node test files
+  session.createNodeFiles(path.resolve(builder.options.stagingFolderPath));
+}
+

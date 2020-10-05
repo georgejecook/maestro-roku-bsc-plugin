@@ -11,7 +11,7 @@
   "createPackage": false,
   "stagingFolderPath": "/tmp/out",
   "plugins": [
-    "/home/george/hope/open-source/rooibos/rooibos-roku-vsc-extension-plugin/dist/plugin.js"
+    "../../dist/plugin.js"
   ],
   "rooibos": {
     "isRecordingCodeCoverage": false,

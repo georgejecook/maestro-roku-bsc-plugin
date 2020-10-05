@@ -61,22 +61,22 @@ export class FileFactory {
     let sourcePath = path.resolve(path.join(this.sourcePath, `RooibosScene.xml`));
     let destPath = path.join(this.targetCompsPath, `RooibosScene.xml`);
     let entry = { src: sourcePath, dest: destPath };
-    program.addOrReplaceFile(entry, this.createTestSceneContents());
+    program.addOrReplaceFile(entry, this.createTestXML('TestsScene', 'Scene'));
   }
 
-  public createTestSceneContents(): string {
+  public createTestXML(name: string, baseName: string, imports: string[] = []): string {
     let scriptImports = [];
-    for (let fileName of this.frameworkFileNames) {
-      scriptImports.push(`<script type="text/brightscript" uri="${this.targetPath}${fileName}.brs" />`);
+    for (let fileName of this.frameworkFileNames.concat(imports)) {
+      scriptImports.push(`<script type="text/brightscript" uri="pkg:/${this.targetPath}${fileName}.brs" />`);
     }
 
     let contents = `<?xml version="1.0" encoding="UTF-8" ?>
   <component
-      name="TestsScene"
-      extends="Scene">
+      name="${name}"
+      extends="${baseName}">
 ${scriptImports.join('\n')}
     <interface>
-      <function name="Rooibos_CreateTestNode"/>
+      <field id="rooibosTestResult" type="assocarray"/>
     </interface>
     <children>
       <LayoutGroup>
