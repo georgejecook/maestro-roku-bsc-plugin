@@ -23,12 +23,22 @@ import { Annotation, AnnotationType } from './Annotation';
 import { TestCase } from './TestCase';
 import { TestSuite } from './TestSuite';
 
-import { diagnosticNoGroup, diagnosticWrongAnnotation, diagnosticWrongParameterCount } from '../utils/Diagnostics';
+import {
+  diagnosticDuplicateSuite,
+  diagnosticGroupWithNameAlreadyDefined,
+  diagnosticIncompatibleAnnotation,
+  diagnosticNoGroup,
+  diagnosticTestWithNameAlreadyDefined,
+  diagnosticWrongAnnotation,
+  diagnosticWrongParameterCount,
+  diagnosticWrongTestParameterCount
+} from '../utils/Diagnostics';
+import { RooibosSession } from './RooibosSession';
 
 const getJsonFromString = require('./getJsonFromString');
 
 export class TestSuiteBuilder {
-  constructor() {
+  constructor(public session: RooibosSession) {
   }
 
   //state
@@ -40,31 +50,40 @@ export class TestSuiteBuilder {
   public processFile(file: BrsFile): TestSuite[] {
     this.file = file;
     let suites = [];
-    file.ast.walk(createVisitor({
-      NamespaceStatement: (ns) => {
+    try {
 
-        //a test is comprised of a comment block; followed by a class
-        let annotation: Annotation;
-        for (let s of ns.body.statements) {
-          if (isClassStatement(s)) {
-            if (annotation) {
-              if (annotation.annotationType === AnnotationType.TestSuite) {
-                suites.push(this.processClass(annotation, s as ClassStatement));
-              } else {
-                diagnosticWrongAnnotation(file, s, 'Expected a TestSuite annotation');
-                throw new Error('bad test suite');
+      file.ast.walk(createVisitor({
+        NamespaceStatement: (ns) => {
+
+          //a test is comprised of a comment block; followed by a class
+          let annotation: Annotation;
+          for (let s of ns.body.statements) {
+            if (isClassStatement(s)) {
+              if (annotation) {
+                if (annotation.annotationType === AnnotationType.TestSuite) {
+                  if (!this.session.sessionInfo.testSuites.has(annotation.name)) {
+                    suites.push(this.processClass(annotation, s as ClassStatement));
+                  } else {
+                    diagnosticDuplicateSuite(file, s, annotation);
+                  }
+                } else {
+                  diagnosticWrongAnnotation(file, s, 'Expected a TestSuite annotation, got: ' + annotation.annotationType);
+                  throw new Error('bad test suite');
+                }
               }
+              annotation = null; //clear out old annotation
+            } else if (isCommentStatement(s)) {
+              let { blockAnnotation } = Annotation.parseCommentStatement(file, s as CommentStatement);
+              annotation = blockAnnotation;
             }
-            annotation = null; //clear out old annotation
-          } else if (isCommentStatement(s)) {
-            let { blockAnnotation } = Annotation.parseCommentStatement(file, s as CommentStatement);
-            annotation = blockAnnotation;
           }
         }
-      }
-    }), {
-      walkMode: WalkMode.visitStatements
-    });
+      }), {
+        walkMode: WalkMode.visitStatements
+      });
+    } catch (e) {
+
+    }
 
     return suites;
   }
@@ -81,12 +100,22 @@ export class TestSuiteBuilder {
       } else if (isCommentStatement(s)) {
         let { blockAnnotation, testAnnotation } = Annotation.parseCommentStatement(this.file, s as CommentStatement);
         if (blockAnnotation) {
+          if (this.annotation) {
+            diagnosticNoGroup(this.file, s);
+          }
           if (this.currentGroup) {
             this.testSuite.addGroup(this.currentGroup);
           }
-          this.currentGroup = new TestGroup(this.testSuite, blockAnnotation);
+          if (!this.addGroup(blockAnnotation)) {
+            break;
+          }
         }
-        this.annotation = testAnnotation;
+        if (this.isAllowedAnnotation(testAnnotation)) {
+          this.annotation = testAnnotation;
+        } else {
+          diagnosticIncompatibleAnnotation(this.annotation);
+        }
+
       }
     }
 
@@ -94,6 +123,29 @@ export class TestSuiteBuilder {
       this.testSuite.addGroup(this.currentGroup);
     }
     return this.testSuite;
+  }
+
+  public isAllowedAnnotation(annotation: Annotation): boolean {
+    switch (this.annotation ? this.annotation.annotationType : AnnotationType.None) {
+      case AnnotationType.None:
+        return true;
+        break;
+      case AnnotationType.TestSuite:
+      case AnnotationType.Setup:
+      case AnnotationType.TearDown:
+      case AnnotationType.BeforeEach:
+      case AnnotationType.AfterEach:
+        return false;
+    }
+  }
+  public addGroup(blockAnnotation: Annotation): boolean {
+    if (!this.testSuite.testGroups.has(blockAnnotation.name)) {
+      this.currentGroup = new TestGroup(this.testSuite, blockAnnotation);
+      return true;
+    } else {
+      diagnosticGroupWithNameAlreadyDefined(this.file, blockAnnotation);
+      return false;
+    }
   }
 
   public processClassMethod(statement: ClassMethodStatement) {
@@ -135,23 +187,37 @@ export class TestSuiteBuilder {
     }
   }
 
-  public createTestCases(statement: ClassMethodStatement, annotation: Annotation) {
-    let testCases = this.currentGroup.testCases;
+  public createTestCases(statement: ClassMethodStatement, annotation: Annotation): boolean {
     const lineNumber = statement.func.range.start.line;
     const numberOfArgs = statement.func.parameters.length;
-    if (annotation.params.length > 0) {
+    const numberOfParams = annotation.params.length;
+    if (this.currentGroup.testCases.has(annotation.name)) {
+      diagnosticTestWithNameAlreadyDefined(annotation);
+      return false;
+    }
+    if (numberOfParams > 0) {
       let index = 0;
       for (const param of annotation.params) {
-        testCases.push(
-          new TestCase(param.text, statement.name.text, param.isSolo, param.isIgnore, lineNumber, param.params, index, param.lineNumber, numberOfArgs)
-        );
+        if (param.params.length === numberOfArgs) {
+          this.currentGroup.addTestCase(
+            new TestCase(annotation.name, statement.name.text, param.isSolo, param.isIgnore, lineNumber, param.params, index, param.lineNumber, numberOfArgs)
+          );
+        } else {
+          diagnosticWrongTestParameterCount(this.file, param.token, param.params.length, numberOfArgs);
+        }
         index++;
       }
+      return true;
 
     } else {
-      testCases.push(
-        new TestCase(annotation.name, statement.name.text, annotation.isSolo, annotation.isIgnore, lineNumber)
-      );
+      if (numberOfParams === 0) {
+        this.currentGroup.addTestCase(
+          new TestCase(annotation.name, statement.name.text, annotation.isSolo, annotation.isIgnore, lineNumber)
+        );
+        return true;
+      } else {
+        diagnosticWrongParameterCount(this.file, statement, 0);
+      }
     }
   }
 

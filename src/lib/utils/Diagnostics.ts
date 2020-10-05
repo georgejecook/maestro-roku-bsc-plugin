@@ -1,7 +1,9 @@
-import { BrsFile, FunctionStatement, Statement, XmlFile } from 'brighterscript';
+import { BrsFile, ClassStatement, FunctionStatement, Statement, Token, XmlFile } from 'brighterscript';
 import { head } from 'lodash';
 
 import { DiagnosticSeverity, Range } from 'vscode-languageserver';
+
+import { Annotation } from '../rooibos/Annotation';
 
 function addDiagnostic(
   file: BrsFile,
@@ -27,6 +29,19 @@ function addDiagnosticForStatement(
   let line = statement.range.start.line;
   let col = statement.range.start.character;
   file.addDiagnostics([createDiagnostic(file, code, message, line, col, line, 999999, severity)]);
+}
+
+function addDiagnosticForToken(
+  file: BrsFile,
+  code: number,
+  message: string,
+  token: Token,
+  severity: DiagnosticSeverity = DiagnosticSeverity.Error,
+  endChar?: number
+) {
+  let line = token.range.start.line;
+  let col = token.range.start.character;
+  file.addDiagnostics([createDiagnostic(file, code, message, line, col, line, endChar || token.range.end.character, severity)]);
 }
 
 function createDiagnostic(
@@ -74,8 +89,88 @@ export function diagnosticNoGroup(file: BrsFile, statement: Statement) {
 export function diagnosticWrongParameterCount(file: BrsFile, statement: FunctionStatement, expectedParamCount = 0) {
   addDiagnosticForStatement(
     file,
-    2201,
+    2202,
     `Function ${statement.name} defined with wrong number of params: expected ${expectedParamCount}`,
     statement
+  );
+}
+
+export function diagnosticDuplicateSuite(file: BrsFile, statement: ClassStatement, annotation: Annotation) {
+  addDiagnosticForStatement(
+    file,
+    2203,
+    `Test suite already declared with name: ${annotation.name}. This test suite will be skipped.`,
+    statement
+  );
+}
+
+export function diagnosticTestAnnotationOutsideOfGroup(file: BrsFile, statement: ClassStatement, annotation: Annotation) {
+  addDiagnosticForStatement(
+    file,
+    2204,
+    `Found Group, when a test function was expected`,
+    statement
+  );
+}
+
+export function diagnosticIllegalParams(file: BrsFile, token: Token) {
+  addDiagnosticForToken(
+    file,
+    2205,
+    `Could not parse params for test.`,
+    token
+  );
+}
+
+export function diagnosticWrongTestParameterCount(file: BrsFile, token: Token, gotCount = 0, expectedParamCount = 0) {
+  addDiagnosticForToken(
+    file,
+    2206,
+    `Params for test do not match arg count on method. Got ${gotCount} expected ${expectedParamCount}`,
+    token
+  );
+}
+
+export function diagnosticNodeTestRequiresNode(file: BrsFile, token: Token) {
+  addDiagnosticForToken(
+    file,
+    2207,
+    `Node name must be declared for a node test`,
+    token
+  );
+}
+
+export function diagnosticNodeTestIllegalNode(file: BrsFile, token: Token, nodeName: string) {
+  addDiagnosticForToken(
+    file,
+    2208,
+    `Node name ${nodeName}, is not found in this project. Node tests require that the given node exists in the project`,
+    token
+  );
+}
+export function diagnosticGroupWithNameAlreadyDefined(file: BrsFile, annotation: Annotation) {
+  addDiagnosticForToken(
+    file,
+    2209,
+    `Test group with name ${annotation.name}, is already declared in this suite. Ignoring`,
+    annotation.token
+  );
+}
+
+export function diagnosticTestWithNameAlreadyDefined(annotation: Annotation) {
+  addDiagnosticForToken(
+    annotation.file,
+    2210,
+    `Test with name ${annotation.name}, is already declared in this group. Ignoring`,
+    annotation.token
+  );
+}
+
+export function diagnosticIncompatibleAnnotation(annotation: Annotation) {
+  addDiagnosticForToken(
+    annotation.file,
+    2210,
+    `Was expecting a function, got a test annotation`,
+    annotation.token
   );
 }

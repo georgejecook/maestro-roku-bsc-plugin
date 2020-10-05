@@ -26,6 +26,7 @@ const pluginInterface: CompilerPlugin = {
   afterScopeCreate: afterScopeCreate,
   beforeFileParse: beforeFileParse,
   afterFileParse: afterFileParse,
+  afterProgramValidate: afterProgramValidate,
   beforePublish: beforePublish,
   beforeFileTranspile: beforeFileTranspile,
   afterFileTranspile: afterFileTranspile,
@@ -83,6 +84,13 @@ function beforePublish(builder: ProgramBuilder, files: FileObj[]) {
   }
   session.addTestRunnerMetadata();
 
+}
+
+function afterProgramValidate(program: Program) {
+
+  for (let testSuite of [...session.sessionInfo.testSuites.values()]) {
+    testSuite.validate();
+  }
 }
 
 function beforeFileTranspile(entry: TranspileObj) {

@@ -1,10 +1,9 @@
 import * as path from 'path';
 
-import { BrsFile, ClassStatement, NamespaceStatement, ProgramBuilder, ParseMode } from 'brighterscript';
+import { BrsFile, ClassStatement, NamespaceStatement, ParseMode, ProgramBuilder } from 'brighterscript';
 
 import { RooibosConfig } from './RooibosConfig';
 import { SessionInfo } from './RooibosSessionInfo';
-import { TestSuite } from './TestSuite';
 import { TestSuiteBuilder } from './TestSuiteBuilder';
 import { changeClassMethodBody } from './Utils';
 
@@ -14,7 +13,7 @@ export class RooibosSession {
   constructor(builder: ProgramBuilder) {
     this._config = (builder.options as any).rooibos as RooibosConfig || {};
     this._builder = builder;
-    this._suiteBuilder = new TestSuiteBuilder();
+    this._suiteBuilder = new TestSuiteBuilder(this);
     this.reset();
   }
 

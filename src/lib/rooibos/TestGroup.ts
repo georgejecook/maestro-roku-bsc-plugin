@@ -16,12 +16,12 @@ export class TestGroup extends TestBlock {
   }
 
   public testSuite: TestSuite;
-  public testCases: TestCase[] = [];
+  public testCases = new Map<string, TestCase>();
   public ignoredTestCases: TestCase[] = [];
   public soloTestCases: TestCase[] = [];
 
   public addTestCase(testCase: TestCase) {
-    this.testCases.push(testCase);
+    this.testCases.set(testCase.name, testCase);
     const sessionInfo = getSessionInfo();
 
     if (testCase.isIgnored) {
@@ -30,7 +30,6 @@ export class TestGroup extends TestBlock {
       this.hasSoloTests = true;
       this.soloTestCases.push(testCase);
     }
-    this.testCases.push(testCase);
   }
 
   public asJson(): object {
@@ -47,7 +46,7 @@ export class TestGroup extends TestBlock {
   }
 
   public asText(): string {
-    let testCaseText = this.testCases.filter((tc) => tc.isIncluded).map((tc) => tc.asText());
+    let testCaseText = [...this.testCases.values()].filter((tc) => tc.isIncluded).map((tc) => tc.asText());
 
     return `
       {

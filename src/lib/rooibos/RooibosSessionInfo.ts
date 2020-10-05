@@ -117,23 +117,26 @@ export class SessionInfo {
               }
             });
           }
+          let testCases = [...testGroup.testCases.values()];
           if (this.hasSoloTests && !testGroup.hasSoloTests && !testGroup.isSolo) {
             testGroup.isIncluded = false;
-          } else if (testGroup.testCases.length === 0 && testGroup.soloTestCases.length === 0) {
+          } else if (testCases.length === 0 && testGroup.soloTestCases.length === 0) {
             testGroup.isIncluded = false;
           } else {
             testGroup.isIncluded = testSuite.isIncluded;
           }
-          testGroup.testCases.forEach((testCase) => {
+
+          for (let testCase of testCases) {
             if (this.hasSoloTests && !testCase.isSolo) {
               testCase.isIncluded = false;
             } else {
               testCase.isIncluded = testGroup.isIncluded || testCase.isSolo;
             }
-          });
-          testGroup.soloTestCases.forEach((testCase) => {
+          }
+
+          for (let testCase of testGroup.soloTestCases) {
             testCase.isIncluded = true;
-          });
+          };
         }
       });
     }

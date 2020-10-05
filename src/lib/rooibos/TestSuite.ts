@@ -1,5 +1,7 @@
 import { BrsFile, ClassStatement } from 'brighterscript';
 
+import { diagnosticIllegalParams, diagnosticNodeTestIllegalNode, diagnosticNodeTestRequiresNode } from '../utils/Diagnostics';
+
 import { Annotation } from './Annotation';
 
 import { TestGroup } from './TestGroup';
@@ -55,13 +57,13 @@ export class TestSuite extends TestBlock {
 
   //state
   public classStatement: ClassStatement;
-  public testGroups: TestGroup[] = [];
+  public testGroups = new Map<string, TestGroup>();
   public nodeName: string;
   public hasSoloGroups: boolean;
   public isNodeTest: boolean;
 
   public addGroup(group: TestGroup) {
-    this.testGroups.push(group);
+    this.testGroups.set(group.name, group);
     this.hasIgnoredTests = group.ignoredTestCases.length > 0;
     this.hasSoloTests = group.hasSoloTests;
     this.isValid = true;
@@ -75,8 +77,20 @@ export class TestSuite extends TestBlock {
       let nodeFile = this.file.program.getComponent(this.nodeName);
       if (nodeFile) {
         console.log(nodeFile.file.scriptTagImports);
+        //TODO - add imports and function interface methods
+        //TODO - I think generate the node file..
       } else {
-        //ERROR HERE
+        //already handled by vaildation
+      }
+    }
+  }
+
+  public validate() {
+    if (this.isNodeTest) {
+      if (!this.nodeName) {
+        diagnosticNodeTestRequiresNode(this.file, this.annotation.token);
+      } else if (!this.file.program.getComponent(this.nodeName)) {
+        diagnosticNodeTestIllegalNode(this.file, this.annotation.token, this.nodeName);
       }
     }
   }
@@ -92,7 +106,7 @@ export class TestSuite extends TestBlock {
       hasSoloGroups: this.hasSoloGroups,
       isSolo: this.isSolo,
       isIgnored: this.isIgnored,
-      testGroups: this.testGroups.filter((testGroup) => testGroup.isIncluded)
+      testGroups: [...this.testGroups.values()].filter((testGroup) => testGroup.isIncluded)
         .map((testGroup) => testGroup.asJson()),
       setupFunctionName: this.setupFunctionName,
       tearDownFunctionName: this.tearDownFunctionName,
@@ -104,7 +118,7 @@ export class TestSuite extends TestBlock {
   }
 
   public asText(): string {
-    let testGroups = this.testGroups.filter((testGroup) => testGroup.isIncluded)
+    let testGroups = [...this.testGroups.values()].filter((testGroup) => testGroup.isIncluded)
       .map((testGroup) => testGroup.asText());
     return `{
       name: ${sanitizeBsJsonString(this.name)}

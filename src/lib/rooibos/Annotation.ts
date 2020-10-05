@@ -1,4 +1,5 @@
 import { BrsFile, CommentStatement, Token } from 'brighterscript'
+import { diagnosticDuplicateSuite, diagnosticIllegalParams } from '../utils/Diagnostics';
 
 export enum AnnotationType {
   None,
@@ -43,6 +44,7 @@ interface ParsedComment {
 export class AnnotationParams {
 
   constructor(
+    public token: Token,
     public text: string,
     public lineNumber: number,
     public params: object[],
@@ -59,6 +61,7 @@ export class Annotation {
    */
   constructor(
     public file: BrsFile,
+    public token: Token,
     public annotationType: AnnotationType,
     public text: string,
     public name: string,
@@ -95,19 +98,21 @@ export class Annotation {
         case AnnotationType.Group:
         case AnnotationType.TestSuite:
           const groupName = getAnnotationText(text, annotationType);
-          blockAnnotation = new Annotation(file, annotationType, text, groupName, isIgnore, isSolo);
+          blockAnnotation = new Annotation(file, comment, annotationType, text, groupName, isIgnore, isSolo);
           isSolo = false;
           isIgnore = false;
           break;
         case AnnotationType.Test:
           const testName = getAnnotationText(text, annotationType);
-          testAnnotation = new Annotation(file, annotationType, text, testName, isIgnore, isSolo);
+          testAnnotation = new Annotation(file, comment, annotationType, text, testName, isIgnore, isSolo);
+          isSolo = false;
+          isIgnore = false;
           break;
         case AnnotationType.Params:
         case AnnotationType.SoloParams:
         case AnnotationType.IgnoreParams:
           if (testAnnotation) {
-            testAnnotation.parseParams(comment, text, annotationType);
+            testAnnotation.parseParams(file, comment, text, annotationType);
           } else {
             //error
           }
@@ -117,7 +122,7 @@ export class Annotation {
     return { blockAnnotation: blockAnnotation, testAnnotation: testAnnotation };
   }
 
-  public parseParams(comment: Token, text: string, annotationType: AnnotationType) {
+  public parseParams(file: BrsFile, comment: Token, text: string, annotationType: AnnotationType) {
     let rawParams = getAnnotationText(text, annotationType);
     let isSolo = annotationType === AnnotationType.SoloParams;
     let isIgnore = annotationType === AnnotationType.IgnoreParams;
@@ -126,19 +131,15 @@ export class Annotation {
       let jsonText = rawParams.replace(paramsInvalidToNullRegex, '$1$2null');
       let jsonParams = getJsonFromString(jsonText);
       if (jsonParams) {
-        this.params.push(new AnnotationParams(jsonText, comment.range.start.line, jsonParams, isIgnore, isSolo));
+        this.params.push(new AnnotationParams(comment, jsonText, comment.range.start.line, jsonParams, isIgnore, isSolo));
       } else {
-        // this.errors.push(`illegal params found at ${currentLocation}. Not adding test - params were : ${line}`);
+        diagnosticIllegalParams(file, comment);
       }
     } catch (e) {
-      // this.errors.push(`illegal params found at ${currentLocation}. Not adding test - params were : ${line}`);
+      diagnosticIllegalParams(file, comment);
     }
   }
 
-}
-
-function isAnnotation(text: string, annotationType: AnnotationType): boolean {
-  return new RegExp(`^\\s*${annotationType}`, 'i').test(text);
 }
 
 function getAnnotationType(text: string): AnnotationType {
