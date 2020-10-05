@@ -9,7 +9,7 @@
     "forceConsistentCasingInFileNames": true,
     "preserveConstEnums": true,
     "allowJs": true,
-    "target": "es5",
+    "target": "ES2017",
     "downlevelIteration": true
   },
   "allowSyntheticDefaultImports": true,

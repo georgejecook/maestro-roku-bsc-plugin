@@ -1,10 +1,9 @@
 'use strict';
-import { BrsFile, Program, TokenKind } from 'brighterscript';
+import { BrsFile, createToken, Program, TokenKind } from 'brighterscript';
 
 import { ImportStatement } from 'brighterscript/dist/parser';
 
 import { addBuildTimeErrorImportMissingKey, addBuildTimeErrorImportMissingPkg } from '../utils/Diagnostics';
-import { createToken } from '../utils/Utils';
 
 /**
  * Manages build imports

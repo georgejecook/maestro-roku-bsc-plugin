@@ -1,4 +1,5 @@
-import { Parser } from 'brighterscript';
+import { createRange, Parser, Position, Range } from 'brighterscript';
+import { RawCodeStatement } from './BindingProcessor';
 
 import { BindingProperties } from './BindingProperties';
 import { BindingType } from './BindingType';
@@ -21,6 +22,7 @@ export default class Binding {
   public rawValueText: string;
   public line: number = 0;
   public char: number = 0;
+  public endChar: number = 99999;
 
   public validate() {
     this.isValid = this.validateImpl();
@@ -63,23 +65,22 @@ export default class Binding {
     return true;
   }
 
-  public getInitText(): string {
-    let text = '';
+  public getInitText(): string | undefined {
     switch (this.properties.type) {
       case BindingType.oneWaySource:
-        text += `MOM_bindObservableField(m.${this.observerId}, "${this.observerField}", m.${this.nodeId}, "${this.nodeField}", ${this.properties.getBrsText()})`;
+        return `MOM_bindObservableField(m.${this.observerId}, "${this.observerField}", m.${this.nodeId}, "${this.nodeField}", ${this.properties.getBrsText()})`;
         break;
       case BindingType.oneWayTarget:
-        text += `MOM_bindNodeField(m.${this.nodeId}, "${this.nodeField}", m.${this.observerId}, "${this.observerField}", ${this.properties.getBrsText()})`;
+        return `MOM_bindNodeField(m.${this.nodeId}, "${this.nodeField}", m.${this.observerId}, "${this.observerField}", ${this.properties.getBrsText()})`;
         break;
       case BindingType.twoWay:
-        text += `MOM_bindFieldTwoWay(m.${this.observerId}, "${this.observerField}", m.${this.nodeId}, "${this.nodeField}", ${this.properties.getBrsText()})`;
+        return `MOM_bindFieldTwoWay(m.${this.observerId}, "${this.observerField}", m.${this.nodeId}, "${this.nodeField}", ${this.properties.getBrsText()})`;
         break;
       case BindingType.static:
         //not part of init
         break;
     }
-    return text;
+    return undefined;
   }
 
   public getStaticText(): string {
@@ -96,5 +97,11 @@ export default class Binding {
       }
     }
     return text;
+  }
+
+  public getRange(): Range {
+    let range = createRange(Position.create(this.line, this.char));
+    range.end.character = this.endChar;
+    return range;
   }
 }

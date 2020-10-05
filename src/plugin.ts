@@ -26,16 +26,6 @@ let bindingProcessor: BindingProcessor;
 let importProcessor: ImportProcessor;
 let reflectionUtil: ReflectionUtil;
 
-function beforeProgramCreate(builder: ProgramBuilder): void {
-  if (!fileMap) {
-    fileMap = new ProjectFileMap();
-    bindingProcessor = new BindingProcessor(fileMap);
-  }
-  reflectionUtil = new ReflectionUtil(fileMap);
-  importProcessor = new ImportProcessor(builder.options);
-  _builder = builder;
-}
-
 // entry point
 const pluginInterface: CompilerPlugin = {
   name: 'maestroPlugin',
@@ -49,7 +39,16 @@ const pluginInterface: CompilerPlugin = {
 
 export default pluginInterface;
 
-let util = new Util();
+function beforeProgramCreate(builder: ProgramBuilder): void {
+  if (!fileMap) {
+    fileMap = new ProjectFileMap();
+    bindingProcessor = new BindingProcessor(fileMap);
+  }
+  reflectionUtil = new ReflectionUtil(fileMap);
+  importProcessor = new ImportProcessor(builder.options);
+  _builder = builder;
+}
+
 function beforeFileParse(source: SourceObj): void {
   // pull out the bindings and store them in a maestro file
   // remove the illegal xml from the source

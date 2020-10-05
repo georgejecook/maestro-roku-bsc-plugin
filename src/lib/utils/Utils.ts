@@ -1,4 +1,4 @@
-import { Position, Range, BrsFile, Token, TokenKind, XmlFile } from 'brighterscript';
+import { Position, Range, BrsFile, Token, TokenKind, XmlFile, isClassMethodStatement, isClassStatement, ClassStatement, FunctionStatement, ClassMethodStatement, Statement, Parser, Lexer, ParseMode } from 'brighterscript';
 import { BrsType } from 'brighterscript/dist/brsTypes';
 import * as path from 'path';
 
@@ -85,16 +85,60 @@ export function getAssociatedFile(file: XmlFile | BrsFile, fileMap: ProjectFileM
   return undefined;
 }
 
-export function createToken(kind: TokenKind, pos: Position, text?: string, literal?: BrsType): Token {
-  return {
-    kind: kind,
-    text: text || kind.toString(),
-    isReserved: !text || text === kind.toString(),
-    range: createRange(pos),
-    literal: literal
-  };
-}
 
 export function createRange(pos: Position) {
   return Range.create(pos.line, pos.character, pos.line, pos.character);
 }
+
+export function makeASTFunction(source: string): FunctionStatement | undefined {
+  let tokens = Lexer.scan(source).tokens;
+  let { statements, diagnostics } = Parser.parse(tokens, { mode: ParseMode.BrighterScript });
+  if (statements && statements.length > 0) {
+    return statements[0] as FunctionStatement;
+  }
+  return undefined;
+}
+
+export function getFunctionBody(source: string): Statement[] {
+  let funcStatement = makeASTFunction(source);
+  return funcStatement ? funcStatement.func.body.statements : [];
+}
+
+export function changeFunctionBody(statement: FunctionStatement | ClassMethodStatement, source: string) {
+  let statements = statement.func.body.statements;
+  statements.splice(0, statements.length);
+  let newStatements = getFunctionBody(source);
+  for (let newStatement of newStatements) {
+    statements.push(newStatement);
+  }
+}
+
+export function addOverriddenMethod(target: ClassStatement, name: string, source: string): boolean {
+  let statement = makeASTFunction(`
+  class wrapper
+  override function ${name}()
+    ${source}
+  end function
+  end class
+  `);
+  if (isClassStatement(statement)) {
+    let classStatement = statement as ClassStatement;
+    target.body.push(classStatement.methods[0]);
+    return true;
+  }
+  return false;
+}
+
+export function changeClassMethodBody(target: ClassStatement, name: string, source: string): boolean {
+  let method = target.methods.find((m) => m.name.text === name);
+  if (isClassMethodStatement(method)) {
+    changeFunctionBody(method, source);
+    return true;
+  }
+  return false;
+}
+
+export function sanitizeBsJsonString(text: string) {
+  return `"${text ? text.replace(/"/g, '\'') : ''}"`;
+}
+

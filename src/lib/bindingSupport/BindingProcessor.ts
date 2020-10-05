@@ -1,5 +1,22 @@
-import { CancellationToken, Range, BrsFile, BsDiagnostic, Lexer, XmlFile,WalkVisitor, WalkOptions } from 'brighterscript';
-import { BinaryExpression, Expression, ExpressionVisitor, FunctionStatement, ParseMode, Parser, Statement } from 'brighterscript/dist/parser';
+import {
+  BinaryExpression,
+  Expression,
+  ExpressionVisitor,
+  FunctionStatement,
+  IfStatement,
+  ParseMode,
+  Parser,
+  Statement,
+  CancellationToken,
+  Range,
+  BrsFile,
+  BsDiagnostic,
+  Lexer,
+  XmlFile,
+  WalkVisitor,
+  WalkOptions,
+  Util
+} from 'brighterscript';
 import { TranspileState } from 'brighterscript/dist/parser/TranspileState';
 
 import { File } from '../fileProcessing/File';
@@ -13,7 +30,7 @@ import {
   addXmlBindingNoCodeBehind,
   addXmlBindingParentHasDuplicateField
 } from '../utils/Diagnostics';
-import { getAlternateFileNames, spliceString } from '../utils/Utils';
+import { getAlternateFileNames, makeASTFunction, spliceString } from '../utils/Utils';
 import Binding from './Binding';
 import { BindingType } from './BindingType';
 import { XMLTag } from './XMLTag';
@@ -206,18 +223,18 @@ export class BindingProcessor {
     let bindings = file.bindings.concat(file.getAllParentBindings());
     if (bindings.length > 0) {
       //TODO convert to pure AST
-      let bindingInitStatement = this.makeASTFunction(
-        this.getBindingInitMethod(
-          bindings.filter(
-            (b) =>
-              b.properties.type !== BindingType.static &&
-              b.properties.type !== BindingType.code
-          )));
-      let staticBindingStatement = this.makeASTFunction(this.getStaticBindingsMethod(bindings.filter(
+      let bindingInitStatement = this.getBindingInitMethod(
+        bindings.filter(
+          (b) =>
+            b.properties.type !== BindingType.static &&
+            b.properties.type !== BindingType.code
+        ), file.bscFile as XmlFile);
+      let staticBindingStatement = this.getStaticBindingsMethod(bindings.filter(
         (b) =>
           b.properties.type === BindingType.static ||
           b.properties.type === BindingType.code
-      )));
+      ), file.bscFile as XmlFile);
+
       if (bindingInitStatement) {
         file.associatedFile.bscFile.parser.statements.push(bindingInitStatement);
         file.associatedFile.isASTChanged = true;
@@ -238,40 +255,53 @@ export class BindingProcessor {
     return undefined;
   }
 
-  private getBindingInitMethod(bindings: Binding[]) {
-    let funcText = 'function M_initBindings()';
-    let nodeIds = [
-      ...new Set(bindings.filter((b) => !b.isTopBinding).map((b) => b.nodeId)),
-    ];
-    funcText += '\n  if m.vm <> invalid';
-    if (nodeIds.length > 0) {
-      funcText += '\n    M_createNodeVars()';
+  private getBindingInitMethod(bindings: Binding[], file: XmlFile): FunctionStatement {
+    let func = makeASTFunction(`function M_initStaticBindings()
+      if m.vm <> invalid
+      end if
+    end function`);
+
+    if (func) {
+      let ifStatement = func.func.body.statements[0] as IfStatement;
+      let nodeIds = [
+        ...new Set(bindings.filter((b) => !b.isTopBinding).map((b) => b.nodeId)),
+      ];
+
+      if (nodeIds.length > 0) {
+        ifStatement.thenBranch.statements.push(new RawCodeStatement(file, Range.create(1, 1, 1, 99999), 'M_createNodeVars()'));
+      }
+
+      for (let binding of bindings) {
+        ifStatement.thenBranch.statements.push(new RawCodeStatement(file, binding.getRange(), binding.getInitText()));
+
+      }
+      ifStatement.thenBranch.statements.push(new RawCodeStatement(file, Range.create(1, 1, 1, 99999), 'm.vm.onBindingsConfigured()'));
     }
-    funcText += '\n';
-    bindings.forEach((b) => (funcText += `\n    ${b.getInitText()}`));
-    funcText += '\n  m.vm.onBindingsConfigured()';
-    funcText += '\n  end if';
-    funcText += '\n';
-    funcText += '\nend function';
-    return funcText;
+
+    return func;
   }
 
-  private getStaticBindingsMethod(bindings: Binding[]) {
-    let funcText = 'function M_initStaticBindings()';
-    let nodeIds = [
-      ...new Set(bindings.filter((b) => !b.isTopBinding).map((b) => b.nodeId)),
-    ];
+  private getStaticBindingsMethod(bindings: Binding[], file: XmlFile): FunctionStatement {
+    let func = makeASTFunction(`function M_initStaticBindings()
+      if m.vm <> invalid
+      end if
+    end function`);
 
-    funcText += '\n  if m.vm <> invalid';
+    if (func) {
+      let ifStatement = func.func.body.statements[0] as IfStatement;
+      let nodeIds = [
+        ...new Set(bindings.filter((b) => !b.isTopBinding).map((b) => b.nodeId)),
+      ];
+      if (nodeIds.length > 0) {
+        ifStatement.thenBranch.statements.push(new RawCodeStatement(file, Range.create(1, 1, 1, 99999), 'M_createNodeVars()'));
+      }
 
-    if (nodeIds.length > 0) {
-      funcText += '\n    M_createNodeVars()';
+      for (let binding of bindings) {
+        ifStatement.thenBranch.statements.push(new RawCodeStatement(file, binding.getRange(), binding.getStaticText()));
+
+      }
     }
-    bindings.forEach((b) => (funcText += `\n    ${b.getStaticText()}`));
-    funcText += '\n  end if';
-    funcText += '\n';
-    funcText += '\nend function';
-    return funcText;
+    return func;
   }
 
   private addFindNodeVarsMethodForFile(file: File) {
@@ -298,26 +328,24 @@ export class BindingProcessor {
   }
 }
 
-export class BindingExpression implements Expression {
+export class RawCodeStatement extends Statement {
   constructor(
-    range: Range
+    public sourceFile: BrsFile | XmlFile,
+    public range: Range = Range.create(1, 1, 1, 99999),
+    public source: string
   ) {
-    this.range = range;
-  }
-  public range: Range;
-
-  public transpile(state: TranspileState) {
-    return [
-      new SourceNode(
-        this.range.start.line + 1,
-        this.range.start.character,
-        state.pathAbsolute,
-      )
-    ];
+    super();
   }
 
-  walk(visitor: WalkVisitor, options: WalkOptions): any {
-    //generated; so we don't bother
+  transpile(state: TranspileState) {
+    return [new SourceNode(
+      this.range.start.line + 1,
+      this.range.start.character,
+      this.sourceFile.pathAbsolute,
+      this.source
+    )];
   }
-
+  walk(visitor: WalkVisitor, options: WalkOptions) {
+    //nothing to walk
+  }
 }

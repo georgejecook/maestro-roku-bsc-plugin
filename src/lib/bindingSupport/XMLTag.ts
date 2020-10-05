@@ -115,6 +115,7 @@ export class XMLTag {
 
           binding.line = lineNumber;
           binding.char = col;
+          binding.endChar = col + bindingText.length;
           binding.validate();
           if (binding.isValid) {
             bindings.push(binding);
