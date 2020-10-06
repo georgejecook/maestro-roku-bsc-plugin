@@ -20,6 +20,7 @@ export default class ReflectionUtil {
   public updateRuntimeFile() {
     let runtimeFile = this.builder.program.getFileByPkgPath('source/maestro/MRuntime.brs') as BrsFile;
     if (runtimeFile) {
+      runtimeFile.needsTranspiled = true;
       this.updateClassLookupFunction(runtimeFile);
       this.updateXMLCompTypesFunction(runtimeFile);
     }
@@ -51,7 +52,7 @@ export default class ReflectionUtil {
       func.func.body.statements.push(new RawCodeStatement(`return ${text}`));
     }
   }
-  
+
   public addFile(file: BrsFile) {
     for (let cs of file.parser.references.classStatements) {
       console.log(cs.getName(ParseMode.BrightScript));
