@@ -1,6 +1,6 @@
 // @ts-ignore
 // @ts-ignore
-import { BrsFile, BsDiagnostic, XmlFile } from 'brighterscript';
+import { BrsFile, BsDiagnostic, ClassStatement, XmlFile } from 'brighterscript';
 import * as fs from 'fs-extra';
 import * as path from 'path';
 
@@ -10,6 +10,7 @@ import { FileType } from './FileType';
 import { ProjectFileMap } from './ProjectFileMap';
 
 import { addFileErrorCouldNotParseXML, addFileErrorCouldNotSave } from '../utils/Diagnostics';
+import { XMLTag } from '../bindingSupport/XMLTag';
 
 const xmldoc = require('../utils/xmldoc');
 
@@ -17,7 +18,7 @@ const xmldoc = require('../utils/xmldoc');
  * describes a file in our project.
  */
 export class File {
-
+  
   constructor(fullPath: string, fileContents: string = null) {
     this.componentIds = new Set<string>();
     this._bindings = [];
@@ -26,13 +27,14 @@ export class File {
     this._fileContents = fileContents;
     this._fullPath = fullPath;
   }
-
+  
   public static fromFile(bscFile: XmlFile | BrsFile): File {
     const file = new File(bscFile.pathAbsolute, bscFile.fileContents);
     file.bscFile = bscFile;
     return file;
   }
-
+  
+  public bindingClass: ClassStatement;
   private _isDirty: boolean;
   private _fullPath: string;
   public hasProcessedBindings: boolean;
@@ -48,6 +50,7 @@ export class File {
   public componentIds: Set<string>;
   public bscFile: BrsFile | XmlFile;
   public diagnostics: BsDiagnostic[] = [];
+  public vmClassTag: XMLTag;
 
   private readonly _bindings: Binding[];
   private _fileContents: string;

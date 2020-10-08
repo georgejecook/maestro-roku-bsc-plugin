@@ -1,21 +1,11 @@
 import {
-  BinaryExpression,
-  Expression,
-  ExpressionVisitor,
   FunctionStatement,
   IfStatement,
   ParseMode,
   Parser,
-  Statement,
-  CancellationToken,
-  Range,
   BrsFile,
-  BsDiagnostic,
   Lexer,
   XmlFile,
-  WalkVisitor,
-  WalkOptions,
-  Util
 } from 'brighterscript';
 import { TranspileState } from 'brighterscript/dist/parser/TranspileState';
 
@@ -28,7 +18,9 @@ import {
   addXmlBindingDuplicateTag,
   addXmlBindingErrorValidatingBindings,
   addXmlBindingNoCodeBehind,
-  addXmlBindingParentHasDuplicateField
+  addXmlBindingNoVMClassDefined,
+  addXmlBindingParentHasDuplicateField,
+  addXmlBindingVMClassNotFound
 } from '../utils/Diagnostics';
 import { getAlternateFileNames, makeASTFunction, spliceString } from '../utils/Utils';
 import Binding from './Binding';
@@ -86,7 +78,12 @@ export class BindingProcessor {
     }
     file.loadXmlContents(this.fileMap);
     let fileContents = file.getFileContents();
+
     const tagsWithBindings = this.getTagsWithBindings(file);
+
+    if (file.vmClassTag) {
+      fileContents = spliceString(fileContents, file.vmClassTag.startPosition, file.vmClassTag.text);
+    }
 
     for (const tag of tagsWithBindings) {
       for (const binding of tag.bindings) {
@@ -151,7 +148,9 @@ export class BindingProcessor {
           );
           xmlElement.children = [];
           const tag = new XMLTag(xmlElement, tagText, file);
-          if (tag.isTopTag) {
+          if (tag.VMClass) {
+            file.vmClassTag = tag;
+          } else if (tag.isTopTag) {
             if (tag.id) {
               if (file.fieldIds.has(tag.id)) {
                 addXmlBindingDuplicateField(file, tag.id, xmlElement.line);
@@ -210,6 +209,32 @@ export class BindingProcessor {
       addXmlBindingErrorValidatingBindings(file, e.message);
       errorCount++;
     }
+
+    if (file.bindings.length > 0) {
+
+      if (!file.vmClassTag) {
+        if (errorCount === 0) {
+          addXmlBindingNoVMClassDefined(file);
+          errorCount++;
+        }
+
+      } else {
+
+        file.bindingClass = this.fileMap.allClasses.get(file.vmClassTag.VMClass);
+
+        if (!file.vmClassTag) {
+          addXmlBindingVMClassNotFound(file);
+          errorCount++;
+
+        } else {
+          for (let binding of file.bindings) {
+            binding.validateAgainstClass(file)
+            errorCount += binding.isValid ? 0 : 1;
+          }
+        }
+      }
+    }
+
     for (let d of file.diagnostics) {
       //fix any missing file refs from diagnostics raised before we had a file
       if (!d.file) {

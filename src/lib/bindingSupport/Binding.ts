@@ -1,7 +1,17 @@
 import { createRange, Parser, Position, Range } from 'brighterscript';
+import { isFunction } from 'util';
+import { File } from '../fileProcessing/File';
+import { addXmlBindingUnknownFunctionArgs, addXmlBindingVMFieldNotFound, addXmlBindingVMFunctionNotFound, addXmlBindingVMFunctionWrongArgCount } from '../utils/Diagnostics';
 
 import { BindingProperties } from './BindingProperties';
-import { BindingType } from './BindingType';
+import { BindingType, CallArgs } from './BindingType';
+
+let callArgsMap = new Map([
+  [CallArgs.none, 0],
+  [CallArgs.node, 1],
+  [CallArgs.value, 1],
+  [CallArgs.both, 2]
+]);
 
 export default class Binding {
 
@@ -10,9 +20,8 @@ export default class Binding {
   }
 
   public isValid: boolean = false;
-  public isFunctionBinding: boolean = false;
   public isTopBinding: boolean = false;
-  public observerId: string;
+  public observerId: string = 'vm';
   public observerField: string;
   public nodeId: string;
   public nodeField: string;
@@ -23,8 +32,38 @@ export default class Binding {
   public char: number = 0;
   public endChar: number = 99999;
 
-  public validate() {
+  //for 2 way bindings
+  public getBinding: Binding;
+  public setBinding: Binding;
+
+  public validate(): boolean {
     this.isValid = this.validateImpl();
+    return this.isValid;
+  }
+
+  public validateAgainstClass(file: File): boolean {
+    let cs = file.bindingClass;
+
+    if (this.properties.callArgs > CallArgs.na) {
+      let method = cs.methods.find((m) => m.name.text === this.observerField);
+      if (!method) {
+        addXmlBindingVMFunctionNotFound(file, this);
+        this.isValid = false;
+      } else {
+        let expectedArgs = callArgsMap.get(this.properties.callArgs);
+        if (method.func.parameters.length !== expectedArgs) {
+          addXmlBindingVMFunctionWrongArgCount(file, this, expectedArgs);
+          this.isValid = false;
+        }
+      }
+
+    } else {
+      if (!cs.memberMap[this.observerField.toLowerCase()]) {
+        addXmlBindingVMFieldNotFound(file, this);
+        this.isValid = false;
+      }
+    }
+    return this.isValid && (this.getBinding ? this.getBinding.validateAgainstClass(file) : true) && (this.setBinding ? this.setBinding.validateAgainstClass(file) : true)
   }
 
   private validateImpl(): boolean {
@@ -48,11 +87,6 @@ export default class Binding {
       return false;
     }
 
-    if (this.isFunctionBinding && this.properties.type !== BindingType.oneWayTarget) {
-      this.errorMessage = 'observer callbacks on functions are only supported for oneWayTarget (i.e. node to vm) bindings';
-      return false;
-    }
-
     if (this.properties.type === BindingType.code) {
       let { statements, diagnostics } = Parser.parse(`a=${this.rawValueText}`);
       if (diagnostics.length > 0) {
@@ -61,7 +95,7 @@ export default class Binding {
       }
     }
 
-    return true;
+    return true && (this.getBinding ? this.getBinding.validate() : true) && (this.setBinding ? this.setBinding.validate() : true)
   }
 
   public getInitText(): string | undefined {
@@ -102,5 +136,26 @@ export default class Binding {
     let range = createRange(Position.create(this.line, this.char));
     range.end.character = this.endChar;
     return range;
+  }
+
+  public createBinding(isGet: boolean) {
+
+    let binding = new Binding();
+
+    binding.isTopBinding = this.isTopBinding;
+    binding.observerId = this.observerId;
+    binding.observerField = this.observerField;
+    binding.nodeId = this.nodeId;
+    binding.nodeField = this.nodeField;
+    binding.properties.type = isGet ? BindingType.oneWaySource : BindingType.oneWayTarget;
+    binding.line = this.line;
+    binding.char = this.char;
+    binding.endChar = this.endChar;
+    if (isGet) {
+      this.getBinding = binding;
+    } else {
+      this.setBinding = binding;
+    }
+
   }
 }

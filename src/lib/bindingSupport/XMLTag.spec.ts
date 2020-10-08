@@ -63,10 +63,9 @@ describe('XMLElement', function() {
       expect(binding.nodeId).to.equal('titleLabel');
       expect(binding.observerField).to.equal('titleText');
       expect(binding.observerId).to.equal('vm');
-      expect(binding.isFunctionBinding).to.be.false;
       expect(binding.properties.type).to.equal(BindingType.oneWaySource);
       expect(binding.properties.transformFunction).to.be.null;
-      expect(binding.properties.isSettingInitialValue).to.be.true;
+      expect(binding.properties.fireOnSet).to.be.true;
       // expect().to.be.empty;
       binding.validate();
       expect(binding.isValid).to.be.true;
@@ -101,11 +100,10 @@ describe('XMLElement', function() {
       expect(binding.nodeId).to.equal('top');
       expect(binding.observerField).to.equal('titleText');
       expect(binding.observerId).to.equal('vm');
-      expect(binding.isFunctionBinding).to.be.false;
       expect(binding.isTopBinding).to.be.true;
       expect(binding.properties.type).to.equal(BindingType.oneWaySource);
       expect(binding.properties.transformFunction).to.be.null;
-      expect(binding.properties.isSettingInitialValue).to.be.true;
+      expect(binding.properties.fireOnSet).to.be.true;
       // expect(getAllFeedback()).to.be.empty;
       binding.validate();
       expect(binding.isValid).to.be.true;
@@ -138,10 +136,9 @@ describe('XMLElement', function() {
       expect(binding.nodeId).to.equal('titleLabel');
       expect(binding.observerField).to.equal('titleText');
       expect(binding.observerId).to.equal('vm');
-      expect(binding.isFunctionBinding).to.be.false;
       expect(binding.properties.type).to.equal(BindingType.oneWayTarget);
       expect(binding.properties.transformFunction).to.be.null;
-      expect(binding.properties.isSettingInitialValue).to.be.true;
+      expect(binding.properties.fireOnSet).to.be.true;
       // expect(getAllFeedback()).to.be.empty;
       binding.validate();
       expect(binding.isValid).to.be.true;
@@ -174,10 +171,9 @@ describe('XMLElement', function() {
       expect(binding.nodeId).to.equal('titleLabel');
       expect(binding.observerField).to.equal('titleText');
       expect(binding.observerId).to.equal('vm');
-      expect(binding.isFunctionBinding).to.be.false;
       expect(binding.properties.type).to.equal(BindingType.twoWay);
       expect(binding.properties.transformFunction).to.be.null;
-      expect(binding.properties.isSettingInitialValue).to.be.true;
+      expect(binding.properties.fireOnSet).to.be.true;
       // expect(getAllFeedback()).to.be.empty;
       binding.validate();
       expect(binding.isValid).to.be.true;
@@ -208,12 +204,11 @@ describe('XMLElement', function() {
       let binding: Binding = tag.bindings[0];
       expect(binding.nodeField).to.equal('text');
       expect(binding.nodeId).to.equal('titleLabel');
-      expect(binding.isFunctionBinding).to.be.true;
       expect(binding.observerField).to.equal('titleText');
       expect(binding.observerId).to.equal('vm');
       expect(binding.properties.type).to.equal(BindingType.oneWayTarget);
       expect(binding.properties.transformFunction).to.be.null;
-      expect(binding.properties.isSettingInitialValue).to.be.true;
+      expect(binding.properties.fireOnSet).to.be.true;
       // expect(getAllFeedback()).to.be.empty;
       binding.validate();
       expect(binding.isValid).to.be.true;
@@ -244,12 +239,11 @@ describe('XMLElement', function() {
       let binding: Binding = tag.bindings[0];
       expect(binding.nodeField).to.equal('text');
       expect(binding.nodeId).to.equal('nameInput');
-      expect(binding.isFunctionBinding).to.be.false;
       expect(binding.observerField).to.equal('name');
       expect(binding.observerId).to.equal('vm');
       expect(binding.properties.type).to.equal(BindingType.twoWay);
       expect(binding.properties.transformFunction).to.be.null;
-      expect(binding.properties.isSettingInitialValue).to.be.true;
+      expect(binding.properties.fireOnSet).to.be.true;
       // expect(getAllFeedback()).to.be.empty;
       binding.validate();
       expect(binding.isValid).to.be.true;
@@ -264,7 +258,7 @@ describe('XMLElement', function() {
           clicked: '{(vm.onItemClicked())}',
           jumpToIndex: '{{vm.jumpToIndex, mode=oneWayTarget}}',
           focusedIndex: '{{vm.focusedIndex, mode=oneWaySource}}',
-          selectedIndex: '{{vm.selectedIndex, mode=twoWay, isSettingInitialValue=false}}'
+          selectedIndex: '{{vm.selectedIndex, mode=twoWay, fireOnSet=false}}'
         },
         val: '',
         children: [],
@@ -282,7 +276,7 @@ describe('XMLElement', function() {
                 clicked="{(vm.onItemClicked())}"
                 jumpToIndex="{{vm.jumpToIndex, mode=oneWay}}"
                 focusedIndex="{{vm.focusedIndex, mode=oneWaySource}}"
-                selectedIndex="{{vm.selectedIndex, mode=twoWay, isSettingInitialValue=false}}" />`;
+                selectedIndex="{{vm.selectedIndex, mode=twoWay, fireOnSet=false}}" />`;
       const tag = new XMLTag(element, tagText, file);
       expect(tag.bindings).to.have.lengthOf(5);
 
@@ -290,12 +284,11 @@ describe('XMLElement', function() {
       let binding: Binding = tag.bindings[0];
       expect(binding.nodeField).to.equal('visible');
       expect(binding.nodeId).to.equal('rowList');
-      expect(binding.isFunctionBinding).to.be.false;
       expect(binding.observerField).to.equal('isGroupVisible');
       expect(binding.observerId).to.equal('vm');
       expect(binding.properties.type).to.equal(BindingType.oneWaySource);
       expect(binding.properties.transformFunction).to.equal('OM_transform_invertBoolean');
-      expect(binding.properties.isSettingInitialValue).to.be.true;
+      expect(binding.properties.fireOnSet).to.be.true;
       // expect(getAllFeedback()).to.be.empty;
       binding.validate();
       expect(binding.isValid).to.be.true;
@@ -304,12 +297,11 @@ describe('XMLElement', function() {
       binding = tag.bindings[1];
       expect(binding.nodeField).to.equal('clicked');
       expect(binding.nodeId).to.equal('rowList');
-      expect(binding.isFunctionBinding).to.be.true;
       expect(binding.observerField).to.equal('onItemClicked');
       expect(binding.observerId).to.equal('vm');
       expect(binding.properties.type).to.equal(BindingType.oneWayTarget);
       expect(binding.properties.transformFunction).to.be.null;
-      expect(binding.properties.isSettingInitialValue).to.be.true;
+      expect(binding.properties.fireOnSet).to.be.true;
       // expect(getAllFeedback()).to.be.empty;
       binding.validate();
       expect(binding.isValid).to.be.true;
@@ -318,12 +310,11 @@ describe('XMLElement', function() {
       binding = tag.bindings[2];
       expect(binding.nodeField).to.equal('jumpToIndex');
       expect(binding.nodeId).to.equal('rowList');
-      expect(binding.isFunctionBinding).to.be.false;
       expect(binding.observerField).to.equal('jumpToIndex');
       expect(binding.observerId).to.equal('vm');
       expect(binding.properties.type).to.equal(BindingType.oneWayTarget);
       expect(binding.properties.transformFunction).to.be.null;
-      expect(binding.properties.isSettingInitialValue).to.be.true;
+      expect(binding.properties.fireOnSet).to.be.true;
       // expect(getAllFeedback()).to.be.empty;
       binding.validate();
       expect(binding.isValid).to.be.true;
@@ -332,12 +323,11 @@ describe('XMLElement', function() {
       binding = tag.bindings[3];
       expect(binding.nodeField).to.equal('focusedIndex');
       expect(binding.nodeId).to.equal('rowList');
-      expect(binding.isFunctionBinding).to.be.false;
       expect(binding.observerField).to.equal('focusedIndex');
       expect(binding.observerId).to.equal('vm');
       expect(binding.properties.type).to.equal(BindingType.oneWaySource);
       expect(binding.properties.transformFunction).to.be.null;
-      expect(binding.properties.isSettingInitialValue).to.be.true;
+      expect(binding.properties.fireOnSet).to.be.true;
       // expect(getAllFeedback()).to.be.empty;
       binding.validate();
       expect(binding.isValid).to.be.true;
@@ -346,12 +336,11 @@ describe('XMLElement', function() {
       binding = tag.bindings[4];
       expect(binding.nodeField).to.equal('selectedIndex');
       expect(binding.nodeId).to.equal('rowList');
-      expect(binding.isFunctionBinding).to.be.false;
       expect(binding.observerField).to.equal('selectedIndex');
       expect(binding.observerId).to.equal('vm');
       expect(binding.properties.type).to.equal(BindingType.twoWay);
       expect(binding.properties.transformFunction).to.be.null;
-      expect(binding.properties.isSettingInitialValue).to.be.false;
+      expect(binding.properties.fireOnSet).to.be.false;
       // expect(getAllFeedback()).to.be.empty;
       binding.validate();
       expect(binding.isValid).to.be.true;
@@ -385,12 +374,11 @@ describe('XMLElement', function() {
       let binding: Binding = tag.bindings[0];
       expect(binding.nodeField).to.equal('visible');
       expect(binding.nodeId).to.equal('innerGroup');
-      expect(binding.isFunctionBinding).to.be.false;
       expect(binding.observerField).to.equal('isGroupVisible');
       expect(binding.observerId).to.equal('vm');
       expect(binding.properties.type).to.equal(BindingType.oneWaySource);
       expect(binding.properties.transformFunction).to.equal('OM_transform_invertBoolean');
-      expect(binding.properties.isSettingInitialValue).to.be.true;
+      expect(binding.properties.fireOnSet).to.be.true;
       // expect(getAllFeedback()).to.be.empty;
       binding.validate();
       expect(binding.isValid).to.be.true;

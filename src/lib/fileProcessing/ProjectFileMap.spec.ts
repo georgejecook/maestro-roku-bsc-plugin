@@ -33,20 +33,20 @@ describe('Project File map', function() {
     beforeEach(() => {
     });
 
-    it('adds class', function() {
-      fileMap.addClassName('C1');
-      expect(fileMap.classNames.length).to.equal(1);
-      expect(fileMap.allClassNames.has('C1')).to.be.true;
-      // expect(getFeedbackErrors()).to.be.empty;
-    });
+    // it('adds class', function() {
+    //   fileMap.addClass('C1');
+    //   expect(fileMap.classNames.length).to.equal(1);
+    //   expect(fileMap.allClassNames.has('C1')).to.be.true;
+    //   // expect(getFeedbackErrors()).to.be.empty;
+    // });
 
-    it('adds second class', function() {
-      fileMap.addClassName('C1');
-      fileMap.addClassName('C2');
-      expect(fileMap.classNames.length).to.equal(1);
-      expect(fileMap.allClassNames.has('C1')).to.be.true;
-      expect(fileMap.allClassNames.has('C2')).to.be.true;
-      // expect(getFeedbackErrors()).to.be.empty;
-    });
+    // it('adds second class', function() {
+    //   fileMap.addClass('C1');
+    //   fileMap.addClass('C2');
+    //   expect(fileMap.classNames.length).to.equal(1);
+    //   expect(fileMap.allClassNames.has('C1')).to.be.true;
+    //   expect(fileMap.allClassNames.has('C2')).to.be.true;
+    //   // expect(getFeedbackErrors()).to.be.empty;
+    // });
   });
 });

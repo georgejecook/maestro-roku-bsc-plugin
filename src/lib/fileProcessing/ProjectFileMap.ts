@@ -1,4 +1,4 @@
-import { BrsFile, XmlFile } from 'brighterscript';
+import { BrsFile, ClassStatement, ParseMode, XmlFile } from 'brighterscript';
 
 import { getAlternateFileNames } from '../utils/Utils';
 import { File } from './File';
@@ -13,6 +13,7 @@ export class ProjectFileMap {
     this.allClassNames = new Set<string>();
   }
 
+  public allClasses = new Map<string, ClassStatement>();
   public allClassNames: Set<string>;
   public allXMLComponentFiles: Map<string, File>;
   public allFiles: Map<string, File>;
@@ -40,8 +41,10 @@ export class ProjectFileMap {
     }
   }
 
-  public addClassName(className: string) {
+  public addClass(classStatement: ClassStatement) {
+    let className = classStatement.getName(ParseMode.BrighterScript);
     this.allClassNames.add(className);
+    this.allClasses.set(className, classStatement);
   }
 
   public addFile(file: File) {

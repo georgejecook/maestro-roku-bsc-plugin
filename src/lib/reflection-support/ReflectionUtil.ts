@@ -55,8 +55,7 @@ export default class ReflectionUtil {
 
   public addFile(file: BrsFile) {
     for (let cs of file.parser.references.classStatements) {
-      console.log(cs.getName(ParseMode.BrightScript));
-      this.fileMap.addClassName(cs.getName(ParseMode.BrightScript));
+      this.fileMap.addClass(cs);
     }
   }
 

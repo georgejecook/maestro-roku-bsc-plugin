@@ -3,7 +3,10 @@
     name='BindingTest'
     extends='Group'>
   <interface>
-    <!-- public fields/functions -->
+    <field
+        id='VMClass'
+        type='string'
+        value='BindingTestVM' />
     <field
         id='target'
         type='string'
@@ -11,57 +14,15 @@
   </interface>
 
   <children>
-    <!--One way binding from vm field "oneWaySource"-->
     <Label
         id='titleLabel'
-        text='{{vm.titleText}}' />
+        text='{{titleText}}' />
 
-    <!--One way to vm function  "oneWaySource"-->
     <Button
         id='button'
         text='click me'
-        clicked='{(vm.onClick())}' />
+        focusedIndex='{{focusedIndex;fireOnset;once}(onClick(value);fireOnSet;once;transform=myFunc)}' />
 
-    <!--Two Way binding "twoWay"-->
-    <InputBox
-        id='nameInput'
-        text='{{vm.name, mode=TwoWay}}' />
-
-    <!--Two Way binding "twoWay" - alternate syntax-->
-    <InputBox
-        id='nameInput2'
-        text='{[vm.name]}' />
-
-    <!--Transform function -->
-    <InputBox
-        id='nameInputTwoWay'
-        text='{{vm.name}}' />
-    <Group>
-      <Group
-          id='innerGroup'
-          visible='{{vm.isGroupVisible, transform=OM_transform_invertBoolean}}'>
-
-        <!-- One Way from node field to observer field -->
-        <RowList
-            id='rowList'
-            focusedIndex='{{vm.focusedIndex, mode=oneWayTarget}}' />
-
-        <!-- One Way from node field to observer field "oneWayTarget"
-             - alternate syntax -->
-        <RowList
-            id='rowList2'
-            clicked='{(vm.onItemClicked)}' />
-
-        <!--Multiple bindings -->
-        <RowList
-            id='rowList3'
-            visible='{{vm.isGroupVisible, transform=OM_transform_invertBoolean}}'
-            clicked='{{vm.onItemClicked}}'
-            jumpToIndex='{{vm.jumpToIndex, mode=oneWaySource}}'
-            focusedIndex='{{vm.focusedIndex, mode=oneWayTarget}}'
-            selectedIndex='{{vm.selectedIndex, mode=twoWay, isSettingInitialValue=false}}' />
-      </Group>
-    </Group>
 
   </children>
 

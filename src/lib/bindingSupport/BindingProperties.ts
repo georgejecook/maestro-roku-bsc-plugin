@@ -1,15 +1,17 @@
-import { BindingType } from './BindingType';
+import { BindingType, CallArgs } from './BindingType';
 
 export class BindingProperties {
 
   constructor(public type: BindingType = BindingType.invalid,
-              public isSettingInitialValue: boolean = true,
-              public transformFunction: string = null,
-              public isFiringOnce: boolean = false) {
+    public fireOnSet: boolean = true,
+    public transformFunction: string = null,
+    public isFiringOnce: boolean = false,
+    public callArgs: CallArgs = CallArgs.na,
+  ) {
   }
 
   public getBrsText() {
     // tslint:disable-next-line:max-line-length
-    return `[${this.isSettingInitialValue ? 'true' : 'false'}, ${this.transformFunction ? `${this.transformFunction}` : 'invalid'}, ${this.isFiringOnce ? 'true' : 'false'}]`;
+    return `[${this.fireOnSet ? 'true' : 'false'}, ${this.transformFunction ? `${this.transformFunction}` : 'invalid'}, ${this.isFiringOnce ? 'true' : 'false'}, ${this.callArgs.valueOf()}]`;
   }
 }
