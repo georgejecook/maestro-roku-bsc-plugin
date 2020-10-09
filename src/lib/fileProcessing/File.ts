@@ -1,6 +1,6 @@
 // @ts-ignore
 // @ts-ignore
-import { BrsFile, BsDiagnostic, ClassStatement, XmlFile } from 'brighterscript';
+import { BrsFile, BsDiagnostic, ClassFieldStatement, ClassMethodStatement, ClassStatement, ParseMode, XmlFile } from 'brighterscript';
 import * as fs from 'fs-extra';
 import * as path from 'path';
 
@@ -18,7 +18,6 @@ const xmldoc = require('../utils/xmldoc');
  * describes a file in our project.
  */
 export class File {
-  
   constructor(fullPath: string, fileContents: string = null) {
     this.componentIds = new Set<string>();
     this._bindings = [];
@@ -27,13 +26,16 @@ export class File {
     this._fileContents = fileContents;
     this._fullPath = fullPath;
   }
-  
-  public static fromFile(bscFile: XmlFile | BrsFile): File {
+
+  public static fromFile(bscFile: XmlFile | BrsFile, fileMap: ProjectFileMap): File {
     const file = new File(bscFile.pathAbsolute, bscFile.fileContents);
     file.bscFile = bscFile;
+    file.fileMap = fileMap;
     return file;
   }
-  
+
+  public fileMap: ProjectFileMap;
+  public parents: ClassStatement[];
   public bindingClass: ClassStatement;
   private _isDirty: boolean;
   private _fullPath: string;
@@ -50,7 +52,8 @@ export class File {
   public componentIds: Set<string>;
   public bscFile: BrsFile | XmlFile;
   public diagnostics: BsDiagnostic[] = [];
-  public vmClassTag: XMLTag;
+  public componentTag: XMLTag;
+  public vmClassName: string;
 
   private readonly _bindings: Binding[];
   private _fileContents: string;
@@ -69,7 +72,7 @@ export class File {
   }
 
   public isASTChanged = false;
-  
+
   public get isDirty(): boolean {
     return this._isDirty;
   }
@@ -151,6 +154,25 @@ export class File {
     return `FILE: ${this.fullPath} TYPE ${this.fileType} PATH ${this.fullPath}`;
   }
 
+  public getPositionFromOffset(targetOffset: number): { line: number; character: number } | undefined {
+    let currentLineIndex = 0;
+    let currentColumnIndex = 0;
+    for (let offset = 0; offset < this._fileContents.length; offset++) {
+      if (targetOffset === offset) {
+        return {
+          line: currentLineIndex,
+          character: currentColumnIndex
+        };
+      }
+      if (this._fileContents[offset] === '\n') {
+        currentLineIndex++;
+        currentColumnIndex = 0;
+      } else {
+        currentColumnIndex++;
+      }
+    }
+  }
+
   public loadXmlContents(fileMap: ProjectFileMap) {
     if (this.xmlDoc) {
       return;
@@ -172,5 +194,46 @@ export class File {
         addFileErrorCouldNotParseXML(this, e.message);
       }
     }
+  }
+
+  public getMethod(name): ClassMethodStatement {
+    name = name.toLowerCase();
+    let method = this.bindingClass.memberMap[name] as ClassMethodStatement;
+    if (!method) {
+      for (let parent of this.getParents()) {
+        method = parent.memberMap[name] as ClassMethodStatement;
+        if (method) {
+          return method;
+        }
+      }
+    }
+    return method;
+  }
+
+  public getField(name): ClassFieldStatement {
+    name = name.toLowerCase();
+    let field = this.bindingClass.memberMap[name] as ClassFieldStatement;
+    if (!field) {
+      for (let parent of this.getParents()) {
+        field = parent.memberMap[name] as ClassFieldStatement;
+        if (field) {
+          return field;
+        }
+      }
+    }
+    return field;
+  }
+
+  public getParents(): ClassStatement[] {
+    if (!this.parents) {
+      this.parents = [];
+      let next = this.bindingClass.parentClassName ? this.fileMap.allClasses.get(this.bindingClass.parentClassName.getName(ParseMode.BrighterScript)) : null;
+      while (next) {
+        this.parents.push(next);
+        next = next.parentClassName ? this.fileMap.allClasses.get(next.parentClassName.getName(ParseMode.BrighterScript)): null;
+      }
+    }
+
+    return this.parents;
   }
 }

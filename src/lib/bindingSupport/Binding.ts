@@ -1,27 +1,28 @@
-import { createRange, Parser, Position, Range } from 'brighterscript';
+import { BrsFile, createRange, Parser, Position, Range } from 'brighterscript';
+import { TranspileState } from 'brighterscript/dist/parser/TranspileState';
 import { isFunction } from 'util';
 import { File } from '../fileProcessing/File';
 import { addXmlBindingUnknownFunctionArgs, addXmlBindingVMFieldNotFound, addXmlBindingVMFunctionNotFound, addXmlBindingVMFunctionWrongArgCount } from '../utils/Diagnostics';
 
 import { BindingProperties } from './BindingProperties';
-import { BindingType, CallArgs } from './BindingType';
+import { BindingType, BindingSendMode } from './BindingType';
+import { expect } from 'chai';
 
 let callArgsMap = new Map([
-  [CallArgs.none, 0],
-  [CallArgs.node, 1],
-  [CallArgs.value, 1],
-  [CallArgs.both, 2]
+  [BindingSendMode.none, 0],
+  [BindingSendMode.node, 1],
+  [BindingSendMode.value, 1],
+  [BindingSendMode.both, 2]
 ]);
 
 export default class Binding {
 
-  constructor() {
+  constructor(public file: File) {
     this.properties = new BindingProperties();
   }
 
   public isValid: boolean = false;
   public isTopBinding: boolean = false;
-  public observerId: string = 'vm';
   public observerField: string;
   public nodeId: string;
   public nodeField: string;
@@ -31,6 +32,7 @@ export default class Binding {
   public line: number = 0;
   public char: number = 0;
   public endChar: number = 99999;
+  public isUsingGetterAndSetter = false;
 
   //for 2 way bindings
   public getBinding: Binding;
@@ -41,73 +43,93 @@ export default class Binding {
     return this.isValid;
   }
 
-  public validateAgainstClass(file: File): boolean {
-    let cs = file.bindingClass;
+  public validateAgainstClass(): boolean {
+    if (this.properties.type === BindingType.code) {
+      return true;
+    }
+    if (!this.file.bindingClass) {
+      return false;
+    }
 
-    if (this.properties.callArgs > CallArgs.na) {
-      let method = cs.methods.find((m) => m.name.text === this.observerField);
+    if (this.properties.sendMode > BindingSendMode.field) {
+      let method = this.file.getMethod(this.observerField);
       if (!method) {
-        addXmlBindingVMFunctionNotFound(file, this);
+        addXmlBindingVMFunctionNotFound(this.file, this);
         this.isValid = false;
       } else {
-        let expectedArgs = callArgsMap.get(this.properties.callArgs);
+        let expectedArgs = callArgsMap.get(this.properties.sendMode);
         if (method.func.parameters.length !== expectedArgs) {
-          addXmlBindingVMFunctionWrongArgCount(file, this, expectedArgs);
+          addXmlBindingVMFunctionWrongArgCount(this.file, this, expectedArgs, method.func.parameters.length);
           this.isValid = false;
         }
       }
 
-    } else {
-      if (!cs.memberMap[this.observerField.toLowerCase()]) {
-        addXmlBindingVMFieldNotFound(file, this);
+    } else if (!this.isUsingGetterAndSetter){
+      if (!this.file.getField(this.observerField)) {
+        addXmlBindingVMFieldNotFound(this.file, this);
         this.isValid = false;
       }
     }
-    return this.isValid && (this.getBinding ? this.getBinding.validateAgainstClass(file) : true) && (this.setBinding ? this.setBinding.validateAgainstClass(file) : true)
+    return this.isValid && (this.getBinding ? this.getBinding.validateAgainstClass() : true) && (this.setBinding ? this.setBinding.validateAgainstClass() : true)
   }
 
   private validateImpl(): boolean {
-    if (!this.nodeId) {
-      this.errorMessage = 'node Id is not defined';
-      return false;
-    }
+    if (this.isUsingGetterAndSetter) {
+      this.getBinding.validate();
+      this.setBinding.validate();
+      return true;
+    } else {
 
-    if (!this.nodeField) {
-      this.errorMessage = 'node field is not defined';
-      return false;
-    }
-
-    if (!this.observerId && this.properties.type !== BindingType.code) {
-      this.errorMessage = 'observer.id is not defined';
-      return false;
-    }
-
-    if (!this.observerField && this.properties.type !== BindingType.code) {
-      this.errorMessage = 'observer.field is not defined';
-      return false;
-    }
-
-    if (this.properties.type === BindingType.code) {
-      let { statements, diagnostics } = Parser.parse(`a=${this.rawValueText}`);
-      if (diagnostics.length > 0) {
-        this.errorMessage = `Could not parse inline brightscript code: '${diagnostics[0].message}'`;
+      if (!this.nodeId) {
+        this.errorMessage = 'node Id is not defined';
         return false;
+      }
+
+      if (!this.nodeField) {
+        this.errorMessage = 'node field is not defined';
+        return false;
+      }
+
+      if (!this.observerField && this.properties.type !== BindingType.code) {
+        this.errorMessage = 'observer.field is not defined';
+        return false;
+      }
+
+      if (this.properties.type === BindingType.static || this.properties.type == BindingType.code) {
+        
+      }
+
+      if (this.properties.transformFunction && this.properties.type !== BindingType.oneWaySource) {
+        this.errorMessage = 'Illegal transform function: You can ony use transform function for vm values that are set on a node.'
+        return false;
+      }
+
+      if (this.properties.type === BindingType.code) {
+        let { statements, diagnostics } = Parser.parse(`a=${this.rawValueText}`);
+        if (diagnostics.length > 0) {
+          this.errorMessage = `Could not parse inline brightscript code: '${diagnostics[0].message}'`;
+          return false;
+        }
       }
     }
 
-    return true && (this.getBinding ? this.getBinding.validate() : true) && (this.setBinding ? this.setBinding.validate() : true)
+    return true;
   }
 
   public getInitText(): string | undefined {
     switch (this.properties.type) {
       case BindingType.oneWaySource:
-        return `MOM_bindObservableField(m.${this.observerId}, "${this.observerField}", m.${this.nodeId}, "${this.nodeField}", ${this.properties.getBrsText()})`;
+        return this.getOneWaySourceText();
         break;
       case BindingType.oneWayTarget:
-        return `MOM_bindNodeField(m.${this.nodeId}, "${this.nodeField}", m.${this.observerId}, "${this.observerField}", ${this.properties.getBrsText()})`;
+        return this.getOneWayTargetText();
         break;
       case BindingType.twoWay:
-        return `MOM_bindFieldTwoWay(m.${this.observerId}, "${this.observerField}", m.${this.nodeId}, "${this.nodeField}", ${this.properties.getBrsText()})`;
+        if (this.isUsingGetterAndSetter) {
+          return this.getBinding.getOneWaySourceText() + '\n' + this.setBinding.getOneWayTargetText();
+        } else {
+          return this.getOneWaySourceText() + '\n' + this.getOneWayTargetText();
+        }
         break;
       case BindingType.static:
         //not part of init
@@ -116,13 +138,23 @@ export default class Binding {
     return undefined;
   }
 
+  private getOneWaySourceText() {
+    return `m.vm.bindField("${this.observerField}", m.${this.nodeId}, "${this.nodeField}", ${this.properties.fireOnSet ? 'true' : 'false'}, ${this.properties.transformFunction || 'invalid'}, ${this.properties.isFiringOnce ? 'true' : 'false'}, "${this.properties.getModeText()}")`;
+  }
+
+  private getOneWayTargetText() {
+    let funcText = this.properties.sendMode === BindingSendMode.field ? `"${this.observerField}"` : this.observerField;
+    return `mc_Tasks_observeNodeField(m.${this.nodeId}, "${this.nodeField}", ${funcText}, "${this.properties.getModeText()}", ${this.properties.isFiringOnce ? 'true' : 'false'}, m.vm)`;
+
+  }
+
   public getStaticText(): string {
     let text = '';
     if (this.properties.type === BindingType.code) {
       text += `m.${this.nodeId}.${this.nodeField} = ${this.rawValueText}`;
     } else if (this.properties.type === BindingType.static) {
       const valueText = this.observerField.split('.').length > 1 ?
-        `MU_getContentField(m.${this.observerId},"${this.observerField}")` : `m.${this.observerId}.${this.observerField}`;
+        `MU_getContentField(m.vm,"${this.observerField}")` : `m.vm.${this.observerField}`;
       if (this.properties.transformFunction) {
         text += `m.${this.nodeId}.${this.nodeField} = ${this.properties.transformFunction}(${valueText})`;
       } else {
@@ -140,11 +172,9 @@ export default class Binding {
 
   public createBinding(isGet: boolean) {
 
-    let binding = new Binding();
+    let binding = new Binding(this.file);
 
     binding.isTopBinding = this.isTopBinding;
-    binding.observerId = this.observerId;
-    binding.observerField = this.observerField;
     binding.nodeId = this.nodeId;
     binding.nodeField = this.nodeField;
     binding.properties.type = isGet ? BindingType.oneWaySource : BindingType.oneWayTarget;
@@ -156,6 +186,30 @@ export default class Binding {
     } else {
       this.setBinding = binding;
     }
-
+    this.isUsingGetterAndSetter = true;
   }
+
+
+  public parseObserveField(partText: string) {
+    let regex = /([a-z0-8_]*)(\( *(value *,* *node| *value *| *node *)*\))*/gi;
+    let parts = regex.exec(partText);
+    this.observerField = parts[1];
+    if (parts.length > 2) {
+      let callArgs = parts[2] ? parts[2].replace(/ /g, '') : '';
+      if (callArgs === '()') {
+        this.properties.sendMode = BindingSendMode.none;
+      } else if (callArgs === '(value)') {
+        this.properties.sendMode = BindingSendMode.value;
+      } else if (callArgs === '(node)') {
+        this.properties.sendMode = BindingSendMode.node;
+      } else if (callArgs === '(value,node)') {
+        this.properties.sendMode = BindingSendMode.both;
+      } else if (partText.indexOf('(') !== -1) {
+        addXmlBindingUnknownFunctionArgs(this.file, this);
+      } else {
+        this.properties.sendMode = BindingSendMode.field;
+      }
+    }
+  }
+
 }

@@ -7,10 +7,11 @@ export enum BindingType {
   code, //efficient one off binding, with actual code {{=}}
 }
 
-export enum CallArgs {
+export enum BindingSendMode {
   na = 0,
-  none = 1,
-  value = 2, //send the data
-  node = 3, //send the node
-  both = 4, //send data,node
+  field = 1, //set a field on the callback
+  none = 2,
+  value = 3, //send the data
+  node = 4, //send the node
+  both = 5, //send data,node
 }

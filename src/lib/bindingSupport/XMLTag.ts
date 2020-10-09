@@ -1,7 +1,7 @@
 import { File } from '../fileProcessing/File';
 import { escapeRegExp } from '../utils/Utils';
 import Binding from './Binding';
-import { BindingType, CallArgs } from './BindingType';
+import { BindingType, BindingSendMode } from './BindingType';
 
 import {
   addCorruptVMType,
@@ -37,36 +37,24 @@ export class XMLTag {
     this.isTopTag = xmlElement.name.toLowerCase() === 'field';
     let tagLength = tagText.length;
     this.bindings = this.getBindings(xmlElement, tagText);
-    if (this.isTopTag) {
-      if (xmlElement.attr.id.toLowerCase() === 'vmclass') {
-        if (!xmlElement.attr.value) {
-          addCorruptVMType(file, xmlElement.lineNumber, xmlElement.column);
-        }
-        this.VMClass = xmlElement.attr.value;
-        this.startPosition -= 2;
-        this.text = ''.padEnd(this.endPosition - this.startPosition);
-      }
-    }
 
-    if (!this.VMClass) {
-      let that = this;
-      this.bindings.forEach((b) => {
-        if (b.properties.type === BindingType.code) {
-          const pattern = `(${b.isTopBinding ? 'value' : b.nodeField})(\\s*)=(\\s*)((?:"|'){{=${escapeRegExp(b.rawValueText)}}}(?:"|'))`;
-          const regex = new RegExp(pattern, 'gim');
-          that.text = that.text.replace(regex, (m, m1, m2, m3, m4) => {
-            return ''.padEnd(m1.length) + m2 + m3 + ''.padEnd(m4.length + 1);
-          });
-        } else {
-          const regex = new RegExp(`(${b.isTopBinding ? 'value' : b.nodeField})(\\s*)=(\\s*)((?:"|')${escapeRegExp(b.rawValueText)}(?:"|'))`, 'gim');
-          that.text = that.text.replace(regex, (m, m1, m2, m3, m4) => {
-            return ''.padEnd(m1.length) + m2 + m3 + ''.padEnd(m4.length + 1);
-          });
-        }
-      });
-      if (this.text.length < tagLength) {
-        this.text = this.text.padEnd(tagLength - this.text.length);
+    let that = this;
+    this.bindings.forEach((b) => {
+      if (b.properties.type === BindingType.code) {
+        const pattern = `(${b.isTopBinding ? 'value' : b.nodeField})(\\s*)=(\\s*)((?:"|'){{=${escapeRegExp(b.rawValueText)}}}(?:"|'))`;
+        const regex = new RegExp(pattern, 'gim');
+        that.text = that.text.replace(regex, (m, m1, m2, m3, m4) => {
+          return ''.padEnd(m1.length) + m2 + m3 + ''.padEnd(m4.length + 1);
+        });
+      } else {
+        const regex = new RegExp(`(${b.isTopBinding ? 'value' : b.nodeField})(\\s*)=(\\s*)((?:"|')${escapeRegExp(b.rawValueText)}(?:"|'))`, 'gim');
+        that.text = that.text.replace(regex, (m, m1, m2, m3, m4) => {
+          return ''.padEnd(m1.length) + m2 + m3 + ''.padEnd(m4.length + 1);
+        });
       }
+    });
+    if (this.text.length < tagLength) {
+      this.text = this.text.padEnd(tagLength - this.text.length);
     }
   }
 
@@ -80,7 +68,6 @@ export class XMLTag {
   public id: string;
   public text: string;
   public isTopTag: boolean;
-  public VMClass: string;
 
   public getBindings(xmlElement: any, tagText: string): Binding[] {
     const staticRegex = new RegExp('^{(\\{\\:|\\{\\=)+(.*)(\\})+\\}$', 'i');
@@ -109,7 +96,7 @@ export class XMLTag {
             addXMLTagErrorCouldMissingEndBrackets(this._file, tagText, lineNumber, col);
             continue;
           }
-          const binding = new Binding();
+          const binding = new Binding(this._file);
           binding.nodeId = this.isTopTag ? 'top' : this.id;
           binding.nodeField = this.isTopTag ? this.id : attribute;
           binding.isTopBinding = this.isTopTag;
@@ -121,26 +108,22 @@ export class XMLTag {
           binding.char = col;
           binding.endChar = col + bindingText.length;
 
-          let parseAsRegularBinding = true;
-
           if (mode === BindingType.code) {
             const value = xmlElement.attr[this.isTopTag ? 'value' : attribute];
             binding.rawValueText = value.substring(3, value.length - 2);
-            parseAsRegularBinding = false
           }
-
           else if (mode === BindingType.twoWay) {
             //have to rip out 2 way bindings like {getField}(setCallback)
             //and  make 2 sub bindings
-            let parts = /\{(.*)\} *\((.*)\)/.exec(bindingText);
-            if (parts.length > 2) {
+            let parts = /(.*)\| *(.*)/.exec(bindingText);
+            if (parts && parts.length > 2) {
               binding.createBinding(true);
               binding.createBinding(false);
-              this.parseBindingText(parts[1], binding.getBinding, tagText, xmlElement, attribute);
-              this.parseBindingText(parts[2], binding.setBinding, tagText, xmlElement, attribute);
+              this.parseSubBindingText(parts[1], binding.getBinding);
+              this.parseSubBindingText(parts[2], binding.setBinding);
+              binding.rawValueText = xmlElement.attr[this.isTopTag ? 'value' : attribute];
             }
-          }
-          if (parseAsRegularBinding) {
+          } else {
             this.parseBindingText(bindingText, binding, tagText, xmlElement, attribute);
           }
 
@@ -164,6 +147,13 @@ export class XMLTag {
     return bindings;
   }
 
+  public parseSubBindingText(text: string, binding: Binding) {
+    const parts = text.split(';');
+    for (let i = 0; i < parts.length; i++) {
+      this.parseBindingPart(i, parts[i].replace(/\s/g, ''), binding, text, binding.line);
+    }
+    binding.rawValueText = text;
+  }
   public parseBindingText(text: string, binding: Binding, tagText: any, xmlElement: any, attribute: any) {
     const parts = text.split(';');
     for (let i = 0; i < parts.length; i++) {
@@ -174,23 +164,7 @@ export class XMLTag {
 
   public parseBindingPart(index: number, partText: string, binding: Binding, tagText: string, line: number) {
     if (index === 0) {
-      let regex = /([a-z0-8_]*)(\( *(value *,* *node| *value *| *node *)*\))*/gi;
-      let parts = regex.exec(partText);
-      binding.observerField = parts[1];
-      if (parts.length > 2) {
-        let callArgs = parts[2] ? parts[2].replace(/ /g, '') : '';
-        if (callArgs === '()') {
-          binding.properties.callArgs = CallArgs.none;
-        } else if (callArgs === '(value)') {
-          binding.properties.callArgs = CallArgs.value;
-        } else if (callArgs === '(node)') {
-          binding.properties.callArgs = CallArgs.node;
-        } else if (callArgs === '(value,node)') {
-          binding.properties.callArgs = CallArgs.both;
-        } else if (partText.indexOf('(') !== -1) {
-          addXmlBindingUnknownFunctionArgs(this._file, binding);
-        }
-      }
+      binding.parseObserveField(partText);
     } else if (partText.toLowerCase().includes('transform=')) {
       //transform function
       let transformFunction = partText.substring(10);

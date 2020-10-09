@@ -1,17 +1,30 @@
-import { BindingType, CallArgs } from './BindingType';
+import { BindingType, BindingSendMode } from './BindingType';
 
 export class BindingProperties {
 
   constructor(public type: BindingType = BindingType.invalid,
-    public fireOnSet: boolean = true,
+    public fireOnSet: boolean = false,
     public transformFunction: string = null,
     public isFiringOnce: boolean = false,
-    public callArgs: CallArgs = CallArgs.na,
+    public sendMode: BindingSendMode = BindingSendMode.na,
   ) {
   }
 
-  public getBrsText() {
-    // tslint:disable-next-line:max-line-length
-    return `[${this.fireOnSet ? 'true' : 'false'}, ${this.transformFunction ? `${this.transformFunction}` : 'invalid'}, ${this.isFiringOnce ? 'true' : 'false'}, ${this.callArgs.valueOf()}]`;
+  getModeText(): string {
+    switch (this.sendMode) {
+      case BindingSendMode.value:
+        return "value";
+      case BindingSendMode.node:
+        return "node"
+      case BindingSendMode.both:
+        return "both"
+      case BindingSendMode.field:
+        return "field"
+      case BindingSendMode.na:
+      case BindingSendMode.none:
+      default:
+        return "none";
+    }
   }
+
 }

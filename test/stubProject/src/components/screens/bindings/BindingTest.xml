@@ -1,27 +1,29 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <component
     name='BindingTest'
-    extends='Group'>
+    extends='Group'
+    vmClass='BindingTestVM'>
   <interface>
-    <field
-        id='VMClass'
-        type='string'
-        value='BindingTestVM' />
     <field
         id='target'
         type='string'
         alias='text.text' />
   </interface>
 
+
   <children>
-    <Label
+
+    <RowList
         id='titleLabel'
-        text='{{titleText}}' />
+        header='{{:titleText;fireOnSet}}'
+        style='{{=mc_getComponentStyle("mainList")}}'
+        cursorIndex='{(onCursorIndexChange(value, node);once)}'
+        focusedIndex='{[focusedIndex;once;fireOnSet;transform=aaaa|onClick(value);once;fireOnSet]}' />
 
     <Button
         id='button'
         text='click me'
-        focusedIndex='{{focusedIndex;fireOnset;once}(onClick(value);fireOnSet;once;transform=myFunc)}' />
+        focusedIndex='{(onClick(value);fireOnSet;once)}' />
 
 
   </children>

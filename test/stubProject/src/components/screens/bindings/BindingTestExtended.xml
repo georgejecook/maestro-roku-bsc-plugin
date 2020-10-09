@@ -1,9 +1,9 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <component
     name='BindingTestExtended'
-    extends='BindingTest'>
+    extends='BindingTest'
+    vmClass='my.namespace.BindingTest_namespacedVM'>
   <interface>
-    <field id="vmclass" type="string" value="BindingTestVM" />
   </interface>
 
   <children>
@@ -16,17 +16,17 @@
     <Button
         id='buttonExtended'
         text='click me'
-        clicked='{(onClick())}' />
+        clicked='{(onClick(value))}' />
 
     <!--Two Way binding "twoWay"-->
     <InputBox
         id='nameInputExtended'
-        text='{{name, mode=TwoWay}}' />
+        text='{{name}}' />
 
     <!--Two Way binding "twoWay" - alternate syntax-->
     <InputBox
         id='nameInput2Extended'
-        text='{[name]}' />
+        text='{[name|onClick(value)]}' />
 
     <!--Transform function -->
     <InputBox

@@ -13,6 +13,7 @@ import { File } from '../fileProcessing/File';
 import { FileType } from '../fileProcessing/FileType';
 import { ProjectFileMap } from '../fileProcessing/ProjectFileMap';
 import {
+  addCorruptVMType,
   addXmlBindingCouldNotParseXML,
   addXmlBindingDuplicateField,
   addXmlBindingDuplicateTag,
@@ -81,8 +82,8 @@ export class BindingProcessor {
 
     const tagsWithBindings = this.getTagsWithBindings(file);
 
-    if (file.vmClassTag) {
-      fileContents = spliceString(fileContents, file.vmClassTag.startPosition, file.vmClassTag.text);
+    if (file.vmClassName) {
+      fileContents = spliceString(fileContents, 0, file.componentTag.text);
     }
 
     for (const tag of tagsWithBindings) {
@@ -107,8 +108,8 @@ export class BindingProcessor {
     if (!xmlFile) {
       return;
     }
-    let mFile = File.fromFile(file);
-    let mXMLFile = File.fromFile(xmlFile);
+    let mFile = File.fromFile(file, this.fileMap);
+    let mXMLFile = File.fromFile(xmlFile, this.fileMap);
     mXMLFile.loadXmlContents(this.fileMap);
     this.fileMap.addFile(mFile);
     this.fileMap.addFile(mXMLFile);
@@ -132,6 +133,11 @@ export class BindingProcessor {
     try {
       let fileContents = file.getFileContents();
       const doc = file.xmlDoc;
+      file.componentTag = new XMLTag(doc, fileContents.substring(doc.startTagPosition -1, doc.position), file);
+      file.componentTag.startPosition = doc.startTagPosition;
+      file.componentTag.endPosition = doc.position;
+  
+      this.getVMClass(file, doc);
       doc.allElements
         .filter((xmlElement) => {
           return (
@@ -148,9 +154,7 @@ export class BindingProcessor {
           );
           xmlElement.children = [];
           const tag = new XMLTag(xmlElement, tagText, file);
-          if (tag.VMClass) {
-            file.vmClassTag = tag;
-          } else if (tag.isTopTag) {
+          if (tag.isTopTag) {
             if (tag.id) {
               if (file.fieldIds.has(tag.id)) {
                 addXmlBindingDuplicateField(file, tag.id, xmlElement.line);
@@ -176,6 +180,24 @@ export class BindingProcessor {
     }
 
     return tagsWithBindings;
+  }
+
+  public getVMClass(file: File, element: any) {
+    let tag = file.componentTag;
+    for (let key in element.attr) {
+
+      if (key.toLowerCase() === 'vmclass') {
+        let value = element.attr[key];
+        if (!value) {
+          addCorruptVMType(file, file.getPositionFromOffset(element.position).line, file.getPositionFromOffset(element.position).character);
+        }
+        file.vmClassName = value;
+        tag.text = tag.text.replace(/(^ *)(vmclass *= *(?:\"|')[a-z_0-9]*(?:\"|'))/gim, (m, m1, m2) => {
+          return m1 + ''.padEnd(m2.length);
+        });
+      }
+    }
+
   }
 
   public validateBindings(file: File) {
@@ -212,7 +234,7 @@ export class BindingProcessor {
 
     if (file.bindings.length > 0) {
 
-      if (!file.vmClassTag) {
+      if (!file.vmClassName) {
         if (errorCount === 0) {
           addXmlBindingNoVMClassDefined(file);
           errorCount++;
@@ -220,15 +242,15 @@ export class BindingProcessor {
 
       } else {
 
-        file.bindingClass = this.fileMap.allClasses.get(file.vmClassTag.VMClass);
-
-        if (!file.vmClassTag) {
+        file.bindingClass = this.fileMap.allClasses.get(file.vmClassName);
+        
+        if (!file.bindingClass) {
           addXmlBindingVMClassNotFound(file);
           errorCount++;
-
+          
         } else {
           for (let binding of file.bindings) {
-            binding.validateAgainstClass(file)
+            binding.validateAgainstClass()
             errorCount += binding.isValid ? 0 : 1;
           }
         }

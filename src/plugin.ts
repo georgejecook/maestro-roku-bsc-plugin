@@ -65,6 +65,7 @@ function beforeFileParse(source: SourceObj): void {
   // pull out the bindings and store them in a maestro file
   // remove the illegal xml from the source
   let file = new File(source.pathAbsolute, source.source);
+  file.fileMap = fileMap;
   fileMap.addFile(file);
   if (file.fileType === FileType.Xml) {
     bindingProcessor.parseBindings(file);

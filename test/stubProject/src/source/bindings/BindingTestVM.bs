@@ -4,9 +4,12 @@ class BindingTestVM
   public name = ""
   public isGroupVisible = false
   public focusedIndex = false
+  public index = false
   public selectedIndex = false
 
   public function onClick(v)
+  end function
+  public function onCursorIndexChange(v, node)
   end function
 
   public function onItemClicked()

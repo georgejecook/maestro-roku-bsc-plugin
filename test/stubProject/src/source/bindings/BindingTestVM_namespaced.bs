@@ -1,5 +1,7 @@
 
 namespace my.namespace
-  class BindingTest_namespacedVM
+  class BindingTest_namespacedVM extends BindingTestVM
+  public titleTextExtended = ""
+  public jumpToIndex = 0
   end class
 end namespace

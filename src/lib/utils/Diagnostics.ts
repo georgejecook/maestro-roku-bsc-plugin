@@ -44,6 +44,26 @@ function createDiagnostic(
   return diagnostic;
 }
 
+function addDiagnosticWithFileOffset(
+  file: File,
+  code: number,
+  message: string,
+  startOffset: number,
+  endOffset: number,
+  severity: DiagnosticSeverity = DiagnosticSeverity.Error
+) {
+
+  let start = file.getPositionFromOffset(startOffset);
+  let end = file.getPositionFromOffset(endOffset);
+  file.diagnostics.push({
+    code: code,
+    message: message,
+    range: Range.create(start.line, start.character, end.line, end.character),
+    file: file.bscFile,
+    severity: severity
+  });
+}
+
 /**
  * Public methods
  */
@@ -90,7 +110,8 @@ export function addBuildTimeErrorImportMissingKey(file: XmlFile | BrsFile, build
 
 export function addBuildTimeErrorImportMissingPkg(file: XmlFile | BrsFile, pkg: string, line: number = 0, col: number = 0) {
   file.addDiagnostics([createDiagnostic(file, 6907, `xml file imports a build time import, which contains a pkg of a file that cannot be found ${pkg}`, line, col)]);
-}import Binding from '../bindingSupport/Binding';
+} import Binding from '../bindingSupport/Binding';
+import { XMLTag } from '../bindingSupport/XMLTag';
 
 
 export function addProjectFileMapErrorDuplicateXMLComp(file: File, duplicatePath: string) {
@@ -130,7 +151,7 @@ export function addXMLTagErrorCouldNotParsefireOnSetForField(file: File, partTex
     `Could not parse fireOnSet for field`, line, col);
 }
 
-export function addXMLTagErrorCouldNotParseIsFiringOnceForField(file: File, partText: string,line: number, col: number = 99999) {
+export function addXMLTagErrorCouldNotParseIsFiringOnceForField(file: File, partText: string, line: number, col: number = 99999) {
   addErrorDiagnostic(file, 6915,
     `Could not parse biding setting "${partText}"`, line, col);
 }
@@ -160,20 +181,20 @@ export function addXmlBindingNoVMClassDefined(file: File) {
 }
 
 export function addXmlBindingVMClassNotFound(file: File) {
-  addErrorDiagnostic(file, 6922, `The VMClass specified "${file.vmClassTag.VMClass}" was not found.`);
+  addDiagnosticWithFileOffset(file, 6922, `The VMClass specified "${file.vmClassName}" was not found.`, file.componentTag.startPosition, file.componentTag.endPosition);
 }
 
 export function addXmlBindingVMFieldNotFound(file: File, binding: Binding) {
-  addErrorDiagnosticForBinding(file, 6923, `The bound field "${binding.observerField}" was not found in class "${file.vmClassTag.VMClass}".`, binding);
+  addErrorDiagnosticForBinding(file, 6923, `The bound field "${binding.observerField}" was not found in class "${file.vmClassName}".`, binding);
 }
 
 export function addXmlBindingVMFunctionNotFound(file: File, binding: Binding) {
-  addErrorDiagnosticForBinding(file, 6924, `The event handling function "${binding.observerField}" was not found in class "${file.vmClassTag.VMClass}".`, binding);
+  addErrorDiagnosticForBinding(file, 6924, `The event handling function "${binding.observerField}" was not found in class "${file.vmClassName}".`, binding);
 
 }
 
-export function addXmlBindingVMFunctionWrongArgCount(file: File, binding: Binding, expected: number) {
-  addErrorDiagnosticForBinding(file, 6925, `The event handling function "${binding.observerField}" is configured with wrong number of params. Was expecting the function call to have ${expected} parameters.`, binding);
+export function addXmlBindingVMFunctionWrongArgCount(file: File, binding: Binding, expected: number, actualParams: number) {
+  addErrorDiagnosticForBinding(file, 6925, `The event handling function "${binding.observerField}" is configured with wrong number of params. Expected ${expected} parameters; function declaration has ${actualParams}`, binding);
 }
 
 export function addXmlBindingUnknownFunctionArgs(file: File, binding: Binding) {

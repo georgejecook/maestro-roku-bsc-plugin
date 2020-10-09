@@ -41,7 +41,7 @@ export class ProjectFileMap {
     }
   }
 
-  public addClass(classStatement: ClassStatement) {
+  public addClass(classStatement: ClassStatement, file: BrsFile) {
     let className = classStatement.getName(ParseMode.BrighterScript);
     this.allClassNames.add(className);
     this.allClasses.set(className, classStatement);
