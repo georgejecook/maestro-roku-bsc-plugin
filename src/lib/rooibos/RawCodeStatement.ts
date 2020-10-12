@@ -1,5 +1,6 @@
 import {
   BrsFile,
+  BscFile,
   Range,
   Statement,
   WalkOptions,
@@ -14,7 +15,7 @@ import { TranspileState } from 'brighterscript/dist/parser/TranspileState';
 export class RawCodeStatement extends Statement {
   constructor(
     public source: string,
-    public sourceFile?: BrsFile | XmlFile,
+    public sourceFile?: BscFile,
     public range: Range = Range.create(1, 1, 1, 99999),
   ) {
     super();

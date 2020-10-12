@@ -1,6 +1,6 @@
 import { BrsFile, FileObj, Program, ProgramBuilder, XmlFile } from 'brighterscript';
 
-const path = require('path');
+const path = require('path')
 const fs = require('fs-extra');
 
 export class FileFactory {
@@ -19,7 +19,8 @@ export class FileFactory {
     'TestRunner'
   ];
 
-  private sourcePath = '../rooibos/src/source/';
+  // private sourcePath = path.join(__filename,'../rooibos/src/source/');
+  private sourcePath = path.join('/home/george/hope/open-source/rooibos/rooibos/src/source');
   private targetPath = 'source/rooibos/';
   private targetCompsPath = 'components/rooibos/';
 
@@ -31,21 +32,6 @@ export class FileFactory {
     }
     files.push({ src: path.resolve(path.join(this.sourcePath, `RooibosScene.xml`)), dest: path.join(this.targetCompsPath, `RooibosScene.xml`) });
     return files;
-  }
-
-  public preAddFrameworkFiles(builder: ProgramBuilder) {
-    for (let fileName of this.frameworkFileNames) {
-      let sourcePath = path.resolve(path.join(this.sourcePath, `${fileName}.bs`));
-      let destPath = path.join(this.targetPath, `${fileName}.bs`);
-      let entry = { src: sourcePath, dest: destPath };
-      builder.options.files.push(entry);
-    }
-
-    let sourcePath = path.resolve(path.join(this.sourcePath, `RooibosScene.xml`));
-    let destPath = path.join(this.targetCompsPath, `RooibosScene.xml`);
-    let entry = { src: sourcePath, dest: destPath };
-    builder.options.files.push(entry);
-
   }
 
   public addFrameworkFiles(program: Program) {
@@ -67,7 +53,7 @@ export class FileFactory {
   public createTestXML(name: string, baseName: string, imports: string[] = []): string {
     let scriptImports = [];
     for (let fileName of this.frameworkFileNames.concat(imports)) {
-      scriptImports.push(`<script type="text/brightscript" uri="pkg:/${this.targetPath}${fileName}.brs" />`);
+      scriptImports.push(`<script type="text/brighterscript" uri="pkg:/${this.targetPath}${fileName}.bs" />`);
     }
 
     let contents = `<?xml version="1.0" encoding="UTF-8" ?>

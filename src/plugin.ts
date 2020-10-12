@@ -47,15 +47,13 @@ function beforeProgramCreate(builder: ProgramBuilder): void {
   if (!session) {
     session = new RooibosSession(builder);
     codeCoverageProcessor = new CodeCoverageProcessor(builder);
-    if (!isFrameworkAdded) {
-      fileFactory.preAddFrameworkFiles(builder);
-      isFrameworkAdded = true;
-    }
   }
 }
 
 function afterProgramCreate(program: Program) {
-  fileFactory.addFrameworkFiles(program);
+  if (!isFrameworkAdded) {
+    fileFactory.addFrameworkFiles(program);
+  }
 }
 
 function afterScopeCreate(scope: Scope) {
@@ -82,6 +80,12 @@ function beforePublish(builder: ProgramBuilder, files: FileObj[]) {
   session.updateSessionStats();
   for (let testSuite of [...session.sessionInfo.testSuitesToRun.values()]) {
     testSuite.addDataFunctions();
+    for (let group of [...testSuite.testGroups.values()]) {
+      for (let testCase of [...group.testCases.values()]) {
+        group.modifyAssertions(testCase);
+      }
+    }
+
   }
   session.addTestRunnerMetadata();
 }

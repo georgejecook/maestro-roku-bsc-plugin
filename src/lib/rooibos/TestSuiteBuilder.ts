@@ -62,7 +62,9 @@ export class TestSuiteBuilder {
             if (isClassStatement(s)) {
               if (annotation) {
                 if (annotation.annotationType === AnnotationType.TestSuite) {
-                  if (!this.session.sessionInfo.testSuites.has(annotation.name)) {
+                  let oldSuite = this.session.sessionInfo.testSuites.get(annotation.name);
+                  if (!oldSuite || oldSuite.file.pathAbsolute ===
+                    file.pathAbsolute) {
                     suites.push(this.processClass(annotation, s as ClassStatement));
                   } else {
                     diagnosticDuplicateSuite(file, s, annotation);

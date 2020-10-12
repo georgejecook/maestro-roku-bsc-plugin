@@ -2,6 +2,7 @@
 import { BrsFile } from 'brighterscript';
 
 import { TestSuite } from './TestSuite';
+import { TestCase } from './TestCase';
 
 export class SessionInfo {
   constructor(config: any) {
@@ -12,6 +13,7 @@ export class SessionInfo {
   public testSuites: Map<string, TestSuite> = new Map();
   public testSuitesByPath: Map<string, TestSuite[]> = new Map();
   public testSuitesToRun: TestSuite[] = [];
+  public testCasesToRun: TestCase[] = [];
   public hasSoloSuites: boolean = false;
   public hasSoloGroups: boolean = false;
   public hasSoloTests: boolean = false;
