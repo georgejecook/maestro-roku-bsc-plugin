@@ -4,13 +4,13 @@ import { BrsFile, BsDiagnostic, ClassFieldStatement, ClassMethodStatement, Class
 import * as fs from 'fs-extra';
 import * as path from 'path';
 
-import Binding from '../bindingSupport/Binding';
+import Binding from '../binding/Binding';
 import { addSetItems } from '../utils/Utils';
 import { FileType } from './FileType';
 import { ProjectFileMap } from './ProjectFileMap';
 
 import { addFileErrorCouldNotParseXML, addFileErrorCouldNotSave } from '../utils/Diagnostics';
-import { XMLTag } from '../bindingSupport/XMLTag';
+import { XMLTag } from '../binding/XMLTag';
 
 const xmldoc = require('../utils/xmldoc');
 

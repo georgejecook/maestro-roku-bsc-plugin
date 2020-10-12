@@ -2,8 +2,8 @@ import { expect } from 'chai';
 import * as chai from 'chai';
 import * as path from 'path';
 
-import { File } from '../fileProcessing/File';
-import { ProjectFileMap } from '../fileProcessing/ProjectFileMap';
+import { File } from '../files/File';
+import { ProjectFileMap } from '../files/ProjectFileMap';
 import Binding from './Binding';
 import { BindingProcessor } from './BindingProcessor';
 import { BindingType } from './BindingType';

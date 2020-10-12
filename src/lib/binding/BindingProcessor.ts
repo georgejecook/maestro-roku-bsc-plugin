@@ -9,9 +9,9 @@ import {
 } from 'brighterscript';
 import { TranspileState } from 'brighterscript/dist/parser/TranspileState';
 
-import { File } from '../fileProcessing/File';
-import { FileType } from '../fileProcessing/FileType';
-import { ProjectFileMap } from '../fileProcessing/ProjectFileMap';
+import { File } from '../files/File';
+import { FileType } from '../files/FileType';
+import { ProjectFileMap } from '../files/ProjectFileMap';
 import {
   addCorruptVMType,
   addXmlBindingCouldNotParseXML,

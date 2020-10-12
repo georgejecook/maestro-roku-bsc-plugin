@@ -1,6 +1,5 @@
 import { expect } from 'chai';
 import * as chai from 'chai';
-import * as _ from 'lodash';
 
 import { BrsFile, Program } from 'brighterscript';
 

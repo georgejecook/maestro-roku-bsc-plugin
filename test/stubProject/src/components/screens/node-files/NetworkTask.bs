@@ -1,0 +1,28 @@
+import "../bindings/BindingTestExtended.bs"
+
+'@MTask NetTask extends Task
+class NetworkTask
+
+  public function nodeRun(args)
+    instance = new NodeFileTest(args.url)
+    instance.url = args.url
+    return instance.run()
+  end function
+
+  public url = ""
+
+  function new(url)
+    m.url = url
+  end function
+
+  function doswttuff()
+  end function
+
+  function run()
+    'fetch metadata
+    'do reuest for profile
+    'do request for entitelments
+    'check purchases
+    'return final collection
+  end function
+end class

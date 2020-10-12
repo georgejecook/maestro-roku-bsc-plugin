@@ -1,8 +1,8 @@
 import { BsConfig, BrsFile, ParseMode, XmlFile, ProgramBuilder, FunctionStatement, IfStatement, ElseIf, Range, TokenKind } from 'brighterscript';
 import * as path from 'path';
 
-import { File } from '../fileProcessing/File';
-import { ProjectFileMap } from '../fileProcessing/ProjectFileMap';
+import { File } from '../files/File';
+import { ProjectFileMap } from '../files/ProjectFileMap';
 
 import { createElseIf, createVarExpression } from '../utils/Utils';
 import { RawCodeStatement } from '../utils/RawCodeStatement';

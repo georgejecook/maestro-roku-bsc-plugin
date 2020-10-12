@@ -21,38 +21,23 @@ export class FileFactory {
   private targetPath = 'source/maestro/';
   private targetCompsPath = 'components/maestro';
 
-  public preAddFrameworkFiles() {
-    for (let fileName of this.frameworkSourceFileNames) {
-      let sourcePath = path.resolve(path.join(this.sourcePath, fileName));
-      let destPath = path.join(this.targetPath, fileName);
-      let entry = { src: sourcePath, dest: destPath };
-      this.builder.options.files.push(entry);
-    }
-    for (let fileName of this.frameworkCompNames) {
-      let sourcePath = path.resolve(path.join(this.sourcePath, fileName));
-      let destPath = path.join(this.targetCompsPath, fileName);
-      let entry = { src: sourcePath, dest: destPath };
-      this.builder.options.files.push(entry);
-    }
-  }
-
   public addFrameworkFiles(program: Program) {
     for (let fileName of this.frameworkSourceFileNames) {
       let sourcePath = path.resolve(path.join(this.sourcePath, fileName));
       let fileContents = fs.readFileSync(sourcePath, 'utf8');
       let destPath = path.join(this.targetPath, fileName);
-      let entry = { src: sourcePath, dest: destPath };
-
-      program.addOrReplaceFile(entry, fileContents);
+      this.addFile(program, destPath, fileContents);
     }
     for (let fileName of this.frameworkCompNames) {
       let sourcePath = path.resolve(path.join(this.sourcePath, fileName));
       let fileContents = fs.readFileSync(sourcePath, 'utf8');
       let destPath = path.join(this.targetCompsPath, fileName);
-      let entry = { src: sourcePath, dest: destPath };
-
-      program.addOrReplaceFile(entry, fileContents);
+      this.addFile(program, destPath, fileContents);
     }
+  }
+
+  public async addFile(program, projectPath: string, contents: string) {
+    await program.addOrReplaceFile({ src: projectPath, dest: projectPath }, contents);
   }
 
   public isIgnoredFile(file: BrsFile | XmlFile): boolean {
@@ -65,4 +50,5 @@ export class FileFactory {
     );
     return result !== undefined;
   }
+
 }

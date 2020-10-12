@@ -1,6 +1,6 @@
 import * as path from 'path';
 
-import { File } from '../fileProcessing/File';
+import { File } from '../files/File';
 
 export function testUtil_createStubProjectFile(filePath): File {
 

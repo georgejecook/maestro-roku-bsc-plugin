@@ -1,7 +1,7 @@
 import { BrsFile, createRange, Parser, Position, Range } from 'brighterscript';
 import { TranspileState } from 'brighterscript/dist/parser/TranspileState';
 import { isFunction } from 'util';
-import { File } from '../fileProcessing/File';
+import { File } from '../files/File';
 import { addXmlBindingUnknownFunctionArgs, addXmlBindingVMFieldNotFound, addXmlBindingVMFunctionNotFound, addXmlBindingVMFunctionWrongArgCount } from '../utils/Diagnostics';
 
 import { BindingProperties } from './BindingProperties';
@@ -31,6 +31,8 @@ export default class Binding {
   public rawValueText: string;
   public line: number = 0;
   public char: number = 0;
+  public startOffset: number = 0;
+  public endOffset: number = 0;
   public endChar: number = 99999;
   public isUsingGetterAndSetter = false;
 

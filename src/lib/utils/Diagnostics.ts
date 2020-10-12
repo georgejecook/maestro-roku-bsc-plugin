@@ -1,7 +1,7 @@
 import { BrsFile, XmlFile, DiagnosticSeverity, Range } from 'brighterscript';
 
 
-import { File } from '../fileProcessing/File';
+import { File } from '../files/File';
 
 function addErrorDiagnostic(
   file: File,
@@ -110,8 +110,8 @@ export function addBuildTimeErrorImportMissingKey(file: XmlFile | BrsFile, build
 
 export function addBuildTimeErrorImportMissingPkg(file: XmlFile | BrsFile, pkg: string, line: number = 0, col: number = 0) {
   file.addDiagnostics([createDiagnostic(file, 6907, `xml file imports a build time import, which contains a pkg of a file that cannot be found ${pkg}`, line, col)]);
-} import Binding from '../bindingSupport/Binding';
-import { XMLTag } from '../bindingSupport/XMLTag';
+} import Binding from '../binding/Binding';
+import { XMLTag } from '../binding/XMLTag';
 
 
 export function addProjectFileMapErrorDuplicateXMLComp(file: File, duplicatePath: string) {
@@ -151,9 +151,9 @@ export function addXMLTagErrorCouldNotParsefireOnSetForField(file: File, partTex
     `Could not parse fireOnSet for field`, line, col);
 }
 
-export function addXMLTagErrorCouldNotParseIsFiringOnceForField(file: File, partText: string, line: number, col: number = 99999) {
-  addErrorDiagnostic(file, 6915,
-    `Could not parse biding setting "${partText}"`, line, col);
+export function addXMLTagErrorCouldNotParseIsFiringOnceForField(file: File, partText: string, binding: Binding) {
+  addErrorDiagnosticForBinding(file, 6915,
+    `Could not parse binding setting "${partText}"`, binding);
 }
 
 export function addFileErrorCouldNotSave(file: File) {
@@ -198,5 +198,31 @@ export function addXmlBindingVMFunctionWrongArgCount(file: File, binding: Bindin
 }
 
 export function addXmlBindingUnknownFunctionArgs(file: File, binding: Binding) {
-  addErrorDiagnosticForBinding(file, 6925, `The event handling function "${binding.observerField}" has an incorrect signature. You can call vm functions with the (), (value), (node), or (value, node)`, binding);
+  addErrorDiagnosticForBinding(file, 6926, `The event handling function "${binding.observerField}" has an incorrect signature. You can call vm functions with the (), (value), (node), or (value, node)`, binding);
+}
+
+
+export function addBuildTimeErrorImportNoImports(file: XmlFile | BrsFile, buildKey: string, line: number = 0, col: number = 0) {
+  file.addDiagnostics([createDiagnostic(file, 6927, `xml file imports a build time import key that was is defined in bsConfig; but does not include any imports: ${buildKey}`, line, col, line, 99999, DiagnosticSeverity.Warning)]);
+}
+
+export function addNodeClassNoNodeRunMethod(file: BrsFile, line: number = 0, col: number = 0) {
+  file.addDiagnostics([createDiagnostic(file, 6928, `Node classes must declare a function name nodeRun(args), which returns dynamic`, line, col)]);
+
+}
+
+export function addNodeClassNoExtendNodeFound(file: BrsFile, line: number = 0, col: number = 0, name: string, extendsName: string) {
+  file.addDiagnostics([createDiagnostic(file, 6929, `Node class "${name}" extends component ${extendsName}, which cannot be found in scope. You must extend a Node, Task, Group or a custom node`, line, col)]);
+}
+
+export function addNodeClassDuplicateName(file: BrsFile, line: number = 0, col: number = 0, name: string) {
+  file.addDiagnostics([createDiagnostic(file, 6930, `Node class name "${name}" is already used`, line, col)]);
+}
+
+export function addNodeClassBadDeclaration(file: BrsFile, line: number = 0, col: number = 0, text: string) {
+  file.addDiagnostics([createDiagnostic(file, 6931, `Could not interpret node class annotation "${text}". Should be "'@MNode|MTask [name] extends [baseCompName]`, line, col)]);
+}
+
+export function addNodeClassNeedsClassDeclaration(file: BrsFile, line: number = 0, col: number = 0) {
+  file.addDiagnostics([createDiagnostic(file, 6931, `Node class annotation must immediately precede the target class; but no class statement was found`, line, col)]);
 }

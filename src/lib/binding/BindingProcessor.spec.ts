@@ -3,8 +3,8 @@ import * as chai from 'chai';
 import * as _ from 'lodash';
 import * as path from 'path';
 
-import { File } from '../fileProcessing/File';
-import { ProjectFileMap } from '../fileProcessing/ProjectFileMap';
+import { File } from '../files/File';
+import { ProjectFileMap } from '../files/ProjectFileMap';
 import { testUtil_createStubProjectFile } from '../utils/TestUtils';
 import Binding from './Binding';
 import { BindingProcessor } from './BindingProcessor';

@@ -5,6 +5,7 @@ import { File } from './File';
 import { FileType } from './FileType';
 
 import { addProjectFileMapErrorDuplicateXMLComp } from '../utils/Diagnostics';
+import { NodeClass } from '../node-classes/NodeClass';
 
 export class ProjectFileMap {
   constructor() {
@@ -15,8 +16,10 @@ export class ProjectFileMap {
 
   public allClasses = new Map<string, ClassStatement>();
   public allClassNames: Set<string>;
+  public allClassFiles = new Set<BrsFile>();
   public allXMLComponentFiles: Map<string, File>;
   public allFiles: Map<string, File>;
+  public nodeClasses = new Map<string, NodeClass>();
 
   get XMLComponentNames(): string[] {
     return [...this.allXMLComponentFiles.keys()];
@@ -44,6 +47,7 @@ export class ProjectFileMap {
   public addClass(classStatement: ClassStatement, file: BrsFile) {
     let className = classStatement.getName(ParseMode.BrighterScript);
     this.allClassNames.add(className);
+    this.allClassFiles.add(file);
     this.allClasses.set(className, classStatement);
   }
 

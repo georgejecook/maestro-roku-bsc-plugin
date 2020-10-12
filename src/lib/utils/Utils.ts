@@ -2,8 +2,8 @@ import { Position, Range, BrsFile, Token, TokenKind, XmlFile, isClassMethodState
 import { BrsType } from 'brighterscript/dist/brsTypes';
 import * as path from 'path';
 
-import { File } from '../fileProcessing/File';
-import { ProjectFileMap } from '../fileProcessing/ProjectFileMap';
+import { File } from '../files/File';
+import { ProjectFileMap } from '../files/ProjectFileMap';
 import { RawCodeStatement } from './RawCodeStatement';
 
 export function spliceString(str: string, index: number, add?: string): string {

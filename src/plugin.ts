@@ -2,6 +2,8 @@ import {
   BrsFile,
   CompilerPlugin,
   FileObj,
+  isBrsFile,
+  isXmlFile,
   Program,
   ProgramBuilder,
   SourceObj,
@@ -10,16 +12,19 @@ import {
   XmlFile,
 } from 'brighterscript';
 
-import { ProjectFileMap } from './lib/fileProcessing/ProjectFileMap';
+import { ProjectFileMap } from './lib/files/ProjectFileMap';
 
-import { BindingProcessor } from './lib/bindingSupport/BindingProcessor';
-import { File } from './lib/fileProcessing/File';
+import { BindingProcessor } from './lib/binding/BindingProcessor';
+import { File } from './lib/files/File';
 
-import { FileType } from './lib/fileProcessing/FileType';
+import { FileType } from './lib/files/FileType';
 import ImportProcessor from './lib/importSupport/ImportProcessor';
 import { getAssociatedFile } from './lib/utils/Utils';
-import ReflectionUtil from './lib/reflection-support/ReflectionUtil';
+import ReflectionUtil from './lib/reflection/ReflectionUtil';
 import { FileFactory } from './lib/utils/FileFactory';
+import NodeClassUtil from './lib/node-classes/NodeClassUtil';
+
+const path = require('path');
 
 let _builder: ProgramBuilder;
 let fileMap: ProjectFileMap;
@@ -28,6 +33,7 @@ let importProcessor: ImportProcessor;
 let reflectionUtil: ReflectionUtil;
 let isFrameworkAdded = false;
 let fileFactory: FileFactory;
+let nodeClassUtil: NodeClassUtil;
 
 // entry point
 const pluginInterface: CompilerPlugin = {
@@ -37,6 +43,7 @@ const pluginInterface: CompilerPlugin = {
   beforePublish: beforePublish,
   beforeFileParse: beforeFileParse,
   afterFileParse: afterFileParse,
+  beforeProgramValidate: beforeProgramValidate,
   afterProgramValidate: afterProgramValidate,
   afterProgramTranspile: afterProgramTranspile
 };
@@ -48,17 +55,17 @@ function beforeProgramCreate(builder: ProgramBuilder): void {
     fileMap = new ProjectFileMap();
     bindingProcessor = new BindingProcessor(fileMap);
     fileFactory = new FileFactory(builder);
-    if (!isFrameworkAdded) {
-      fileFactory.preAddFrameworkFiles();
-      isFrameworkAdded = true;
-    }
   }
   reflectionUtil = new ReflectionUtil(fileMap, builder);
   importProcessor = new ImportProcessor(builder.options);
+  nodeClassUtil = new NodeClassUtil(fileMap, builder, fileFactory);
   _builder = builder;
 }
 function afterProgramCreate(program: Program): void {
-  fileFactory.addFrameworkFiles(program);
+  if (!isFrameworkAdded) {
+    fileFactory.addFrameworkFiles(program);
+    isFrameworkAdded = true;
+  }
 }
 
 function beforeFileParse(source: SourceObj): void {
@@ -79,9 +86,9 @@ function afterFileParse(file: (BrsFile | XmlFile)): void {
   if (mFile) {
     mFile.bscFile = file;
   }
-  console.log('afterFileParse', file.pathAbsolute);
+  // console.log('afterFileParse', file.pathAbsolute);
   //add alternateFile, if we're xml
-  if (file instanceof XmlFile) {
+  if (isXmlFile(file)) {
     if (mFile) {
       let associatedFile = getAssociatedFile(file, fileMap);
       if (associatedFile) {
@@ -89,10 +96,15 @@ function afterFileParse(file: (BrsFile | XmlFile)): void {
         associatedFile.associatedFile = mFile;
       }
     }
-  } else {
+  } else if (isBrsFile(file)) {
     importProcessor.processDynamicImports(file, _builder.program);
     reflectionUtil.addFile(file);
+    nodeClassUtil.addFile(file);
   }
+}
+
+async function beforeProgramValidate(program: Program) {
+  await nodeClassUtil.createNodeClasses(program);
 }
 
 function afterProgramValidate(program: Program) {
@@ -116,9 +128,10 @@ function beforePublish(builder: ProgramBuilder, files: FileObj[]): void {
       bindingProcessor.generateCodeForXMLFile(compFile);
     }
   }
+
   reflectionUtil.updateRuntimeFile();
 }
 
 function afterProgramTranspile(program: Program, entries: TranspileObj[]) {
-  console.log(fileMap);
+  // console.log(fileMap);
 }

@@ -1,4 +1,4 @@
-import { File } from '../fileProcessing/File';
+import { File } from '../files/File';
 import { escapeRegExp } from '../utils/Utils';
 import Binding from './Binding';
 import { BindingType, BindingSendMode } from './BindingType';
@@ -83,12 +83,13 @@ export class XMLTag {
       if (attribute.toLowerCase() !== 'id') {
         let matches = staticRegex.exec(xmlElement.attr[attribute]);
         matches = matches || regex.exec(xmlElement.attr[attribute]);
-        const colRegex = new RegExp('^(( |\\t)*)' + attribute, 'gim');
+        const colRegex = new RegExp('^((?: *|\\t*)' + attribute + '(?: *|\\t*)=(?: *|\\t*)*(?:"|\'))', 'gim');
         const colMatches = colRegex.exec(tagText);
-        const col = colMatches && colMatches.length > 1 && colMatches[1] ? colMatches[1].length : 0;
+        let col = colMatches && colMatches.length > 1 && colMatches[1] ? colMatches[1].length : 0;
         const bindingText = matches && matches.length > 2 ? matches[2] : null;
         const bindingStartType = matches && matches.length > 1 ? matches[1] : null;
         const bindingEndType = matches && matches.length > 3 ? matches[3] : null;
+        col += bindingStartType ? bindingStartType.length + 1 : 0;
         let mode = this.getBindingMode(bindingStartType, bindingEndType);
 
         if (bindingText) {
@@ -178,7 +179,7 @@ export class XMLTag {
     } else if (partText.toLowerCase().trim() === 'once') {
       binding.properties.isFiringOnce = true;
     } else {
-      addXMLTagErrorCouldNotParseBindingSettings(this._file, partText, line);
+      addXMLTagErrorCouldNotParseBindingSettings(this._file, partText, binding);
     }
   }
 

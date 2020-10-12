@@ -3,7 +3,7 @@ import { BrsFile, createToken, Program, TokenKind } from 'brighterscript';
 
 import { ImportStatement } from 'brighterscript/dist/parser';
 
-import { addBuildTimeErrorImportMissingKey, addBuildTimeErrorImportMissingPkg } from '../utils/Diagnostics';
+import { addBuildTimeErrorImportMissingKey, addBuildTimeErrorImportMissingPkg, addBuildTimeErrorImportNoImports } from '../utils/Diagnostics';
 
 /**
  * Manages build imports
@@ -18,18 +18,21 @@ export default class ImportProcessor {
   private getImportStatements(file: BrsFile, buildKey: string, previousImport: ImportStatement, program: Program) {
     let imports = [];
     let importValues = this.config.buildTimeImports ? this.config.buildTimeImports[buildKey] : null;
-    if (importValues && importValues.length > 0) {
-      for (const pkg of this.config.buildTimeImports[buildKey]) {
-        if (program.getFileByPkgPath(pkg.substring(5))) {
-          let importToken = createToken(TokenKind.Import, previousImport.importToken.range.start, 'import');
-          let filePathToken = createToken(TokenKind.SourceFilePathLiteral, previousImport.importToken.range.start, `"${pkg}"`);
-          imports.push(new ImportStatement(importToken, filePathToken));
-        } else {
-          addBuildTimeErrorImportMissingPkg(file, pkg, previousImport.range.start.line + 10);
+    if (importValues) {
+      if (importValues.length > 0) {
+        for (const pkg of this.config.buildTimeImports[buildKey]) {
+          if (program.getFileByPkgPath(pkg.substring(5))) {
+            let importToken = createToken(TokenKind.Import, previousImport.importToken.range.start, 'import');
+            let filePathToken = createToken(TokenKind.SourceFilePathLiteral, previousImport.importToken.range.start, `"${pkg}"`);
+            imports.push(new ImportStatement(importToken, filePathToken));
+          } else {
+            addBuildTimeErrorImportMissingPkg(file, pkg, previousImport.range.start.line);
+          }
         }
+        addBuildTimeErrorImportNoImports(file, buildKey, previousImport.range.start.line + 10);
       }
     } else {
-      addBuildTimeErrorImportMissingKey(file, buildKey, previousImport.range.start.line + 10);
+      addBuildTimeErrorImportMissingKey(file, buildKey, previousImport.range.start.line);
     }
     return imports;
   }
