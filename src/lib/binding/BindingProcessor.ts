@@ -133,10 +133,10 @@ export class BindingProcessor {
     try {
       let fileContents = file.getFileContents();
       const doc = file.xmlDoc;
-      file.componentTag = new XMLTag(doc, fileContents.substring(doc.startTagPosition -1, doc.position), file);
+      file.componentTag = new XMLTag(doc, fileContents.substring(doc.startTagPosition - 1, doc.position), file);
       file.componentTag.startPosition = doc.startTagPosition;
       file.componentTag.endPosition = doc.position;
-  
+
       this.getVMClass(file, doc);
       doc.allElements
         .filter((xmlElement) => {
@@ -243,15 +243,19 @@ export class BindingProcessor {
       } else {
 
         file.bindingClass = this.fileMap.allClasses.get(file.vmClassName);
-        
+
         if (!file.bindingClass) {
           addXmlBindingVMClassNotFound(file);
           errorCount++;
-          
+
         } else {
           for (let binding of file.bindings) {
             binding.validateAgainstClass()
             errorCount += binding.isValid ? 0 : 1;
+          }
+          let bindingFile = this.fileMap.allVMLinkedFiles.get(file.vmClassName);
+          if (bindingFile) {
+            bindingFile.bindingTargetFiles.add(file.bscFile as XmlFile);
           }
         }
       }

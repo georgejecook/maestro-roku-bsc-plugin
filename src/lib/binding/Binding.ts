@@ -1,4 +1,4 @@
-import { BrsFile, createRange, Parser, Position, Range } from 'brighterscript';
+import { BrsFile, createRange, isClassMethodStatement, Parser, Position, Range } from 'brighterscript';
 import { TranspileState } from 'brighterscript/dist/parser/TranspileState';
 import { isFunction } from 'util';
 import { File } from '../files/File';
@@ -55,7 +55,7 @@ export default class Binding {
 
     if (this.properties.sendMode > BindingSendMode.field) {
       let method = this.file.getMethod(this.observerField);
-      if (!method) {
+      if (!isClassMethodStatement(method)) {
         addXmlBindingVMFunctionNotFound(this.file, this);
         this.isValid = false;
       } else {

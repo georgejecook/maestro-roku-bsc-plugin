@@ -18,6 +18,7 @@ const xmldoc = require('../utils/xmldoc');
  * describes a file in our project.
  */
 export class File {
+
   constructor(fullPath: string, fileContents: string = null) {
     this.componentIds = new Set<string>();
     this._bindings = [];
@@ -54,6 +55,7 @@ export class File {
   public diagnostics: BsDiagnostic[] = [];
   public componentTag: XMLTag;
   public vmClassName: string;
+  public bindingTargetFiles = new Set<XmlFile>();
 
   private readonly _bindings: Binding[];
   private _fileContents: string;
@@ -230,10 +232,17 @@ export class File {
       let next = this.bindingClass.parentClassName ? this.fileMap.allClasses.get(this.bindingClass.parentClassName.getName(ParseMode.BrighterScript)) : null;
       while (next) {
         this.parents.push(next);
-        next = next.parentClassName ? this.fileMap.allClasses.get(next.parentClassName.getName(ParseMode.BrighterScript)): null;
+        next = next.parentClassName ? this.fileMap.allClasses.get(next.parentClassName.getName(ParseMode.BrighterScript)) : null;
       }
     }
 
     return this.parents;
+  }
+
+  resetDiagnostics() {
+    this.diagnostics = [];
+    if (this.bscFile) {
+      (this.bscFile as any).diagnostics = (this.bscFile.getDiagnostics().filter((d) => d.code >= 6900 && d.code <= 6700));
+    }
   }
 }

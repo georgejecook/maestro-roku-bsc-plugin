@@ -113,6 +113,8 @@ function afterProgramValidate(program: Program) {
 
     if (compFile.bscFile) {
       compFile.parentFile = fileMap.allXMLComponentFiles.get(compFile.parentComponentName);
+      compFile.diagnostics = [];
+      compFile.resetDiagnostics();
       bindingProcessor.validateBindings(compFile);
       let bscFile = program.getFileByPathAbsolute(compFile.fullPath);
       if (bscFile) {
@@ -120,6 +122,7 @@ function afterProgramValidate(program: Program) {
       }
     }
   }
+  console.log('done');
 }
 
 function beforePublish(builder: ProgramBuilder, files: FileObj[]): void {

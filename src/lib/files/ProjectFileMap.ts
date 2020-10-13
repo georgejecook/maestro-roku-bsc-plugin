@@ -17,6 +17,7 @@ export class ProjectFileMap {
   public allClasses = new Map<string, ClassStatement>();
   public allClassNames: Set<string>;
   public allClassFiles = new Set<BrsFile>();
+  public allVMLinkedFiles = new Map<string, File>();
   public allXMLComponentFiles: Map<string, File>;
   public allFiles: Map<string, File>;
   public nodeClasses = new Map<string, NodeClass>();
@@ -44,11 +45,12 @@ export class ProjectFileMap {
     }
   }
 
-  public addClass(classStatement: ClassStatement, file: BrsFile) {
+  public addClass(classStatement: ClassStatement, file: BrsFile, mFile: File) {
     let className = classStatement.getName(ParseMode.BrighterScript);
     this.allClassNames.add(className);
     this.allClassFiles.add(file);
     this.allClasses.set(className, classStatement);
+    this.allVMLinkedFiles.set(className, mFile);
   }
 
   public addFile(file: File) {
