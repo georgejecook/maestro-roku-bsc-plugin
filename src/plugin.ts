@@ -86,8 +86,6 @@ function afterFileParse(file: (BrsFile | XmlFile)): void {
   if (mFile) {
     mFile.bscFile = file;
   }
-  // console.log('afterFileParse', file.pathAbsolute);
-  //add alternateFile, if we're xml
   if (isXmlFile(file)) {
     if (mFile) {
       let associatedFile = getAssociatedFile(file, fileMap);
@@ -122,7 +120,6 @@ function afterProgramValidate(program: Program) {
       }
     }
   }
-  console.log('done');
 }
 
 function beforePublish(builder: ProgramBuilder, files: FileObj[]): void {
@@ -136,5 +133,4 @@ function beforePublish(builder: ProgramBuilder, files: FileObj[]): void {
 }
 
 function afterProgramTranspile(program: Program, entries: TranspileObj[]) {
-  // console.log(fileMap);
 }
