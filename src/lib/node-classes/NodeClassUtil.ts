@@ -81,13 +81,15 @@ export default class NodeClassUtil {
 
     for (let nodeFile of [...this.fileMap.nodeClasses.values()]) {
       let xmlText = this.getNodeFileXmlText(nodeFile);
+      let xmlPath = path.join('components', 'maestro', 'generated', `${nodeFile.generatedNodeName}.xml`);
+      this.fileFactory.addFile(program, xmlPath, xmlText);
 
-      this.fileFactory.addFile(program, path.join('components', 'maestro', 'generated', `${nodeFile.generatedNodeName}.xml`), xmlText);
-      
       let bsPath = path.join('components', 'maestro', 'generated', `${nodeFile.generatedNodeName}.bs`);
       this.fileFactory.addFile(program, bsPath, '');
       let bsFile = await program.getFileByPkgPath(bsPath) as BrsFile;
-      bsFile.parser.statements.push(this.getBrsCode(nodeFile))
+      bsFile.parser.statements.push(this.getBrsCode(nodeFile));
+      nodeFile.brsFile = bsFile;
+      nodeFile.xmlFile = await program.getFileByPkgPath(xmlPath) as XmlFile;
     }
   }
 

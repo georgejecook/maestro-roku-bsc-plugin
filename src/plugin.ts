@@ -1,5 +1,6 @@
 import {
   BrsFile,
+  BscFile,
   CompilerPlugin,
   FileObj,
   isBrsFile,
@@ -43,6 +44,7 @@ const pluginInterface: CompilerPlugin = {
   beforePublish: beforePublish,
   beforeFileParse: beforeFileParse,
   afterFileParse: afterFileParse,
+  afterFileValidate: afterFileValidate,
   beforeProgramValidate: beforeProgramValidate,
   afterProgramValidate: afterProgramValidate,
   afterProgramTranspile: afterProgramTranspile
@@ -133,4 +135,9 @@ function beforePublish(builder: ProgramBuilder, files: FileObj[]): void {
 }
 
 function afterProgramTranspile(program: Program, entries: TranspileObj[]) {
+}
+function afterFileValidate(file: BscFile) {
+  if (file.pathAbsolute.startsWith('components/maestro/generated')) {
+    (file as any).diagnostics = [];
+  }
 }

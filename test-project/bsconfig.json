@@ -30,6 +30,6 @@
     "IAnalytics": []
   },
   "plugins": [
-    "../../dist/plugin.js"
+    "../dist/plugin.js"
   ]
 }
