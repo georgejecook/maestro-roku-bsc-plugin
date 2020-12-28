@@ -1,0 +1,20 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "test-project"
+		}
+	],
+  "settings": {
+    "workbench.colorCustomizations": {
+      "statusBar.background": "#551A8B",
+      "statusBar.debuggingBackground": "#551A8B",
+      "panelTitle.activeBorder": "#ff0000",
+      "activityBar.background": "#05304E",
+      "titleBar.activeBackground": "#07436E",
+      "titleBar.activeForeground": "#F8FCFF"
+    }
+  }
+}
