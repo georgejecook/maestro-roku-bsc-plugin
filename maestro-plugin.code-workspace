@@ -4,16 +4,18 @@
 			"path": "."
 		},
 		{
-			"path": "test-project"
+			"path": "../../vsc/brighterscript"
 		}
 	],
+  "remoteAuthority": "wsl+Ubuntu-20.04",
   "settings": {
     "workbench.colorCustomizations": {
-      "statusBar.background": "#551A8B",
-      "statusBar.debuggingBackground": "#551A8B",
+      "statusBar.background": "#6E3584",
+      "statusBar.debuggingBackground": "#6E3584",
       "panelTitle.activeBorder": "#ff0000",
-      "activityBar.background": "#05304E",
-      "titleBar.activeBackground": "#07436E",
+      "activityBar.background": "#6E3584",
+      "activityBar.activeBackground": "#4f265f",
+      "titleBar.activeBackground": "#4f265f",
       "titleBar.activeForeground": "#F8FCFF"
     }
   }
