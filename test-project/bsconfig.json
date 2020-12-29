@@ -19,17 +19,19 @@
     }
   ],
   "diagnosticLevel": "warn",
-  "buildTimeImports": {
-    "IAuthProvider": [
-      "pkg:/source/mixins/NetMixin.bs",
-      "pkg:/source/maestro/observable/ObservableMixin.bs"
-    ],
-    "IEntitlementsProvider": [],
-    "IBookmarksProvider": [],
-    "IPlayerAnalytics": [],
-    "IAnalytics": []
-  },
   "plugins": [
     "../dist/plugin.js"
-  ]
+  ],
+  "maestro": {
+    "buildTimeImports": {
+      "IAuthProvider": [
+        "pkg:/source/mixins/NetMixin.bs",
+        "pkg:/source/maestro/observable/ObservableMixin.bs"
+      ],
+      "IEntitlementsProvider": [],
+      "IBookmarksProvider": [],
+      "IPlayerAnalytics": [],
+      "IAnalytics": []
+    }
+  }
 }

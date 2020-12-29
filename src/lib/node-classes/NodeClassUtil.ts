@@ -1,4 +1,4 @@
-import { BsConfig, BrsFile, ParseMode, XmlFile, ProgramBuilder, FunctionStatement, IfStatement, ElseIf, Range, TokenKind, ClassStatement, CommentStatement, createVisitor, isClassStatement, WalkMode, isCommentStatement, Statement, isNamespaceStatement, isClassMethodStatement, Program } from 'brighterscript';
+import { BsConfig, BrsFile, ParseMode, XmlFile, ProgramBuilder, FunctionStatement, IfStatement, Range, TokenKind, ClassStatement, CommentStatement, createVisitor, isClassStatement, WalkMode, isCommentStatement, isNamespaceStatement, isClassMethodStatement, Program, Statement, createToken, Position, ImportStatement } from 'brighterscript';
 import { TranspileState } from 'brighterscript/dist/parser/TranspileState';
 
 const path = require('path');
@@ -87,6 +87,7 @@ export default class NodeClassUtil {
       let bsPath = path.join('components', 'maestro', 'generated', `${nodeFile.generatedNodeName}.bs`);
       this.fileFactory.addFile(program, bsPath, '');
       let bsFile = await program.getFileByPkgPath(bsPath) as BrsFile;
+
       bsFile.parser.statements.push(this.getBrsCode(nodeFile));
       nodeFile.brsFile = bsFile;
       nodeFile.xmlFile = await program.getFileByPkgPath(xmlPath) as XmlFile;
@@ -102,21 +103,26 @@ export default class NodeClassUtil {
     <field id="args" type="assocarray"/>
     <field id="output" type="assocarray"/>
   </interface>
+  <script type="text/brightscript" uri="pkg:/${nodeFile.file.pkgPath}"/>
   <children>
   </children>
 </component>
      `;
   }
 
+  private getImportStatement(path: string): ImportStatement {
+    return new ImportStatement(
+      createToken(TokenKind.Import, 'import', Range.create(Position.create(1, 1), Position.create(1,6))),
+      createToken(TokenKind.StringLiteral, path, Range.create(Position.create(1, 7), Position.create(1,7 + path.length))),
+      );
+  }
   private getBrsCode(nodeFile: NodeClass): RawCodeStatement {
-    let text = `import "pkg:${nodeFile.file.pkgPath}"`;
+    let text = ``;
     let transpileState = new TranspileState(nodeFile.file);
     if (nodeFile.type === NodeClassType.task) {
 
       text += `
   function init()
-    registerLogger("${nodeFile.name}", true)
-    m.logMethod("init")
     m.top.functionName = "exec"
   end function
 
@@ -126,8 +132,6 @@ export default class NodeClassUtil {
     } else {
       text += `
     function init()
-    registerLogger("${nodeFile.name}", true)
-    m.logMethod("init")
     m.instance = nodeRun(m.top.args)
   end function`;
     }

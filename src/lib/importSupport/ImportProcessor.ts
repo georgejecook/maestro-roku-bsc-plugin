@@ -10,7 +10,7 @@ import { addBuildTimeErrorImportMissingKey, addBuildTimeErrorImportMissingPkg, a
  */
 export default class ImportProcessor {
   constructor(config: any) {
-    this.config = config;
+    this.config = config?.maestro || {};
   }
 
   private config: any;
@@ -22,13 +22,14 @@ export default class ImportProcessor {
       if (importValues.length > 0) {
         for (const pkg of this.config.buildTimeImports[buildKey]) {
           if (program.getFileByPkgPath(pkg.substring(5))) {
-            let importToken = createToken(TokenKind.Import, previousImport.importToken.range.start, 'import');
-            let filePathToken = createToken(TokenKind.SourceFilePathLiteral, previousImport.importToken.range.start, `"${pkg}"`);
+            let importToken = createToken(TokenKind.Import, 'import', previousImport.importToken.range);
+            let filePathToken = createToken(TokenKind.SourceFilePathLiteral, `"${pkg}"`, previousImport.importToken.range);
             imports.push(new ImportStatement(importToken, filePathToken));
           } else {
             addBuildTimeErrorImportMissingPkg(file, pkg, previousImport.range.start.line);
           }
         }
+      } else {
         addBuildTimeErrorImportNoImports(file, buildKey, previousImport.range.start.line + 10);
       }
     } else {

@@ -1,10 +1,10 @@
-import { BsConfig, BrsFile, ParseMode, XmlFile, ProgramBuilder, FunctionStatement, IfStatement, ElseIf, Range, TokenKind } from 'brighterscript';
+import { BsConfig, BrsFile, ParseMode, XmlFile, ProgramBuilder, FunctionStatement, IfStatement, TokenKind } from 'brighterscript';
 import * as path from 'path';
 
 import { File } from '../files/File';
 import { ProjectFileMap } from '../files/ProjectFileMap';
 
-import { createElseIf, createVarExpression } from '../utils/Utils';
+import { createIfStatement, createVarExpression } from '../utils/Utils';
 import { RawCodeStatement } from '../utils/RawCodeStatement';
 
 /*
@@ -33,8 +33,11 @@ export default class ReflectionUtil {
 
     if (ifStatement) {
       let classNames = this.fileMap.classNames;
+      let lastIf = ifStatement;
       for (let name of classNames) {
-        ifStatement.elseIfs.push(createElseIf(createVarExpression('name', TokenKind.Equal, name), [new RawCodeStatement(`return ${name}`)]));
+        let nextIf = createIfStatement(createVarExpression('name', TokenKind.Equal, name), [new RawCodeStatement(`return ${name}`)]);
+        (lastIf as any).elseBranch = nextIf;
+        lastIf = nextIf;
       }
     }
   }

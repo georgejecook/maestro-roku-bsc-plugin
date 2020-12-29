@@ -1,4 +1,4 @@
-import { BrsFile, createRange, isClassMethodStatement, Parser, Position, Range } from 'brighterscript';
+import { BrsFile, isClassMethodStatement, Parser, Position, Range } from 'brighterscript';
 import { TranspileState } from 'brighterscript/dist/parser/TranspileState';
 import { isFunction } from 'util';
 import { File } from '../files/File';
@@ -167,8 +167,7 @@ export default class Binding {
   }
 
   public getRange(): Range {
-    let range = createRange(Position.create(this.line, this.char));
-    range.end.character = this.endChar;
+    let range = Range.create(Position.create(this.line, this.char), Position.create(this.line, this.endChar));
     return range;
   }
 

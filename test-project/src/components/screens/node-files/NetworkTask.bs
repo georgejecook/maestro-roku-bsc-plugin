@@ -4,7 +4,7 @@ import "../bindings/BindingTestExtended.bs"
 class NetworkTask
 
   public function nodeRun(args)
-    instance = new NodeFileTest(args.url)
+    instance = new NetworkTask(args.url)
     instance.url = args.url
     return instance.run()
   end function
