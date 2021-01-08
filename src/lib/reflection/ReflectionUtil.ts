@@ -29,16 +29,18 @@ export default class ReflectionUtil {
 
   public updateClassLookupFunction(file: BrsFile) {
     let func = file.ast.statements[0] as FunctionStatement;
-    let ifStatement = func?.func?.body?.statements[1] as IfStatement;
 
-    if (ifStatement) {
+    if (func?.func?.body?.statements.length> 0) {
       let classNames = this.fileMap.classNames;
-      let lastIf = ifStatement;
+      let codeText = `if false 
+        ? "maestro reflection"`
       for (let name of classNames) {
-        let nextIf = createIfStatement(createVarExpression('name', TokenKind.Equal, name), [new RawCodeStatement(`return ${name}`)]);
-        (lastIf as any).elseBranch = nextIf;
-        lastIf = nextIf;
+        let brsName = name.replace(/\./g, '_');
+        codeText += `\n else if name = "${name}" 
+          return ${name}`;
       }
+      codeText +='\n end if';
+      func.func.body.statements[1] = new RawCodeStatement(codeText);
     }
   }
 

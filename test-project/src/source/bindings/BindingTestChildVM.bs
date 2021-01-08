@@ -1,0 +1,10 @@
+import "BindingTestVM.bs"
+
+class BindingTestChildVM extends BindingTestVM
+  public title2Text = ""
+  public name2 = ""
+
+  override function onClick(v)
+  end function
+
+end class

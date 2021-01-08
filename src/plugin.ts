@@ -77,6 +77,10 @@ function beforeFileParse(source: SourceObj): void {
   file.fileMap = fileMap;
   fileMap.addFile(file);
   if (file.fileType === FileType.Xml) {
+    if (!file.bscFile) {
+      file.bscFile = _builder.program.getFileByPathAbsolute(source.pathAbsolute);
+    }
+
     bindingProcessor.parseBindings(file);
     source.source = file.getFileContents();
   }
@@ -113,12 +117,12 @@ function afterProgramValidate(program: Program) {
 
     if (compFile.bscFile) {
       compFile.parentFile = fileMap.allXMLComponentFiles.get(compFile.parentComponentName);
-      compFile.diagnostics = [];
       compFile.resetDiagnostics();
       bindingProcessor.validateBindings(compFile);
       let bscFile = program.getFileByPathAbsolute(compFile.fullPath);
       if (bscFile) {
         bscFile.addDiagnostics(compFile.diagnostics);
+        bscFile.addDiagnostics(compFile.failedBindings);
       }
     }
   }

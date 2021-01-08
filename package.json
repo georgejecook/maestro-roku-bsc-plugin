@@ -3,19 +3,23 @@
   "version": "0.1.0",
   "description": "Visual studio plugin for maestro brightscript development",
   "files": [
-    "dist/**/!(*.spec.*)*"
+    "dist/**/!(*.spec.*)*",
+    "dist/**/*.brs"
   ],
   "main": "dist/plugin.js",
   "directories": {
     "test": "test"
   },
   "dependencies": {
-    "brighterscript": "^0.23.1",
-    "source-map": "^0.7.3"
+    "source-map": "^0.7.3",
+    "vscode-languageserver": "~6.1.1",
+    "vscode-languageserver-protocol": "~3.15.3"
   },
   "devDependencies": {
     "@types/chai": "^4.2.12",
     "@types/mocha": "^8.0.3",
+    "@types/node": "^14.14.16",
+    "brighterscript": "^0.23.1",
     "chai": "^4.2.0",
     "fs-extra": "^9.0.1",
     "lodash": "^4.17.20",
@@ -28,7 +32,7 @@
     "compile": "npm run clean && tsc -p .",
     "prepublishOnly": "npm run build",
     "tslint": "tslint ./src/**/*.ts",
-    "build": "npm run compile",
+    "build": "npm run compile && cp -r src/lib/framework ./dist/lib/framework",
     "cli": "npm run compile && npm unlink && npm link",
     "test": "npm run build && nyc mocha src/**/*.spec.ts --full-trace --bail",
     "coverage": "nyc report --reporter=text-lcov > coverage.lcov && codecov",

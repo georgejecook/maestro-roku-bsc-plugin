@@ -203,7 +203,7 @@ export function addXmlBindingUnknownFunctionArgs(file: File, binding: Binding) {
 
 
 export function addBuildTimeErrorImportNoImports(file: XmlFile | BrsFile, buildKey: string, line: number = 0, col: number = 0) {
-  file.addDiagnostics([createDiagnostic(file, 6927, `xml file imports a build time import key that was is defined in bsConfig; but does not include any imports: ${buildKey}`, line, col, line, 99999, DiagnosticSeverity.Warning)]);
+  file.addDiagnostics([createDiagnostic(file, 6927, `This file imports a build time import key that is defined in bsConfig; but does not include any imports: ${buildKey}`, line, col, line, 99999, DiagnosticSeverity.Warning)]);
 }
 
 export function addNodeClassNoNodeRunMethod(file: BrsFile, line: number = 0, col: number = 0) {

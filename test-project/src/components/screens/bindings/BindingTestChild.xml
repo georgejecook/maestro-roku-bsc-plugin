@@ -1,0 +1,31 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<component
+    name='BindingTestChild'
+    extends='Group'
+    vmClass='BindingTestChildVM'>
+  <interface>
+    <field
+        id='target'
+        type='string'
+        alias='text.text' />
+  </interface>
+
+
+  <children>
+
+    <RowList
+        id='titleLabel'
+        header='{{:titleText;fireOnSet}}'
+        style='{{=mc_getComponentStyle("mainList")}}'
+        cursorIndex='{(onCursorIndexChange(value, node);once)}'
+        focusedIndex='{[focusedIndex;once;fireOnSet;transform=aaaa|onClick(value);once;fireOnSet]}' />
+
+    <Button
+        id='button'
+        text='click me'
+        focusedIndex='{(onClick(value);fireOnSet;once)}' />
+
+
+  </children>
+
+</component>

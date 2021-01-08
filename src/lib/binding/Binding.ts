@@ -16,6 +16,8 @@ let callArgsMap = new Map([
 ]);
 
 export default class Binding {
+  tagText: string;
+  isParsed: boolean;
 
   constructor(public file: File) {
     this.properties = new BindingProperties();
@@ -77,9 +79,7 @@ export default class Binding {
 
   private validateImpl(): boolean {
     if (this.isUsingGetterAndSetter) {
-      this.getBinding.validate();
-      this.setBinding.validate();
-      return true;
+      return this.getBinding.validate() && this.setBinding.validate();
     } else {
 
       if (!this.nodeId) {

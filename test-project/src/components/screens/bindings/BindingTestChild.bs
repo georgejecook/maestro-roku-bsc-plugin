@@ -1,0 +1,8 @@
+import "pkg:/source/bindings/BindingTestVM.bs"
+
+function Init() as void
+    m.log.I("Init")
+    m.vm = new BindingTestVM()
+    m.screenStack = createObject("roArray", 0, true)
+    m.top.topScreen = invalid
+end function

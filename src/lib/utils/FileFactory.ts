@@ -16,8 +16,7 @@ export class FileFactory {
   private frameworkCompNames = [
   ];
 
-  //FIXME
-  private sourcePath = 'src/lib';
+  private sourcePath = path.join(__dirname, '../framework');
   private targetPath = 'source/maestro/';
   private targetCompsPath = 'components/maestro';
 

@@ -18,7 +18,7 @@ const xmldoc = require('../utils/xmldoc');
  * describes a file in our project.
  */
 export class File {
-
+  
   constructor(fullPath: string, fileContents: string = null) {
     this.componentIds = new Set<string>();
     this._bindings = [];
@@ -27,14 +27,15 @@ export class File {
     this._fileContents = fileContents;
     this._fullPath = fullPath;
   }
-
+  
   public static fromFile(bscFile: XmlFile | BrsFile, fileMap: ProjectFileMap): File {
     const file = new File(bscFile.pathAbsolute, bscFile.fileContents);
     file.bscFile = bscFile;
     file.fileMap = fileMap;
     return file;
   }
-
+  
+  public failedBindings: any[];
   public fileMap: ProjectFileMap;
   public parents: ClassStatement[];
   public bindingClass: ClassStatement;

@@ -78,6 +78,7 @@ export class BindingProcessor {
       throw new Error('was given a non-xml file');
     }
     file.loadXmlContents(this.fileMap);
+    file.failedBindings = [];
     let fileContents = file.getFileContents();
 
     const tagsWithBindings = this.getTagsWithBindings(file);
@@ -371,7 +372,7 @@ export class BindingProcessor {
       funcText += '\nend function';
 
       let createNodeVarsFunction = this.makeASTFunction(funcText);
-      if (createNodeVarsFunction) {
+      if (createNodeVarsFunction && file.associatedFile?.bscFile?.parser) {
         file.associatedFile.bscFile.parser.statements.push(createNodeVarsFunction);
         file.associatedFile.isASTChanged = true;
       }

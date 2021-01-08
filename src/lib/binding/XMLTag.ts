@@ -127,18 +127,20 @@ export class XMLTag {
           } else {
             this.parseBindingText(bindingText, binding, tagText, xmlElement, attribute);
           }
-
+          binding.tagText = tagText;
           binding.validate();
           if (binding.isValid) {
             bindings.push(binding);
           } else {
             addXMLTagErrorCouldNotParseBinding(this._file, tagText, binding.errorMessage, binding.line, binding.char);
+            this._file.failedBindings.push(this._file.diagnostics.pop());
           }
         } else {
           const startRegex = new RegExp('^\\{([\\(\\{\\[])', 'i');
-
+          
           if (startRegex.test(xmlElement.attr[attribute])) {
             addXMLTagErrorCouldMissingEndBrackets(this._file, tagText, lineNumber, col);
+            this._file.failedBindings.push(this._file.diagnostics.pop());
           }
 
         }

@@ -151,7 +151,7 @@ export function createIfStatement(condition: Expression, statements: Statement[]
 
 export function createVarExpression(varName: string, operator: TokenKind, value: string): BinaryExpression {
   let variable = createIdentifier(varName, Range.create(1, 1, 1, 999999));
-  let v = createStringLiteral(value, Range.create(1, 1, 1, 999999));
+  let v = createStringLiteral('"' + value, Range.create(1, 1, 1, 999999));
 
   let t = createToken(operator, getTokenText(operator), Range.create(1, 1, 1, 999999));
   return new BinaryExpression(variable, t, v);

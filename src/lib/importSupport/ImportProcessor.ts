@@ -30,7 +30,7 @@ export default class ImportProcessor {
           }
         }
       } else {
-        addBuildTimeErrorImportNoImports(file, buildKey, previousImport.range.start.line + 10);
+        addBuildTimeErrorImportNoImports(file, buildKey, previousImport.range.start.line);
       }
     } else {
       addBuildTimeErrorImportMissingKey(file, buildKey, previousImport.range.start.line);
