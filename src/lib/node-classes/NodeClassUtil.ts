@@ -24,64 +24,55 @@ export default class NodeClassUtil {
 
 
   public addFile(file: BrsFile) {
-    let statements = this.getClassesAndComments(file.ast.statements);
     for (let nodeClass of this.fileMap.nodeClassesByPath.get(file.pathAbsolute) || []) {
-      this.fileMap.nodeClasses.delete(nodeClass.name);
+      this.fileMap.nodeClasses.delete(nodeClass.generatedNodeName);
     }
     this.fileMap.nodeClassesByPath.set(file.pathAbsolute, []);
 
-    for (let i = 0; i < statements.length; i++) {
-      let comment = isCommentStatement(statements[i]) ? statements[i] : null;
-      if (comment) {
-        let lastComment = comment.comments[comment.comments.length - 1];
-        let matches = (/^(?: *|\t*)'@(MTask|MNode)(?: *|\t*)([a-z0-9_]*)*((?: *|\t*)extends(?: *|\t*))*([a-z0-9_]*)*/i).exec(lastComment.text);
-        let nodeType = NodeClassType.none;
-        if (matches && matches.length > 1) {
-          if (matches[1].toLowerCase() === 'mtask') {
-            nodeType = NodeClassType.task;
-          } else if (matches[1].toLowerCase() === 'mnode') {
-            nodeType = NodeClassType.node;
-          }
-          if (nodeType !== NodeClassType.none) {
-            if (matches.length > 4) {
-              let next = (i + 1 < statements.length && isClassStatement(statements[i + 1])) ? statements[i + 1] as ClassStatement : null;
-              if (!next) {
-                addNodeClassNeedsClassDeclaration(file, lastComment.range.start.line, lastComment.range.start.character);
-              } else if (nodeType === NodeClassType.task && !isClassMethodStatement(next.memberMap['noderun'])) {
-                addNodeClassNoNodeRunMethod(file, lastComment.range.start.line, lastComment.range.start.character + 1);
-              } else if ((matches[2]?.trim() || '') === '' || (matches[4]?.trim() || '') === '') {
-                addNodeClassBadDeclaration(file, lastComment.range.start.line, lastComment.range.start.character + 1, lastComment.text);
-              } else if (this.fileMap.nodeClasses.get(matches[2])) {
-                addNodeClassDuplicateName(file, lastComment.range.start.line, lastComment.range.start.character + 1, matches[2]);
-              } else if (!this.fileMap.allXMLComponentFiles.get(matches[4]) && (matches[4] !== 'Group' && matches[4] !== 'Task' && matches[4] !== 'Node' && matches[4] !== 'ContentNode')) {
-                addNodeClassNoExtendNodeFound(file, lastComment.range.start.line, lastComment.range.start.character, matches[2], matches[4]);
-              } else if (next) {
-                let isValid = true;
-                if (nodeType === NodeClassType.node) {
+    const statementHandler = (cs: ClassStatement) => {
+      let annotation = cs.annotations?.find((a) => a.name.toLowerCase() === 'mtask' || a.name.toLowerCase() === 'mnode');
+      let nodeType = NodeClassType.none;
+      if (annotation) {
+        nodeType = annotation.name.toLowerCase() === 'mtask' ? NodeClassType.task : NodeClassType.node;
+        let args = annotation.getArguments();
+        let nodeName = args.length === 2 ? (args[0] as string)?.trim() : undefined;
+        let extendsName = args.length === 2 ? (args[1] as string)?.trim() : undefined;
+        if (nodeType === NodeClassType.task && !isClassMethodStatement(cs.memberMap['noderun'])) {
+          addNodeClassNoNodeRunMethod(file, annotation.range.start.line, annotation.range.start.character + 1);
+        } else if (args.length < 2 || !nodeName || !extendsName) {
+          addNodeClassBadDeclaration(file, annotation.range.start.line, annotation.range.start.character + 1, '');
+        } else if (this.fileMap.nodeClasses.has(nodeName)) {
+          addNodeClassDuplicateName(file, annotation.range.start.line, annotation.range.start.character + 1, nodeName);
+        } else if (!this.fileMap.allXMLComponentFiles.get(extendsName) && (extendsName !== 'Group' && extendsName !== 'Task' && extendsName !== 'Node' && extendsName !== 'ContentNode')) {
+          addNodeClassNoExtendNodeFound(file, annotation.range.start.line, annotation.range.start.character, nodeName, extendsName);
+        } else {
+          let isValid = true;
+          if (nodeType === NodeClassType.node) {
 
-                  let newFunc = next.memberMap['new'] as FunctionStatement;
-                  if (!newFunc || newFunc.func.parameters.length !== 2) {
-                    addNodeClassNeedsNewDeclaration(file, lastComment.range.start.line, lastComment.range.start.character);
-                    isValid = false;
-                  }
-                }
-                if (isValid) {
-                  //is valid
-                  let func = next.memberMap['noderun'] as FunctionStatement;
-                  let nodeClass = new NodeClass(nodeType, file, next, func, matches[2], matches[4]);
-                  this.fileMap.nodeClasses.set(nodeClass.name, nodeClass);
-                  this.fileMap.nodeClassesByPath.get(file.pathAbsolute).push(nodeClass);
-                }
-              }
-            } else {
-              addNodeClassBadDeclaration(file, lastComment.range.start.line, lastComment.range.start.character, lastComment.text);
+            let newFunc = cs.memberMap['new'] as FunctionStatement;
+            if (!newFunc || newFunc.func.parameters.length !== 2) {
+              addNodeClassNeedsNewDeclaration(file, annotation.range.start.line, annotation.range.start.character);
+              isValid = false;
             }
+          }
+          if (isValid) {
+            //is valid
+            let func = cs.memberMap['noderun'] as FunctionStatement;
+            let nodeClass = new NodeClass(nodeType, file, cs, func, nodeName, extendsName);
+            this.fileMap.nodeClasses.set(nodeClass.generatedNodeName, nodeClass);
+            this.fileMap.nodeClassesByPath.get(file.pathAbsolute).push(nodeClass);
           }
         }
       }
-    }
+    };
 
+    file.parser.ast.walk(createVisitor({
+      ClassStatement: statementHandler,
+    }), {
+      walkMode: WalkMode.visitStatements
+    });
   }
+
   private getClassesAndComments(statements: Statement[]) {
     let results = [];
     for (let s of statements) {
