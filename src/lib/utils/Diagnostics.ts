@@ -34,6 +34,8 @@ function createDiagnostic(
   endCol: number = 99999,
   severity: DiagnosticSeverity = DiagnosticSeverity.Error
 ) {
+  endLine = endLine < startLine ? startLine : endLine;
+
   const diagnostic = {
     code: code,
     message: message,
@@ -124,6 +126,7 @@ export function addXMLTagErrorCorruptXMLElement(file: File, tagText: string) {
 
 export function addXMLTagErrorCouldNotParseBinding(file: File, tagText: string, message: string, line: number, col: number = 9999) {
   addErrorDiagnostic(file, 6910, `Could not parse binding: ${message}`, line, col);
+  file.failedBindings.push(file.diagnostics.pop());
 }
 
 export function addXMLTagErrorCouldNotParseBindingDetailsForField(file: File, partText: string, tagText: string, line: number, col: number = 99999) {
@@ -139,11 +142,13 @@ export function addXMLTagErrorCouldNotParseBindingModeDetailsForField(file: File
 export function addXMLTagErrorCouldNotParseBindingTransformFunctionForField(file: File, partText: string, tagText: string, line: number, col: number = 99999) {
   addErrorDiagnostic(file, 6913,
     `Could not parse transformFunction"`, line, col);
+  file.failedBindings.push(file.diagnostics.pop());
 }
 
 export function addXMLTagErrorCouldMissingEndBrackets(file: File, tagText: string, line: number, col: number = 99999) {
   addErrorDiagnostic(file, 6913,
     `Binding could not be parsed: Missing matching end brackets.`, line, col);
+  file.failedBindings.push(file.diagnostics.pop());
 }
 
 export function addXMLTagErrorCouldNotParsefireOnSetForField(file: File, partText: string, tagText: string, line: number, col: number = 99999) {
@@ -153,7 +158,8 @@ export function addXMLTagErrorCouldNotParsefireOnSetForField(file: File, partTex
 
 export function addXMLTagErrorCouldNotParseIsFiringOnceForField(file: File, partText: string, binding: Binding) {
   addErrorDiagnosticForBinding(file, 6915,
-    `Could not parse binding setting "${partText}"`, binding);
+    `Could not parse binding setting "${partText}" - valid settings are 'once', 'fireonset' and 'transform'`, binding);
+  file.failedBindings.push(file.diagnostics.pop());
 }
 
 export function addFileErrorCouldNotSave(file: File) {
@@ -186,19 +192,23 @@ export function addXmlBindingVMClassNotFound(file: File) {
 
 export function addXmlBindingVMFieldNotFound(file: File, binding: Binding) {
   addErrorDiagnosticForBinding(file, 6923, `The bound field "${binding.observerField}" was not found in class "${file.vmClassName}".`, binding);
+  file.failedBindings.push(file.diagnostics.pop());
 }
 
 export function addXmlBindingVMFunctionNotFound(file: File, binding: Binding) {
   addErrorDiagnosticForBinding(file, 6924, `The event handling function "${binding.observerField}" was not found in class "${file.vmClassName}".`, binding);
+  file.failedBindings.push(file.diagnostics.pop());
 
 }
 
 export function addXmlBindingVMFunctionWrongArgCount(file: File, binding: Binding, expected: number, actualParams: number) {
   addErrorDiagnosticForBinding(file, 6925, `The event handling function "${binding.observerField}" is configured with wrong number of params. Expected ${expected} parameters; function declaration has ${actualParams}`, binding);
+  file.failedBindings.push(file.diagnostics.pop());
 }
 
 export function addXmlBindingUnknownFunctionArgs(file: File, binding: Binding) {
   addErrorDiagnosticForBinding(file, 6926, `The event handling function "${binding.observerField}" has an incorrect signature. You can call vm functions with the (), (value), (node), or (value, node)`, binding);
+  file.failedBindings.push(file.diagnostics.pop());
 }
 
 
@@ -224,5 +234,14 @@ export function addNodeClassBadDeclaration(file: BrsFile, line: number = 0, col:
 }
 
 export function addNodeClassNeedsClassDeclaration(file: BrsFile, line: number = 0, col: number = 0) {
-  file.addDiagnostics([createDiagnostic(file, 6931, `Node class annotation must immediately precede the target class; but no class statement was found`, line, col)]);
+  file.addDiagnostics([createDiagnostic(file, 6932, `Node class annotation must immediately precede the target class; but no class statement was found`, line, col)]);
+}
+
+export function addNodeClassNeedsNewDeclaration(file: BrsFile, line: number = 0, col: number = 0) {
+  file.addDiagnostics([createDiagnostic(file, 6933, `Node classes must define a constructor that takes 2 arguments (m.top, and m.top.data (i.e. the data passed into your node))`, line, col)]);
+}
+
+export function addXmlBindingVMFieldRequired(file: File, binding: Binding) {
+  addErrorDiagnosticForBinding(file, 6924, `Field bindings are only available for vm fields. Cannot bind to vm function "${binding.observerField}" in class "${file.vmClassName}".`, binding);
+  file.failedBindings.push(file.diagnostics.pop());
 }

@@ -208,9 +208,6 @@ export class BindingProcessor {
     ) {
       throw new Error('was given a non-xml file');
     }
-    if (file.bindings.length > 0 && !file.associatedFile) {
-      addXmlBindingNoCodeBehind(file);
-    }
     let errorCount = 0;
 
     try {
@@ -235,6 +232,10 @@ export class BindingProcessor {
 
     if (file.bindings.length > 0) {
 
+      if (!file.associatedFile) {
+        addXmlBindingNoCodeBehind(file);
+      }
+  
       if (!file.vmClassName) {
         if (errorCount === 0) {
           addXmlBindingNoVMClassDefined(file);
@@ -309,8 +310,9 @@ export class BindingProcessor {
   }
 
   private getBindingInitMethod(bindings: Binding[], file: XmlFile): FunctionStatement {
-    let func = makeASTFunction(`function M_initStaticBindings()
+    let func = makeASTFunction(`function m_initBindings()
       if m.vm <> invalid
+      vm = m.vm
       end if
     end function`);
 
@@ -321,22 +323,23 @@ export class BindingProcessor {
       ];
 
       if (nodeIds.length > 0) {
-        ifStatement.thenBranch.statements.push(new RawCodeStatement('M_createNodeVars()'));
+        ifStatement.thenBranch.statements.push(new RawCodeStatement('m_createNodeVars()'));
       }
 
       for (let binding of bindings) {
         ifStatement.thenBranch.statements.push(new RawCodeStatement(binding.getInitText(), file, binding.getRange()));
 
       }
-      ifStatement.thenBranch.statements.push(new RawCodeStatement('m.vm.onBindingsConfigured()'));
+      ifStatement.thenBranch.statements.push(new RawCodeStatement('vm.onBindingsConfigured()'));
     }
 
     return func;
   }
 
   private getStaticBindingsMethod(bindings: Binding[], file: XmlFile): FunctionStatement {
-    let func = makeASTFunction(`function M_initStaticBindings()
+    let func = makeASTFunction(`function m_initStaticBindings()
       if m.vm <> invalid
+      vm = m.vm
       end if
     end function`);
 
@@ -346,7 +349,7 @@ export class BindingProcessor {
         ...new Set(bindings.filter((b) => !b.isTopBinding).map((b) => b.nodeId)),
       ];
       if (nodeIds.length > 0) {
-        ifStatement.thenBranch.statements.push(new RawCodeStatement('M_createNodeVars()'));
+        ifStatement.thenBranch.statements.push(new RawCodeStatement('m_createNodeVars()'));
       }
 
       for (let binding of bindings) {
@@ -364,7 +367,7 @@ export class BindingProcessor {
 
     //TODO convert to pure AST
     if (tagIds.length > 0) {
-      let funcText = 'function M_createNodeVars()';
+      let funcText = 'function m_createNodeVars()';
       funcText +=
         '\n if m._isCreateNodeVarsCalled = true then return invalid else m._isCreateNodeVarsCalled = true';
       funcText += '\n findNodes([' + tagIds.map((id) => `"${id}"`).join(',');

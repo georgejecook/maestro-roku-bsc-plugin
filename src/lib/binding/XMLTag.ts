@@ -133,14 +133,12 @@ export class XMLTag {
             bindings.push(binding);
           } else {
             addXMLTagErrorCouldNotParseBinding(this._file, tagText, binding.errorMessage, binding.line, binding.char);
-            this._file.failedBindings.push(this._file.diagnostics.pop());
           }
         } else {
           const startRegex = new RegExp('^\\{([\\(\\{\\[])', 'i');
           
           if (startRegex.test(xmlElement.attr[attribute])) {
             addXMLTagErrorCouldMissingEndBrackets(this._file, tagText, lineNumber, col);
-            this._file.failedBindings.push(this._file.diagnostics.pop());
           }
 
         }
@@ -182,6 +180,7 @@ export class XMLTag {
       binding.properties.isFiringOnce = true;
     } else {
       addXMLTagErrorCouldNotParseBindingSettings(this._file, partText, binding);
+      
     }
   }
 

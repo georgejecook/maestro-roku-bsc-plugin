@@ -11,6 +11,7 @@ import { ProjectFileMap } from './ProjectFileMap';
 
 import { addFileErrorCouldNotParseXML, addFileErrorCouldNotSave } from '../utils/Diagnostics';
 import { XMLTag } from '../binding/XMLTag';
+import { NodeClass } from '../node-classes/NodeClass';
 
 const xmldoc = require('../utils/xmldoc');
 
@@ -35,7 +36,7 @@ export class File {
     return file;
   }
   
-  public failedBindings: any[];
+  public failedBindings: BsDiagnostic[];
   public fileMap: ProjectFileMap;
   public parents: ClassStatement[];
   public bindingClass: ClassStatement;

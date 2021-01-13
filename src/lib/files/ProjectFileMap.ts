@@ -21,6 +21,7 @@ export class ProjectFileMap {
   public allXMLComponentFiles: Map<string, File>;
   public allFiles: Map<string, File>;
   public nodeClasses = new Map<string, NodeClass>();
+  public nodeClassesByPath = new Map<string, NodeClass[]>();
 
   get XMLComponentNames(): string[] {
     return [...this.allXMLComponentFiles.keys()];

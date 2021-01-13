@@ -1,8 +1,8 @@
-import { BrsFile, isClassMethodStatement, Parser, Position, Range } from 'brighterscript';
+import { BrsFile, isClassFieldStatement, isClassMethodStatement, Parser, Position, Range } from 'brighterscript';
 import { TranspileState } from 'brighterscript/dist/parser/TranspileState';
 import { isFunction } from 'util';
 import { File } from '../files/File';
-import { addXmlBindingUnknownFunctionArgs, addXmlBindingVMFieldNotFound, addXmlBindingVMFunctionNotFound, addXmlBindingVMFunctionWrongArgCount } from '../utils/Diagnostics';
+import { addXmlBindingUnknownFunctionArgs, addXmlBindingVMFieldNotFound, addXmlBindingVMFieldRequired, addXmlBindingVMFunctionNotFound, addXmlBindingVMFunctionWrongArgCount } from '../utils/Diagnostics';
 
 import { BindingProperties } from './BindingProperties';
 import { BindingType, BindingSendMode } from './BindingType';
@@ -73,6 +73,10 @@ export default class Binding {
         addXmlBindingVMFieldNotFound(this.file, this);
         this.isValid = false;
       }
+      if (this.isValid && !isClassFieldStatement(this.file.getField(this.observerField))) {
+        addXmlBindingVMFieldRequired(this.file, this);
+        this.isValid = false;
+      }
     }
     return this.isValid && (this.getBinding ? this.getBinding.validateAgainstClass() : true) && (this.setBinding ? this.setBinding.validateAgainstClass() : true)
   }
@@ -141,12 +145,12 @@ export default class Binding {
   }
 
   private getOneWaySourceText() {
-    return `m.vm.bindField("${this.observerField}", m.${this.nodeId}, "${this.nodeField}", ${this.properties.fireOnSet ? 'true' : 'false'}, ${this.properties.transformFunction || 'invalid'}, ${this.properties.isFiringOnce ? 'true' : 'false'}, "${this.properties.getModeText()}")`;
+    return `vm.bindField("${this.observerField}", m.${this.nodeId}, "${this.nodeField}", ${this.properties.fireOnSet ? 'true' : 'false'}, ${this.properties.transformFunction || 'invalid'}, ${this.properties.isFiringOnce ? 'true' : 'false'})`;
   }
 
   private getOneWayTargetText() {
     let funcText = this.properties.sendMode === BindingSendMode.field ? `"${this.observerField}"` : this.observerField;
-    return `mc_Tasks_observeNodeField(m.${this.nodeId}, "${this.nodeField}", ${funcText}, "${this.properties.getModeText()}", ${this.properties.isFiringOnce ? 'true' : 'false'}, m.vm)`;
+    return `mc_Tasks_observeNodeField(m.${this.nodeId}, "${this.nodeField}", vm.${funcText}, "${this.properties.getModeText()}", ${this.properties.isFiringOnce ? 'true' : 'false'}, vm)`;
 
   }
 
@@ -156,7 +160,7 @@ export default class Binding {
       text += `m.${this.nodeId}.${this.nodeField} = ${this.rawValueText}`;
     } else if (this.properties.type === BindingType.static) {
       const valueText = this.observerField.split('.').length > 1 ?
-        `MU_getContentField(m.vm,"${this.observerField}")` : `m.vm.${this.observerField}`;
+        `MU_getContentField(vm,"${this.observerField}")` : `vm.${this.observerField}`;
       if (this.properties.transformFunction) {
         text += `m.${this.nodeId}.${this.nodeField} = ${this.properties.transformFunction}(${valueText})`;
       } else {

@@ -1,6 +1,7 @@
 import {
   BrsFile,
   BscFile,
+  BsDiagnostic,
   CompilerPlugin,
   FileObj,
   isBrsFile,
@@ -114,16 +115,21 @@ async function beforeProgramValidate(program: Program) {
 function afterProgramValidate(program: Program) {
 
   for (let compFile of [...fileMap.allXMLComponentFiles.values()]) {
-
-    if (compFile.bscFile) {
+    let bscFile = program.getFileByPathAbsolute(compFile.fullPath);
+    if (bscFile) {
+      if (!compFile.bscFile) {
+        compFile.bscFile = bscFile;
+      }
       compFile.parentFile = fileMap.allXMLComponentFiles.get(compFile.parentComponentName);
       compFile.resetDiagnostics();
       bindingProcessor.validateBindings(compFile);
-      let bscFile = program.getFileByPathAbsolute(compFile.fullPath);
-      if (bscFile) {
-        bscFile.addDiagnostics(compFile.diagnostics);
-        bscFile.addDiagnostics(compFile.failedBindings);
+      for (let diagnostic of [...compFile.diagnostics, ...compFile.failedBindings]) {
+        if (!diagnostic.file) {
+          diagnostic.file = bscFile;
+        }
       }
+      bscFile.addDiagnostics(compFile.diagnostics);
+      bscFile.addDiagnostics(compFile.failedBindings);
     }
   }
 }

@@ -36,7 +36,7 @@ export class FileFactory {
   }
 
   public async addFile(program, projectPath: string, contents: string) {
-    await program.addOrReplaceFile({ src: projectPath, dest: projectPath }, contents);
+    await program.addOrReplaceFile({ src: path.resolve(projectPath), dest: projectPath }, contents);
   }
 
   public isIgnoredFile(file: BrsFile | XmlFile): boolean {
