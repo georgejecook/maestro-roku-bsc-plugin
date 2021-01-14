@@ -30,7 +30,7 @@ export default class ReflectionUtil {
   public updateClassLookupFunction(file: BrsFile) {
     let func = file.ast.statements[0] as FunctionStatement;
 
-    if (func?.func?.body?.statements.length> 0) {
+    if (func?.func?.body?.statements.length > 0) {
       let classNames = this.fileMap.classNames;
       let codeText = `if false 
         ? "maestro reflection"`
@@ -39,7 +39,7 @@ export default class ReflectionUtil {
         codeText += `\n else if name = "${name}" 
           return ${name}`;
       }
-      codeText +='\n end if';
+      codeText += '\n end if';
       func.func.body.statements[1] = new RawCodeStatement(codeText);
     }
   }
@@ -59,9 +59,10 @@ export default class ReflectionUtil {
   }
 
   public addFile(file: BrsFile) {
+    let mFile = this.fileMap.allFiles.get(file.pathAbsolute);
+    this.fileMap.removeFileClasses(mFile);
     for (let cs of file.parser.references.classStatements) {
-      let mFile = this.fileMap.allFiles.get(file.pathAbsolute);
-      this.fileMap.addClass(cs, file, mFile);
+      this.fileMap.addClass(cs, mFile);
     }
   }
 

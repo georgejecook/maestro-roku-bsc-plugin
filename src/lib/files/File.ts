@@ -1,5 +1,4 @@
 // @ts-ignore
-// @ts-ignore
 import { BrsFile, BsDiagnostic, ClassFieldStatement, ClassMethodStatement, ClassStatement, ParseMode, XmlFile } from 'brighterscript';
 import * as fs from 'fs-extra';
 import * as path from 'path';
@@ -25,7 +24,7 @@ export class File {
     this._bindings = [];
     this.associatedFile = null;
     this.parentFile = null;
-    this._fileContents = fileContents;
+    this.fileContents = fileContents;
     this._fullPath = fullPath;
   }
   
@@ -36,6 +35,8 @@ export class File {
     return file;
   }
   
+  public classNames = new Set<string>();
+  public version = 0;
   public failedBindings: BsDiagnostic[];
   public fileMap: ProjectFileMap;
   public parents: ClassStatement[];
@@ -56,11 +57,14 @@ export class File {
   public bscFile: BrsFile | XmlFile;
   public diagnostics: BsDiagnostic[] = [];
   public componentTag: XMLTag;
+  public vmClassFile: string;
   public vmClassName: string;
+  public vmClassVersion = 0;
   public bindingTargetFiles = new Set<XmlFile>();
 
-  private readonly _bindings: Binding[];
-  private _fileContents: string;
+  private _bindings: Binding[];
+  public fileContents: string;
+  public source: string;
 
   get fileType(): FileType {
     switch (path.extname(this._fullPath).toLowerCase()) {
@@ -89,21 +93,19 @@ export class File {
     return this._fullPath;
   }
 
-  public getFileContents(): string {
-    if (this._fileContents === null) {
-      this._fileContents = fs.readFileSync(this.fullPath, 'utf8');
-    }
-    return this._fileContents;
+  public setFileSource(source: string) {
+    this.source = source;
+    this.setFileContents(source);
   }
 
   public setFileContents(fileContents: string) {
-    this._fileContents = fileContents;
+    this.fileContents = fileContents;
     this._isDirty = true;
   }
 
   public saveFileContents() {
     try {
-      fs.writeFileSync(this.fullPath, this._fileContents, 'utf8');
+      fs.writeFileSync(this.fullPath, this.fileContents, 'utf8');
     } catch (e) {
       addFileErrorCouldNotSave(this);
     }
@@ -112,7 +114,7 @@ export class File {
   }
 
   public unloadContents() {
-    this._fileContents = null;
+    this.fileContents = null;
   }
 
   public getAllParentBindings(bindings: Binding[] = null): Binding[] {
@@ -161,14 +163,14 @@ export class File {
   public getPositionFromOffset(targetOffset: number): { line: number; character: number } | undefined {
     let currentLineIndex = 0;
     let currentColumnIndex = 0;
-    for (let offset = 0; offset < this._fileContents.length; offset++) {
+    for (let offset = 0; offset < this.fileContents.length; offset++) {
       if (targetOffset === offset) {
         return {
           line: currentLineIndex,
           character: currentColumnIndex
         };
       }
-      if (this._fileContents[offset] === '\n') {
+      if (this.fileContents[offset] === '\n') {
         currentLineIndex++;
         currentColumnIndex = 0;
       } else {
@@ -184,7 +186,7 @@ export class File {
 
     if (this.fileType === FileType.Xml) {
       try {
-        this.xmlDoc = new xmldoc.XmlDocument(this.getFileContents());
+        this.xmlDoc = new xmldoc.XmlDocument(this.fileContents);
         if (this.xmlDoc.name && this.xmlDoc.name && this.xmlDoc.name.toLowerCase() === 'component') {
           if (this.xmlDoc.attr) {
             if (this.xmlDoc.attr.name) {
@@ -247,4 +249,14 @@ export class File {
       (this.bscFile as any).diagnostics = (this.bscFile.getDiagnostics().filter((d) => d.code >= 6900 && d.code <= 6700));
     }
   }
+
+  resetBindings() {
+    this.failedBindings = [];
+    this.componentIds = new Set<string>();
+    this._bindings = [];
+    this.tagIds = new Set<string>();
+    this.fieldIds = new Set<string>();
+    this.failedBindings = [];
+  }
+
 }

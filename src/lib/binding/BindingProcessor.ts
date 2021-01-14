@@ -73,13 +73,13 @@ export class BindingProcessor {
    * given a file, will load it's xml, identify bindings and clear out binding text.
    * @param file - file to parse bindings for
    */
-  public parseBindings(file: File) {
+  public parseBindings(file: File, update = true) {
     if (!file || file.fileType !== FileType.Xml) {
       throw new Error('was given a non-xml file');
     }
     file.loadXmlContents(this.fileMap);
-    file.failedBindings = [];
-    let fileContents = file.getFileContents();
+    file.resetBindings();
+    let fileContents = file.source;
 
     const tagsWithBindings = this.getTagsWithBindings(file);
 
@@ -94,45 +94,15 @@ export class BindingProcessor {
       }
       fileContents = spliceString(fileContents, tag.startPosition, tag.text);
     }
-    file.setFileContents(fileContents);
-  }
-
-  public parseBindingsFromBrsFile(file: BrsFile) {
-    if (!file.pathAbsolute.toLowerCase().endsWith('.brs') && !file.pathAbsolute.toLowerCase().endsWith('.bs')) {
-      return;
+    if (update){
+      file.setFileContents(fileContents);
     }
-    let xmlFilePaths = getAlternateFileNames(file.pathAbsolute);
-    if (xmlFilePaths.length === 0) {
-      return;
-    }
-    let xmlFile = file.program.getFileByPathAbsolute(xmlFilePaths[0]) as XmlFile;
-    if (!xmlFile) {
-      return;
-    }
-    let mFile = File.fromFile(file, this.fileMap);
-    let mXMLFile = File.fromFile(xmlFile, this.fileMap);
-    mXMLFile.loadXmlContents(this.fileMap);
-    this.fileMap.addFile(mFile);
-    this.fileMap.addFile(mXMLFile);
-
-    let fileContents = mXMLFile.getFileContents();
-    const tagsWithBindings = this.getTagsWithBindings(mXMLFile);
-
-    for (const tag of tagsWithBindings) {
-      for (const binding of tag.bindings) {
-        mFile.componentIds.add(binding.nodeId);
-        mFile.bindings.push(binding);
-      }
-      fileContents = spliceString(fileContents, tag.startPosition, tag.text);
-    }
-    mXMLFile.setFileContents(fileContents);
-    xmlFile.fileContents = fileContents;
   }
 
   public getTagsWithBindings(file: File): XMLTag[] {
     const tagsWithBindings: XMLTag[] = [];
     try {
-      let fileContents = file.getFileContents();
+      let fileContents = file.source;
       const doc = file.xmlDoc;
       file.componentTag = new XMLTag(doc, fileContents.substring(doc.startTagPosition - 1, doc.position), file);
       file.componentTag.startPosition = doc.startTagPosition;
@@ -255,7 +225,7 @@ export class BindingProcessor {
             binding.validateAgainstClass()
             errorCount += binding.isValid ? 0 : 1;
           }
-          let bindingFile = this.fileMap.allVMLinkedFiles.get(file.vmClassName);
+          let bindingFile = this.fileMap.getFileForClass(file.vmClassName);
           if (bindingFile) {
             bindingFile.bindingTargetFiles.add(file.bscFile as XmlFile);
           }

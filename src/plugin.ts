@@ -15,6 +15,7 @@ import {
 } from 'brighterscript';
 
 import { ProjectFileMap } from './lib/files/ProjectFileMap';
+import * as fs from 'fs-extra';
 
 import { BindingProcessor } from './lib/binding/BindingProcessor';
 import { File } from './lib/files/File';
@@ -74,16 +75,17 @@ function afterProgramCreate(program: Program): void {
 function beforeFileParse(source: SourceObj): void {
   // pull out the bindings and store them in a maestro file
   // remove the illegal xml from the source
-  let file = new File(source.pathAbsolute, source.source);
-  file.fileMap = fileMap;
-  fileMap.addFile(file);
-  if (file.fileType === FileType.Xml) {
-    if (!file.bscFile) {
-      file.bscFile = _builder.program.getFileByPathAbsolute(source.pathAbsolute);
-    }
+  let file = fileMap.getFile(source);
+  // file.fileMap = fileMap;
+  // fileMap.addFile(file);
+  if (!file.bscFile) {
+    file.bscFile = _builder.program.getFileByPathAbsolute(source.pathAbsolute);
+  }
+  file.setFileSource(source.source);
 
+  if (file.fileType === FileType.Xml) {
     bindingProcessor.parseBindings(file);
-    source.source = file.getFileContents();
+    source.source = file.fileContents;
   }
 }
 
@@ -91,6 +93,7 @@ function afterFileParse(file: (BrsFile | XmlFile)): void {
   let mFile = fileMap.allFiles.get(file.pathAbsolute);
   //look up the maestro file and link it
   if (mFile) {
+    mFile.version++;
     mFile.bscFile = file;
   }
   if (isXmlFile(file)) {
@@ -116,10 +119,19 @@ function afterProgramValidate(program: Program) {
 
   for (let compFile of [...fileMap.allXMLComponentFiles.values()]) {
     let bscFile = program.getFileByPathAbsolute(compFile.fullPath);
+
     if (bscFile) {
       if (!compFile.bscFile) {
         compFile.bscFile = bscFile;
       }
+
+      let vmFile = fileMap.getFileForClass(compFile.vmClassName);
+      //this is expensive.. need to tighten this bad boy up
+      if (vmFile) { // && vmFile.version !== compFile.vmClassVersion) {
+        bindingProcessor.parseBindings(compFile, false);
+        compFile.vmClassVersion = vmFile.version;
+      }
+
       compFile.parentFile = fileMap.allXMLComponentFiles.get(compFile.parentComponentName);
       compFile.resetDiagnostics();
       bindingProcessor.validateBindings(compFile);

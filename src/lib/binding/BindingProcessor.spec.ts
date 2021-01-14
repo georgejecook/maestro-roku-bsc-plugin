@@ -41,7 +41,7 @@ describe('BindingProcessor', function() {
 
     it('parses simple class', function() {
       const file = testUtil_createStubProjectFile('components/screens/bindings/BindingTest.xml');
-      file.setFileContents(file.getFileContents());
+      file.setFileContents(file.fileContents);
       file.saveFileContents();
       file.loadXmlContents(fileMap);
       bindingProcessor.generateCodeForXMLFile(file);
@@ -51,7 +51,7 @@ describe('BindingProcessor', function() {
 
     it('parses extended xml', function() {
       const file = testUtil_createStubProjectFile('components/screens/bindings/BindingTestExtended.xml');
-      file.setFileContents(file.getFileContents());
+      file.setFileContents(file.fileContents);
       file.saveFileContents();
       file.loadXmlContents(fileMap);
       bindingProcessor.generateCodeForXMLFile(file);
@@ -60,7 +60,7 @@ describe('BindingProcessor', function() {
     });
     it('parses code bindings xml', function() {
       const file = testUtil_createStubProjectFile('components/screens/bindings/BindingTestCode.xml');
-      file.setFileContents(file.getFileContents());
+      file.setFileContents(file.fileContents);
       file.saveFileContents();
       file.loadXmlContents(fileMap);
       bindingProcessor.generateCodeForXMLFile(file);
