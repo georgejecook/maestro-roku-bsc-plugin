@@ -2,7 +2,7 @@
 <component
     name='BindingTestChild'
     extends='Group'
-    vmClass='BindingTestChildVM'>
+    vm='BindingTestChildVM'>
   <interface>
     <field
         id='target'

@@ -16,12 +16,14 @@ let callArgsMap = new Map([
 ]);
 
 export default class Binding {
-  tagText: string;
-  isParsed: boolean;
+  attribute: import("/home/george/hope/open-source/vsc/brighterscript/dist/parser/SGTypes").SGAttribute;
 
   constructor(public file: File) {
     this.properties = new BindingProperties();
   }
+  tagText: string;
+  isParsed: boolean;
+  range: Range;
 
   public isValid: boolean = false;
   public isTopBinding: boolean = false;
@@ -31,11 +33,6 @@ export default class Binding {
   public properties: BindingProperties;
   public errorMessage: string;
   public rawValueText: string;
-  public line: number = 0;
-  public char: number = 0;
-  public startOffset: number = 0;
-  public endOffset: number = 0;
-  public endChar: number = 99999;
   public isUsingGetterAndSetter = false;
 
   //for 2 way bindings
@@ -73,7 +70,7 @@ export default class Binding {
         addXmlBindingVMFieldNotFound(this.file, this);
         this.isValid = false;
       }
-      if (this.isValid && !isClassFieldStatement(this.file.getField(this.observerField))) {
+      if (this.isValid && this.properties.type === BindingType.oneWaySource && !isClassFieldStatement(this.file.getField(this.observerField))) {
         addXmlBindingVMFieldRequired(this.file, this);
         this.isValid = false;
       }
@@ -170,11 +167,6 @@ export default class Binding {
     return text;
   }
 
-  public getRange(): Range {
-    let range = Range.create(Position.create(this.line, this.char), Position.create(this.line, this.endChar));
-    return range;
-  }
-
   public createBinding(isGet: boolean) {
 
     let binding = new Binding(this.file);
@@ -183,9 +175,7 @@ export default class Binding {
     binding.nodeId = this.nodeId;
     binding.nodeField = this.nodeField;
     binding.properties.type = isGet ? BindingType.oneWaySource : BindingType.oneWayTarget;
-    binding.line = this.line;
-    binding.char = this.char;
-    binding.endChar = this.endChar;
+    binding.range = this.range;
     if (isGet) {
       this.getBinding = binding;
     } else {

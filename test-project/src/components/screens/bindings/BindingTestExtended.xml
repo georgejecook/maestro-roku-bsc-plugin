@@ -2,8 +2,12 @@
 <component
     name='BindingTestExtended'
     extends='BindingTest'
-    vmClass='my.namespace.BindingTest_namespacedVM'>
+    vm='my.namespace.BindingTest_namespacedVM'>
   <interface>
+    <field
+        id='titleLabelExtended'
+        value='{{titleTextExtended}}'
+        type='string' />
   </interface>
 
   <children>
@@ -52,7 +56,7 @@
         <RowList
             id='rowListExtended2'
             visible='{{isGroupVisible, transform=OM_transform_invertBoolean}}'
-            clicked='{{onItemClicked}}'
+            clicked='{(onItemClicked)}'
             jumpToIndex='{{jumpToIndex, mode=oneWaySource}}'
             focusedIndex='{{focusedIndex, mode=oneWayTarget}}'
             selectedIndex='{{selectedIndex, mode=twoWay, isSettingInitialValue=false}}' />

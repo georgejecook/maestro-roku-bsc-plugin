@@ -14,9 +14,11 @@
     {
       "src": "components/roku_modules/mv/core/BaseView.brs",
       "codes": [
-        1001
+        1001,
+        1067
       ]
-    }
+    },
+    1067
   ],
   "diagnosticLevel": "warn",
   "plugins": [

@@ -1,0 +1,15 @@
+@MNode("NodeTest", "Group")
+class NodeTest
+
+  public url = ""
+  function new(top, data)
+  end function
+
+  function run()
+    'fetch metadata
+    'do reuest for profile
+    'do request for entitelments
+    'check purchases
+    'return final collection
+  end function
+end class

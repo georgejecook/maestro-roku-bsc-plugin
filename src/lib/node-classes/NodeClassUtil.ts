@@ -73,18 +73,6 @@ export default class NodeClassUtil {
     });
   }
 
-  private getClassesAndComments(statements: Statement[]) {
-    let results = [];
-    for (let s of statements) {
-      if (isClassStatement(s) || isCommentStatement(s)) {
-        results.push(s);
-      } else if (isNamespaceStatement(s)) {
-        results.push(...this.getClassesAndComments(s.body.statements));
-      }
-    }
-    return results;
-  }
-
   public async createNodeClasses(program: Program) {
 
     for (let nodeFile of [...this.fileMap.nodeClasses.values()]) {
@@ -92,13 +80,12 @@ export default class NodeClassUtil {
 
       let xmlText = nodeFile.type === NodeClassType.task ? this.getNodeTaskFileXmlText(nodeFile) : this.getNodeFileXmlText(nodeFile, members);
       let xmlPath = path.join('components', 'maestro', 'generated', `${nodeFile.generatedNodeName}.xml`);
-      this.fileFactory.addFile(program, xmlPath, xmlText);
+      await this.fileFactory.addFile(program, xmlPath, xmlText);
 
       let bsPath = path.join('components', 'maestro', 'generated', `${nodeFile.generatedNodeName}.bs`);
-      this.fileFactory.addFile(program, bsPath, '');
+      await this.fileFactory.addFile(program, bsPath, '');
       let bsFile = await program.getFileByPkgPath(bsPath) as BrsFile;
       bsFile.parser.statements.push(nodeFile.type === NodeClassType.task ? this.getNodeTaskBrsCode(nodeFile) : this.getNodeBrsCode(nodeFile, members));
-
       nodeFile.brsFile = bsFile;
       nodeFile.xmlFile = await program.getFileByPkgPath(xmlPath) as XmlFile;
     }
@@ -112,12 +99,12 @@ export default class NodeClassUtil {
   <interface>
     <field id="args" type="assocarray"/>
     <field id="output" type="assocarray"/>
-  </interface>
-  <script type="text/brightscript" uri="pkg:/${nodeFile.file.pkgPath}"/>
-  <children>
-  </children>
-</component>
-     `;
+    </interface>
+    <children>
+    </children>
+    <script type="text/brightscript" uri="pkg:/${nodeFile.file.pkgPath}"/>
+  </component>
+  `;
   }
 
   private getNodeTaskBrsCode(nodeFile: NodeClass): RawCodeStatement {
@@ -153,11 +140,11 @@ export default class NodeClassUtil {
     }
     text += `
       </interface>
-  <script type="text/brightscript" uri="pkg:/${nodeFile.file.pkgPath}"/>
-  <children>
-  </children>
-</component>
-     `;
+      <children>
+      </children>
+      <script type="text/brightscript" uri="pkg:/${nodeFile.file.pkgPath}"/>
+      </component>
+      `;
     return text;
   }
 
@@ -166,7 +153,7 @@ export default class NodeClassUtil {
     let text = `
     function _getImpl()
       if m._ncImpl = invalid
-        m._ncImpl = new ${nodeFile.classStatement.getName(ParseMode.BrighterScript)}(m.top, m.top.data)
+        m._ncImpl = ${nodeFile.classStatement.getName(ParseMode.BrightScript)}(m.top, m.top.data)
       end if
       return m._ncImpl
     end function

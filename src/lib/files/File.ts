@@ -1,16 +1,17 @@
 // @ts-ignore
-import { BrsFile, BsDiagnostic, ClassFieldStatement, ClassMethodStatement, ClassStatement, ParseMode, XmlFile } from 'brighterscript';
+import { BrsFile, BscFile, BsDiagnostic, ClassFieldStatement, ClassMethodStatement, ClassStatement, isXmlFile, ParseMode, XmlFile } from 'brighterscript';
 import * as fs from 'fs-extra';
 import * as path from 'path';
 
 import Binding from '../binding/Binding';
-import { addSetItems } from '../utils/Utils';
+import { addSetItems, getAssociatedFile } from '../utils/Utils';
 import { FileType } from './FileType';
 import { ProjectFileMap } from './ProjectFileMap';
 
 import { addFileErrorCouldNotParseXML, addFileErrorCouldNotSave } from '../utils/Diagnostics';
 import { XMLTag } from '../binding/XMLTag';
 import { NodeClass } from '../node-classes/NodeClass';
+import { SGComponent, SGTag } from 'brighterscript/dist/parser/SGTypes';
 
 const xmldoc = require('../utils/xmldoc');
 
@@ -18,58 +19,44 @@ const xmldoc = require('../utils/xmldoc');
  * describes a file in our project.
  */
 export class File {
-  
-  constructor(fullPath: string, fileContents: string = null) {
+
+  constructor(bscFile: BscFile, fileMap: ProjectFileMap) {
     this.componentIds = new Set<string>();
-    this._bindings = [];
-    this.associatedFile = null;
-    this.parentFile = null;
-    this.fileContents = fileContents;
-    this._fullPath = fullPath;
+    this.bindings = [];
+    this.bscFile = bscFile;
+    this.fileMap = fileMap;
   }
-  
-  public static fromFile(bscFile: XmlFile | BrsFile, fileMap: ProjectFileMap): File {
-    const file = new File(bscFile.pathAbsolute, bscFile.fileContents);
-    file.bscFile = bscFile;
-    file.fileMap = fileMap;
-    return file;
-  }
-  
+
   public classNames = new Set<string>();
   public version = 0;
   public failedBindings: BsDiagnostic[];
   public fileMap: ProjectFileMap;
   public parents: ClassStatement[];
   public bindingClass: ClassStatement;
-  private _isDirty: boolean;
-  private _fullPath: string;
   public hasProcessedBindings: boolean;
   public isValid: boolean;
-  public associatedFile?: File;
-  public parentFile?: File;
-  public programFile: XmlFile | BrsFile;
-  public xmlDoc: any;
+
   public tagIds = new Set<string>();
   public fieldIds = new Set<string>();
   public componentName: string;
   public parentComponentName: string;
   public componentIds: Set<string>;
   public bscFile: BrsFile | XmlFile;
-  public diagnostics: BsDiagnostic[] = [];
-  public componentTag: XMLTag;
+  public componentTag: SGComponent;
   public vmClassFile: string;
   public vmClassName: string;
   public vmClassVersion = 0;
   public bindingTargetFiles = new Set<XmlFile>();
+  public bindings: Binding[];
 
-  private _bindings: Binding[];
-  public fileContents: string;
-  public source: string;
+  get parentXmlFile(): XmlFile | undefined {
+    return this.fileMap.allXMLComponentFiles.get(this.parentComponentName)?.bscFile as XmlFile;
+  }
 
   get fileType(): FileType {
-    switch (path.extname(this._fullPath).toLowerCase()) {
+    switch (path.extname(this.bscFile.pathAbsolute).toLowerCase()) {
       case '.brs':
-        return this.associatedFile ? FileType.CodeBehind : FileType.Brs;
+        return FileType.Brs;
       case '.xml':
         return FileType.Xml;
       case '.bs':
@@ -79,42 +66,14 @@ export class File {
     }
   }
 
+  public get associatedFile(): File {
+    return getAssociatedFile(this.bscFile, this.fileMap);
+  }
+
   public isASTChanged = false;
 
-  public get isDirty(): boolean {
-    return this._isDirty;
-  }
-
-  public get bindings(): Binding[] {
-    return this._bindings;
-  }
-
   public get fullPath() {
-    return this._fullPath;
-  }
-
-  public setFileSource(source: string) {
-    this.source = source;
-    this.setFileContents(source);
-  }
-
-  public setFileContents(fileContents: string) {
-    this.fileContents = fileContents;
-    this._isDirty = true;
-  }
-
-  public saveFileContents() {
-    try {
-      fs.writeFileSync(this.fullPath, this.fileContents, 'utf8');
-    } catch (e) {
-      addFileErrorCouldNotSave(this);
-    }
-
-    this._isDirty = false;
-  }
-
-  public unloadContents() {
-    this.fileContents = null;
+    return this.bscFile.pathAbsolute;
   }
 
   public getAllParentBindings(bindings: Binding[] = null): Binding[] {
@@ -123,8 +82,9 @@ export class File {
     } else {
       bindings = bindings.concat(this.bindings);
     }
-    if (this.parentFile) {
-      return this.parentFile.getAllParentBindings(bindings);
+    if (this.parentXmlFile) {
+      let parentFile = this.fileMap.allFiles.get(this.parentXmlFile.pathAbsolute);
+      return parentFile?.getAllParentBindings(bindings);
     } else {
       return bindings;
     }
@@ -136,8 +96,9 @@ export class File {
     } else {
       addSetItems(ids, this.tagIds);
     }
-    if (this.parentFile) {
-      return this.parentFile.getAllParentTagIds(ids);
+    if (this.parentXmlFile) {
+      let parentFile = this.fileMap.allFiles.get(this.parentXmlFile.pathAbsolute);
+      return parentFile?.getAllParentTagIds(ids);
     } else {
       return ids;
     }
@@ -149,8 +110,9 @@ export class File {
     } else {
       addSetItems(ids, this.fieldIds);
     }
-    if (this.parentFile) {
-      return this.parentFile.getAllParentFieldIds(ids);
+    if (this.parentXmlFile) {
+      let parentFile = this.fileMap.allFiles.get(this.parentXmlFile.pathAbsolute);
+      return parentFile?.getAllParentFieldIds(ids);
     } else {
       return ids;
     }
@@ -160,47 +122,22 @@ export class File {
     return `FILE: ${this.fullPath} TYPE ${this.fileType} PATH ${this.fullPath}`;
   }
 
-  public getPositionFromOffset(targetOffset: number): { line: number; character: number } | undefined {
-    let currentLineIndex = 0;
-    let currentColumnIndex = 0;
-    for (let offset = 0; offset < this.fileContents.length; offset++) {
-      if (targetOffset === offset) {
-        return {
-          line: currentLineIndex,
-          character: currentColumnIndex
-        };
-      }
-      if (this.fileContents[offset] === '\n') {
-        currentLineIndex++;
-        currentColumnIndex = 0;
+  public loadXmlContents() {
+    if (this.fileType === FileType.Xml && this.bscFile) {
+      let xmlFile = this.bscFile as XmlFile;
+
+      this.componentName = xmlFile.componentName?.text;
+      this.parentComponentName = xmlFile.parentComponentName?.text;
+      this.vmClassName = xmlFile.ast.component?.getAttribute("vm")?.value?.text;
+      if (this.componentName && this.parentComponentName) {
+        this.fileMap.addXMLComponent(this);
       } else {
-        currentColumnIndex++;
+        addFileErrorCouldNotParseXML(this, '');
       }
     }
   }
 
-  public loadXmlContents(fileMap: ProjectFileMap) {
-    if (this.xmlDoc) {
-      return;
-    }
 
-    if (this.fileType === FileType.Xml) {
-      try {
-        this.xmlDoc = new xmldoc.XmlDocument(this.fileContents);
-        if (this.xmlDoc.name && this.xmlDoc.name && this.xmlDoc.name.toLowerCase() === 'component') {
-          if (this.xmlDoc.attr) {
-            if (this.xmlDoc.attr.name) {
-              this.componentName = this.xmlDoc.attr.name;
-              this.parentComponentName = this.xmlDoc.attr.extends;
-              fileMap.addXMLComponent(this);
-            }
-          }
-        }
-      } catch (e) {
-        addFileErrorCouldNotParseXML(this, e.message);
-      }
-    }
-  }
 
   public getMethod(name): ClassMethodStatement {
     name = name.toLowerCase();
@@ -244,16 +181,13 @@ export class File {
   }
 
   resetDiagnostics() {
-    this.diagnostics = [];
-    if (this.bscFile) {
-      (this.bscFile as any).diagnostics = (this.bscFile.getDiagnostics().filter((d) => d.code >= 6900 && d.code <= 6700));
-    }
+    (this.bscFile as any).diagnostics = (this.bscFile.getDiagnostics().filter((d) => d.code >= 6900 && d.code <= 6700));
   }
 
   resetBindings() {
     this.failedBindings = [];
     this.componentIds = new Set<string>();
-    this._bindings = [];
+    this.bindings = [];
     this.tagIds = new Set<string>();
     this.fieldIds = new Set<string>();
     this.failedBindings = [];

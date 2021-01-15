@@ -6,6 +6,7 @@ import {
   BrsFile,
   Lexer,
   XmlFile,
+  util
 } from 'brighterscript';
 import { TranspileState } from 'brighterscript/dist/parser/TranspileState';
 
@@ -29,6 +30,7 @@ import { BindingType } from './BindingType';
 import { XMLTag } from './XMLTag';
 import { SourceNode } from 'source-map';
 import { RawCodeStatement } from '../utils/RawCodeStatement';
+import { SGComponent, SGNode, SGTag } from 'brighterscript/dist/parser/SGTypes';
 
 export class BindingProcessor {
   constructor(fileMap: ProjectFileMap) {
@@ -41,8 +43,6 @@ export class BindingProcessor {
       (file) =>
         file.fileType === FileType.Xml
     )) {
-      this.validateBindings(file);
-
       if (file.isValid) {
         this.generateCodeForXMLFile(file);
       }
@@ -50,9 +50,7 @@ export class BindingProcessor {
   }
 
   public generateCodeForXMLFile(file: File) {
-    if (
-      !file ||
-      (file.fileType !== FileType.Xml)
+    if (!file || (file.fileType !== FileType.Xml)
     ) {
       throw new Error('was given a non-xml file');
     }
@@ -73,102 +71,49 @@ export class BindingProcessor {
    * given a file, will load it's xml, identify bindings and clear out binding text.
    * @param file - file to parse bindings for
    */
-  public parseBindings(file: File, update = true) {
+  public parseBindings(file: File) {
     if (!file || file.fileType !== FileType.Xml) {
       throw new Error('was given a non-xml file');
     }
-    file.loadXmlContents(this.fileMap);
     file.resetBindings();
-    let fileContents = file.source;
+    file.bindings = this.processElements(file);
+  }
 
-    const tagsWithBindings = this.getTagsWithBindings(file);
+  public getAllChildren(component: SGComponent) {
+    let result = [] as SGTag[];
+    this.getNodeChildren(component.children, result);
+    return result;
+  }
 
-    if (file.vmClassName) {
-      fileContents = spliceString(fileContents, 0, file.componentTag.text);
-    }
-
-    for (const tag of tagsWithBindings) {
-      for (const binding of tag.bindings) {
-        file.componentIds.add(binding.nodeId);
-        file.bindings.push(binding);
+  public getNodeChildren(node: SGNode, results: SGTag[] = []) {
+    results.push(node);
+    if (node.children) {
+      for (let child of node.children) {
+        this.getNodeChildren(child, results);
       }
-      fileContents = spliceString(fileContents, tag.startPosition, tag.text);
-    }
-    if (update){
-      file.setFileContents(fileContents);
     }
   }
 
-  public getTagsWithBindings(file: File): XMLTag[] {
-    const tagsWithBindings: XMLTag[] = [];
-    try {
-      let fileContents = file.source;
-      const doc = file.xmlDoc;
-      file.componentTag = new XMLTag(doc, fileContents.substring(doc.startTagPosition - 1, doc.position), file);
-      file.componentTag.startPosition = doc.startTagPosition;
-      file.componentTag.endPosition = doc.position;
+  public processElements(file: File) {
+    let xmlFile = file.bscFile as XmlFile;
+    file.componentTag = xmlFile.ast.component;
+    const allTags = this.getAllChildren(file.componentTag).map((c) =>
+      new XMLTag(c, file, false)
+    );
 
-      this.getVMClass(file, doc);
-      doc.allElements
-        .filter((xmlElement) => {
-          return (
-            xmlElement.name.toLowerCase() !== 'interface' &&
-            xmlElement.name.toLowerCase() !== 'function' &&
-            xmlElement.name.toLowerCase() !== 'script' &&
-            xmlElement.name.toLowerCase() !== 'children'
-          );
-        })
-        .forEach((xmlElement) => {
-          const tagText = fileContents.substring(
-            xmlElement.startTagPosition,
-            xmlElement.endTagPosition
-          );
-          xmlElement.children = [];
-          const tag = new XMLTag(xmlElement, tagText, file);
-          if (tag.isTopTag) {
-            if (tag.id) {
-              if (file.fieldIds.has(tag.id)) {
-                addXmlBindingDuplicateField(file, tag.id, xmlElement.line);
-              } else {
-                file.fieldIds.add(tag.id);
-              }
-            }
-          } else {
-            if (tag.id) {
-              if (file.tagIds.has(tag.id)) {
-                addXmlBindingDuplicateTag(file, tag.id, xmlElement.line);
-              } else {
-                file.tagIds.add(tag.id);
-              }
-            }
-          }
-          if (tag.bindings.length > 0) {
-            tagsWithBindings.push(tag);
-          }
-        });
-    } catch (e) {
-      addXmlBindingCouldNotParseXML(file, e.message);
-    }
+    let interfaceFields = file.componentTag.api.fields.map((c) =>
+      new XMLTag(c, file, true)
+    );
+    allTags.push(...interfaceFields);
 
-    return tagsWithBindings;
-  }
-
-  public getVMClass(file: File, element: any) {
-    let tag = file.componentTag;
-    for (let key in element.attr) {
-
-      if (key.toLowerCase() === 'vmclass') {
-        let value = element.attr[key];
-        if (!value) {
-          addCorruptVMType(file, file.getPositionFromOffset(element.position).line, file.getPositionFromOffset(element.position).character);
-        }
-        file.vmClassName = value;
-        tag.text = tag.text.replace(/(^ *)(vmclass *= *(?:\"|')[a-z_0-9]*(?:\"|'))/gim, (m, m1, m2) => {
-          return m1 + ''.padEnd(m2.length);
-        });
+    for (let tag of allTags) {
+      if (tag.id) {
+        (tag.isTopTag ? file.fieldIds : file.tagIds).add(tag.id);
       }
     }
 
+    let tagsWithBindings = allTags.filter((t) => t.hasBindings);
+    return util.flatMap(tagsWithBindings, (t) => t.bindings);
   }
 
   public validateBindings(file: File) {
@@ -205,7 +150,7 @@ export class BindingProcessor {
       if (!file.associatedFile) {
         addXmlBindingNoCodeBehind(file);
       }
-  
+
       if (!file.vmClassName) {
         if (errorCount === 0) {
           addXmlBindingNoVMClassDefined(file);
@@ -233,17 +178,12 @@ export class BindingProcessor {
       }
     }
 
-    for (let d of file.diagnostics) {
-      //fix any missing file refs from diagnostics raised before we had a file
-      if (!d.file) {
-        d.file = file.bscFile;
-      }
-    }
     file.isValid = errorCount === 0;
   }
 
   private addBindingMethodsForFile(file: File) {
     //TODO - use AST for this.
+    let associatedMFile = file.associatedFile.bscFile as BrsFile;
     let bindings = file.bindings.concat(file.getAllParentBindings());
     if (bindings.length > 0) {
       //TODO convert to pure AST
@@ -260,11 +200,11 @@ export class BindingProcessor {
       ), file.bscFile as XmlFile);
 
       if (bindingInitStatement) {
-        file.associatedFile.bscFile.parser.statements.push(bindingInitStatement);
+        associatedMFile.parser.statements.push(bindingInitStatement);
         file.associatedFile.isASTChanged = true;
       }
       if (staticBindingStatement) {
-        file.associatedFile.bscFile.parser.statements.push(staticBindingStatement);
+        associatedMFile.parser.statements.push(staticBindingStatement);
         file.associatedFile.isASTChanged = true;
       }
     }
@@ -297,7 +237,7 @@ export class BindingProcessor {
       }
 
       for (let binding of bindings) {
-        ifStatement.thenBranch.statements.push(new RawCodeStatement(binding.getInitText(), file, binding.getRange()));
+        ifStatement.thenBranch.statements.push(new RawCodeStatement(binding.getInitText(), file, binding.range));
 
       }
       ifStatement.thenBranch.statements.push(new RawCodeStatement('vm.onBindingsConfigured()'));
@@ -323,7 +263,7 @@ export class BindingProcessor {
       }
 
       for (let binding of bindings) {
-        ifStatement.thenBranch.statements.push(new RawCodeStatement(binding.getStaticText(), file, binding.getRange(),));
+        ifStatement.thenBranch.statements.push(new RawCodeStatement(binding.getStaticText(), file, binding.range));
 
       }
     }
@@ -346,7 +286,7 @@ export class BindingProcessor {
 
       let createNodeVarsFunction = this.makeASTFunction(funcText);
       if (createNodeVarsFunction && file.associatedFile?.bscFile?.parser) {
-        file.associatedFile.bscFile.parser.statements.push(createNodeVarsFunction);
+        (file.associatedFile.bscFile as BrsFile).parser.statements.push(createNodeVarsFunction);
         file.associatedFile.isASTChanged = true;
       }
 

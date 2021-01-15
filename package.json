@@ -20,7 +20,7 @@
     "@types/chai": "^4.2.12",
     "@types/mocha": "^8.0.3",
     "@types/node": "^14.14.16",
-    "brighterscript": "^0.23.1",
+    "brighterscript": "file:../../vsc/brighterscript",
     "chai": "^4.2.0",
     "fs-extra": "^9.0.1",
     "lodash": "^4.17.20",

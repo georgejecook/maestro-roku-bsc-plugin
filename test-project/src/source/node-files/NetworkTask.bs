@@ -1,6 +1,4 @@
-import "../bindings/BindingTestExtended.bs"
-
-'@MTask NetTask extends Task
+@MTask("NetTask", "Task")
 class NetworkTask
 
   public function nodeRun(args)

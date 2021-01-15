@@ -13,7 +13,7 @@ function addErrorDiagnostic(
   endCol: number = 99999
 ) {
   endLine = endLine === -1 ? startLine : endLine;
-  file.diagnostics.push(createDiagnostic(file.bscFile, code, message, startLine, startCol, endLine, endCol, DiagnosticSeverity.Error));
+  (file.bscFile as any).diagnostics.push(createDiagnostic(file.bscFile, code, message, startLine, startCol, endLine, endCol, DiagnosticSeverity.Error));
 }
 function addErrorDiagnosticForBinding(
   file: File,
@@ -21,7 +21,7 @@ function addErrorDiagnosticForBinding(
   message: string,
   binding: Binding
 ) {
-  file.diagnostics.push(createDiagnostic(file.bscFile, code, message, binding.line, binding.char, binding.line, binding.endChar, DiagnosticSeverity.Error));
+  (file.bscFile as any).diagnostics.push(createDiagnostic(file.bscFile, code, message, binding.range.start.line, binding.range.start.character, binding.range.end.line, binding.range.end.character, DiagnosticSeverity.Error));
 }
 
 function createDiagnostic(
@@ -44,26 +44,6 @@ function createDiagnostic(
     severity: severity
   };
   return diagnostic;
-}
-
-function addDiagnosticWithFileOffset(
-  file: File,
-  code: number,
-  message: string,
-  startOffset: number,
-  endOffset: number,
-  severity: DiagnosticSeverity = DiagnosticSeverity.Error
-) {
-
-  let start = file.getPositionFromOffset(startOffset);
-  let end = file.getPositionFromOffset(endOffset);
-  file.diagnostics.push({
-    code: code,
-    message: message,
-    range: Range.create(start.line, start.character, end.line, end.character),
-    file: file.bscFile,
-    severity: severity
-  });
 }
 
 /**
@@ -124,42 +104,42 @@ export function addXMLTagErrorCorruptXMLElement(file: File, tagText: string) {
   addErrorDiagnostic(file, 6909, `Received corrupt XMLElement`, 0, 0);
 }
 
-export function addXMLTagErrorCouldNotParseBinding(file: File, tagText: string, message: string, line: number, col: number = 9999) {
-  addErrorDiagnostic(file, 6910, `Could not parse binding: ${message}`, line, col);
-  file.failedBindings.push(file.diagnostics.pop());
+export function addXMLTagErrorCouldNotParseBinding(file: File, tagText: string, message: string, range: Range) {
+  addErrorDiagnostic(file, 6910, `Could not parse binding: ${message}`, range.start.line, range.start.character);
+  //  (file as any).failedBindings.push(file.bscFile.diagnostics.pop());
 }
 
-export function addXMLTagErrorCouldNotParseBindingDetailsForField(file: File, partText: string, tagText: string, line: number, col: number = 99999) {
+export function addXMLTagErrorCouldNotParseBindingDetailsForField(file: File, partText: string, tagText: string, range: Range) {
   addErrorDiagnostic(file, 6911,
-    `Could not parse binding details`, line, col);
+    `Could not parse binding details`, range.start.line, range.start.character);
 }
 
-export function addXMLTagErrorCouldNotParseBindingModeDetailsForField(file: File, partText: string, tagText: string, line: number, col: number = 99999) {
+export function addXMLTagErrorCouldNotParseBindingModeDetailsForField(file: File, partText: string, tagText: string, line: number, range: Range) {
   addErrorDiagnostic(file, 6912,
-    `Could not parse binding mode`, line, col);
+    `Could not parse binding mode`, range.start.line, range.start.character);
 }
 
-export function addXMLTagErrorCouldNotParseBindingTransformFunctionForField(file: File, partText: string, tagText: string, line: number, col: number = 99999) {
+export function addXMLTagErrorCouldNotParseBindingTransformFunctionForField(file: File, partText: string, tagText: string, range: Range) {
   addErrorDiagnostic(file, 6913,
-    `Could not parse transformFunction"`, line, col);
-  file.failedBindings.push(file.diagnostics.pop());
+    `Could not parse transformFunction"`, range.start.line, range.start.character);
+  //  (file as any).failedBindings.push(file.bscFile.diagnostics.pop());
 }
 
-export function addXMLTagErrorCouldMissingEndBrackets(file: File, tagText: string, line: number, col: number = 99999) {
+export function addXMLTagErrorCouldMissingEndBrackets(file: File, tagText: string, range: Range) {
   addErrorDiagnostic(file, 6913,
-    `Binding could not be parsed: Missing matching end brackets.`, line, col);
-  file.failedBindings.push(file.diagnostics.pop());
+    `Binding could not be parsed: Missing matching end brackets.`, range.start.line, range.start.character);
+  //  (file as any).failedBindings.push(file.bscFile.diagnostics.pop());
 }
 
-export function addXMLTagErrorCouldNotParsefireOnSetForField(file: File, partText: string, tagText: string, line: number, col: number = 99999) {
+export function addXMLTagErrorCouldNotParsefireOnSetForField(file: File, partText: string, tagText: string, range: Range) {
   addErrorDiagnostic(file, 6914,
-    `Could not parse fireOnSet for field`, line, col);
+    `Could not parse fireOnSet for field`, range.start.line, range.start.character);
 }
 
 export function addXMLTagErrorCouldNotParseIsFiringOnceForField(file: File, partText: string, binding: Binding) {
   addErrorDiagnosticForBinding(file, 6915,
     `Could not parse binding setting "${partText}" - valid settings are 'once', 'fireonset' and 'transform'`, binding);
-  file.failedBindings.push(file.diagnostics.pop());
+  //  (file as any).failedBindings.push(file.bscFile.diagnostics.pop());
 }
 
 export function addFileErrorCouldNotSave(file: File) {
@@ -178,37 +158,36 @@ export function addXmlBindingDuplicateField(file: File, field: string, line: num
   addErrorDiagnostic(file, 6919, `Could not parse binding id is already used in another interface field: ${field}`, line, col);
 }
 export function addCorruptVMType(file: File, line: number, col: number = 9999) {
-  addErrorDiagnostic(file, 6920, `Could not pass VMClass field`, line, col);
+  addErrorDiagnostic(file, 6920, `Could not pass vm field`, line, col);
 }
 
 export function addXmlBindingNoVMClassDefined(file: File) {
-  addErrorDiagnostic(file, 6921, `The VMClass field was not set. Please add a field "<field id='vmclass' type='string' value='YOUR_CLASS'/>" so that maestro can give you accurate binding validations.`);
-
+  addErrorDiagnostic(file, 6921, `The vm attribute was not set. Please add the 'vm' attribute to your component. e.g.  '<Component name='MyScreen' extends 'BaseScreen' vm='fully.namespaced.className'/>" so that maestro can give you accurate binding validations.`);
 }
 
 export function addXmlBindingVMClassNotFound(file: File) {
-  addDiagnosticWithFileOffset(file, 6922, `The VMClass specified "${file.vmClassName}" was not found.`, file.componentTag.startPosition, file.componentTag.endPosition);
+  addErrorDiagnostic(file, 6922, `The VMClass specified "${file.vmClassName}" was not found.`, file.componentTag.range.start.line, file.componentTag.range.start.character);
 }
 
 export function addXmlBindingVMFieldNotFound(file: File, binding: Binding) {
   addErrorDiagnosticForBinding(file, 6923, `The bound field "${binding.observerField}" was not found in class "${file.vmClassName}".`, binding);
-  file.failedBindings.push(file.diagnostics.pop());
+  //  (file as any).failedBindings.push(file.bscFile.diagnostics.pop());
 }
 
 export function addXmlBindingVMFunctionNotFound(file: File, binding: Binding) {
   addErrorDiagnosticForBinding(file, 6924, `The event handling function "${binding.observerField}" was not found in class "${file.vmClassName}".`, binding);
-  file.failedBindings.push(file.diagnostics.pop());
+  //  (file as any).failedBindings.push(file.bscFile.diagnostics.pop());
 
 }
 
 export function addXmlBindingVMFunctionWrongArgCount(file: File, binding: Binding, expected: number, actualParams: number) {
   addErrorDiagnosticForBinding(file, 6925, `The event handling function "${binding.observerField}" is configured with wrong number of params. Expected ${expected} parameters; function declaration has ${actualParams}`, binding);
-  file.failedBindings.push(file.diagnostics.pop());
+  //  (file as any).failedBindings.push(file.bscFile.diagnostics.pop());
 }
 
 export function addXmlBindingUnknownFunctionArgs(file: File, binding: Binding) {
   addErrorDiagnosticForBinding(file, 6926, `The event handling function "${binding.observerField}" has an incorrect signature. You can call vm functions with the (), (value), (node), or (value, node)`, binding);
-  file.failedBindings.push(file.diagnostics.pop());
+  //  (file as any).failedBindings.push(file.bscFile.diagnostics.pop());
 }
 
 
@@ -243,5 +222,5 @@ export function addNodeClassNeedsNewDeclaration(file: BrsFile, line: number = 0,
 
 export function addXmlBindingVMFieldRequired(file: File, binding: Binding) {
   addErrorDiagnosticForBinding(file, 6924, `Field bindings are only available for vm fields. Cannot bind to vm function "${binding.observerField}" in class "${file.vmClassName}".`, binding);
-  file.failedBindings.push(file.diagnostics.pop());
+  //  (file as any).failedBindings.push(file.bscFile.diagnostics.pop());
 }

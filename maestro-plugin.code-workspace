@@ -1,12 +1,18 @@
 {
 	"folders": [
-		{
-			"path": "."
-		},
-		{
-			"path": "../../vsc/brighterscript"
-		}
-	],
+    {
+      "path": "."
+    },
+    {
+      "path": "../../vsc/brighterscript"
+    },
+    {
+      "path": "../maestro-roku-sample"
+    },
+    {
+      "path": "../../../../../../tmp/out"
+    }
+  ],
   "remoteAuthority": "wsl+Ubuntu-20.04",
   "settings": {
     "workbench.colorCustomizations": {

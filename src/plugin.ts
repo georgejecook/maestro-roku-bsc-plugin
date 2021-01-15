@@ -29,131 +29,79 @@ import NodeClassUtil from './lib/node-classes/NodeClassUtil';
 
 const path = require('path');
 
-let _builder: ProgramBuilder;
-let fileMap: ProjectFileMap;
-let bindingProcessor: BindingProcessor;
-let importProcessor: ImportProcessor;
-let reflectionUtil: ReflectionUtil;
-let isFrameworkAdded = false;
-let fileFactory: FileFactory;
-let nodeClassUtil: NodeClassUtil;
-
-// entry point
-const pluginInterface: CompilerPlugin = {
-  name: 'maestroPlugin',
-  beforeProgramCreate: beforeProgramCreate,
-  afterProgramCreate: afterProgramCreate,
-  beforePublish: beforePublish,
-  beforeFileParse: beforeFileParse,
-  afterFileParse: afterFileParse,
-  afterFileValidate: afterFileValidate,
-  beforeProgramValidate: beforeProgramValidate,
-  afterProgramValidate: afterProgramValidate,
-  afterProgramTranspile: afterProgramTranspile
+export default function () {
+  return {
+    name: 'maestroPlugin',
+    beforeProgramCreate: beforeProgramCreate,
+    afterProgramCreate: afterProgramCreate,
+    beforePublish: beforePublish,
+    beforeFileParse: beforeFileParse,
+    afterFileParse: afterFileParse,
+    afterFileValidate: afterFileValidate,
+    beforeProgramValidate: beforeProgramValidate,
+    afterProgramValidate: afterProgramValidate,
+    afterProgramTranspile: afterProgramTranspile
+  }
 };
 
-export default pluginInterface;
-
 function beforeProgramCreate(builder: ProgramBuilder): void {
-  if (!fileMap) {
-    fileMap = new ProjectFileMap();
-    bindingProcessor = new BindingProcessor(fileMap);
-    fileFactory = new FileFactory(builder);
+  if (!this.fileMap) {
+    this.fileMap = new ProjectFileMap();
+    this.bindingProcessor = new BindingProcessor(this.fileMap);
+    this.fileFactory = new FileFactory(builder);
   }
-  reflectionUtil = new ReflectionUtil(fileMap, builder);
-  importProcessor = new ImportProcessor(builder.options);
-  nodeClassUtil = new NodeClassUtil(fileMap, builder, fileFactory);
-  _builder = builder;
+  this.reflectionUtil = new ReflectionUtil(this.fileMap, builder);
+  this.importProcessor = new ImportProcessor(builder.options);
+  this.nodeClassUtil = new NodeClassUtil(this.fileMap, builder, this.fileFactory);
+  this.builder = builder;
 }
+
 function afterProgramCreate(program: Program): void {
-  if (!isFrameworkAdded) {
-    fileFactory.addFrameworkFiles(program);
-    isFrameworkAdded = true;
+  if (!this.isFrameworkAdded) {
+    this.fileFactory.addFrameworkFiles(program);
+    this.isFrameworkAdded = true;
   }
 }
 
 function beforeFileParse(source: SourceObj): void {
-  // pull out the bindings and store them in a maestro file
-  // remove the illegal xml from the source
-  let file = fileMap.getFile(source);
-  // file.fileMap = fileMap;
-  // fileMap.addFile(file);
-  if (!file.bscFile) {
-    file.bscFile = _builder.program.getFileByPathAbsolute(source.pathAbsolute);
-  }
-  file.setFileSource(source.source);
-
-  if (file.fileType === FileType.Xml) {
-    bindingProcessor.parseBindings(file);
-    source.source = file.fileContents;
-  }
 }
 
 function afterFileParse(file: (BrsFile | XmlFile)): void {
-  let mFile = fileMap.allFiles.get(file.pathAbsolute);
-  //look up the maestro file and link it
-  if (mFile) {
-    mFile.version++;
-    mFile.bscFile = file;
+  let mFile = this.fileMap.allFiles.get(file.pathAbsolute);
+  if (!mFile) {
+    mFile = this.fileMap.createFile(file);
   }
-  if (isXmlFile(file)) {
-    if (mFile) {
-      let associatedFile = getAssociatedFile(file, fileMap);
-      if (associatedFile) {
-        mFile.associatedFile = associatedFile;
-        associatedFile.associatedFile = mFile;
-      }
-    }
-  } else if (isBrsFile(file)) {
-    importProcessor.processDynamicImports(file, _builder.program);
-    reflectionUtil.addFile(file);
-    nodeClassUtil.addFile(file);
+
+  if (isBrsFile(file)) {
+    this.importProcessor.processDynamicImports(file, this.builder.program);
+    this.reflectionUtil.addFile(file);
+    this.nodeClassUtil.addFile(file);
   }
 }
 
 async function beforeProgramValidate(program: Program) {
-  await nodeClassUtil.createNodeClasses(program);
+  for (let compFile of [...this.fileMap.allFiles.values()].filter((f) => f.fileType === FileType.Xml)) {
+    compFile.loadXmlContents();
+  }
+  await this.nodeClassUtil.createNodeClasses(program);
 }
 
 function afterProgramValidate(program: Program) {
+  for (let compFile of [...this.fileMap.allFiles.values()].filter((f) => f.fileType === FileType.Xml)) {
+    this.bindingProcessor.parseBindings(compFile);
 
-  for (let compFile of [...fileMap.allXMLComponentFiles.values()]) {
-    let bscFile = program.getFileByPathAbsolute(compFile.fullPath);
-
-    if (bscFile) {
-      if (!compFile.bscFile) {
-        compFile.bscFile = bscFile;
-      }
-
-      let vmFile = fileMap.getFileForClass(compFile.vmClassName);
-      //this is expensive.. need to tighten this bad boy up
-      if (vmFile) { // && vmFile.version !== compFile.vmClassVersion) {
-        bindingProcessor.parseBindings(compFile, false);
-        compFile.vmClassVersion = vmFile.version;
-      }
-
-      compFile.parentFile = fileMap.allXMLComponentFiles.get(compFile.parentComponentName);
-      compFile.resetDiagnostics();
-      bindingProcessor.validateBindings(compFile);
-      for (let diagnostic of [...compFile.diagnostics, ...compFile.failedBindings]) {
-        if (!diagnostic.file) {
-          diagnostic.file = bscFile;
-        }
-      }
-      bscFile.addDiagnostics(compFile.diagnostics);
-      bscFile.addDiagnostics(compFile.failedBindings);
+    if (compFile.bindings.length > 0) {
+      this.bindingProcessor.validateBindings(compFile);
     }
   }
 }
 
 function beforePublish(builder: ProgramBuilder, files: FileObj[]): void {
-  for (let compFile of [...fileMap.allXMLComponentFiles.values()]) {
-    if (compFile.bscFile) {
-      bindingProcessor.generateCodeForXMLFile(compFile);
-    }
+  for (let compFile of [...this.fileMap.allXMLComponentFiles.values()]) {
+    this.bindingProcessor.generateCodeForXMLFile(compFile);
   }
 
-  reflectionUtil.updateRuntimeFile();
+  this.reflectionUtil.updateRuntimeFile();
 }
 
 function afterProgramTranspile(program: Program, entries: TranspileObj[]) {

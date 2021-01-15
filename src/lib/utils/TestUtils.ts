@@ -11,5 +11,5 @@ export function testUtil_createStubProjectFile(filePath): File {
   const filename = path.basename(filePath);
   const extension = path.extname(filePath);
 
-  return new File(fullPath);
+  return new File(null, null);
 }

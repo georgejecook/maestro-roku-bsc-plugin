@@ -1,4 +1,4 @@
-import { BrsFile, ClassStatement, ParseMode, SourceObj, XmlFile } from 'brighterscript';
+import { BrsFile, BscFile, ClassStatement, ParseMode, SourceObj, XmlFile } from 'brighterscript';
 
 import { getAlternateFileNames } from '../utils/Utils';
 import { File } from './File';
@@ -82,16 +82,6 @@ export class ProjectFileMap {
   public addFile(file: File) {
     this.removeFile(file);
     this.allFiles.set(file.fullPath, file);
-    const alternatePaths = getAlternateFileNames(file.fullPath);
-    let alternateFile;
-    for (let p of alternatePaths) {
-      alternateFile = this.allFiles.get(p);
-      if (alternateFile) {
-        file.associatedFile = alternateFile;
-        alternateFile.associatedFile = file;
-        break;
-      }
-    }
   }
 
   public addBscFiles(files: { [filePath: string]: BrsFile | XmlFile }) {
@@ -104,14 +94,13 @@ export class ProjectFileMap {
     }
   }
 
-  getFile(source: SourceObj): File {
+  public createFile(bscFile: BscFile): File {
     // let file = this.allFiles.get(source.pathAbsolute);
     // if (!file || file.fileType === FileType.Xml) {
     //   file = new File(source.pathAbsolute, source.source);
     //   file.fileMap = this;
     // }
-    let file = new File(source.pathAbsolute, source.source);
-    file.fileMap = this;
+    let file = new File(bscFile, this);
     this.addFile(file);
     return file;
   }
