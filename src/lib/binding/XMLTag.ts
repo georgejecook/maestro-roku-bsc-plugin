@@ -100,10 +100,9 @@ export class XMLTag {
           }
           binding.tagText = value;
           binding.validate();
+          bindings.push(binding);
 
-          if (binding.isValid) {
-            bindings.push(binding);
-          } else {
+          if (!binding.isValid) {
             addXMLTagErrorCouldNotParseBinding(this.file, value, binding.errorMessage, binding.range);
           }
         } else {

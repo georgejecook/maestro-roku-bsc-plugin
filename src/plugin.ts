@@ -72,6 +72,8 @@ function afterFileParse(file: (BrsFile | XmlFile)): void {
     mFile = this.fileMap.createFile(file);
   }
 
+  mFile.bscFile = file;
+
   if (isBrsFile(file)) {
     this.importProcessor.processDynamicImports(file, this.builder.program);
     this.reflectionUtil.addFile(file);

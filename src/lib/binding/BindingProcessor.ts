@@ -6,7 +6,8 @@ import {
   BrsFile,
   Lexer,
   XmlFile,
-  util
+  util,
+  SourceObj
 } from 'brighterscript';
 import { TranspileState } from 'brighterscript/dist/parser/TranspileState';
 
@@ -76,6 +77,13 @@ export class BindingProcessor {
       throw new Error('was given a non-xml file');
     }
     file.resetBindings();
+
+    //we have to reparse the xml each time we do this..
+    let fileContents: SourceObj = {
+      pathAbsolute: file.fullPath,
+      source: file.bscFile.fileContents
+    };
+    file.bscFile.parse(fileContents.source);
     file.bindings = this.processElements(file);
   }
 
@@ -86,10 +94,12 @@ export class BindingProcessor {
   }
 
   public getNodeChildren(node: SGNode, results: SGTag[] = []) {
-    results.push(node);
-    if (node.children) {
-      for (let child of node.children) {
-        this.getNodeChildren(child, results);
+    if (node) {
+      results.push(node);
+      if (node.children) {
+        for (let child of node.children) {
+          this.getNodeChildren(child, results);
+        }
       }
     }
   }
