@@ -146,7 +146,7 @@ export function createIfStatement(condition: Expression, statements: Statement[]
   let ifToken = createToken(TokenKind.If, 'else if', Range.create(1, 1, 1, 999999));
   ifToken.text = 'else if';
   let thenBranch = new Block(statements, Range.create(1, 1, 1, 1));
-  return new IfStatement({if: ifToken, then: createToken(TokenKind.Then, '', Range.create(1, 1, 1, 999999))}, condition, thenBranch)
+  return new IfStatement({ if: ifToken, then: createToken(TokenKind.Then, '', Range.create(1, 1, 1, 999999)) }, condition, thenBranch)
 }
 
 export function createVarExpression(varName: string, operator: TokenKind, value: string): BinaryExpression {

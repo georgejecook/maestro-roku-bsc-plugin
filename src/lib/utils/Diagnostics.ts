@@ -106,7 +106,6 @@ export function addXMLTagErrorCorruptXMLElement(file: File, tagText: string) {
 
 export function addXMLTagErrorCouldNotParseBinding(file: File, tagText: string, message: string, range: Range) {
   addErrorDiagnostic(file, 6910, `Could not parse binding: ${message}`, range.start.line, range.start.character);
-  //  (file as any).failedBindings.push(file.bscFile.diagnostics.pop());
 }
 
 export function addXMLTagErrorCouldNotParseBindingDetailsForField(file: File, partText: string, tagText: string, range: Range) {
@@ -122,13 +121,11 @@ export function addXMLTagErrorCouldNotParseBindingModeDetailsForField(file: File
 export function addXMLTagErrorCouldNotParseBindingTransformFunctionForField(file: File, partText: string, tagText: string, range: Range) {
   addErrorDiagnostic(file, 6913,
     `Could not parse transformFunction"`, range.start.line, range.start.character);
-  //  (file as any).failedBindings.push(file.bscFile.diagnostics.pop());
 }
 
 export function addXMLTagErrorCouldMissingEndBrackets(file: File, tagText: string, range: Range) {
   addErrorDiagnostic(file, 6913,
     `Binding could not be parsed: Missing matching end brackets.`, range.start.line, range.start.character);
-  //  (file as any).failedBindings.push(file.bscFile.diagnostics.pop());
 }
 
 export function addXMLTagErrorCouldNotParsefireOnSetForField(file: File, partText: string, tagText: string, range: Range) {
@@ -139,7 +136,6 @@ export function addXMLTagErrorCouldNotParsefireOnSetForField(file: File, partTex
 export function addXMLTagErrorCouldNotParseIsFiringOnceForField(file: File, partText: string, binding: Binding) {
   addErrorDiagnosticForBinding(file, 6915,
     `Could not parse binding setting "${partText}" - valid settings are 'once', 'fireonset' and 'transform'`, binding);
-  //  (file as any).failedBindings.push(file.bscFile.diagnostics.pop());
 }
 
 export function addFileErrorCouldNotSave(file: File) {
@@ -171,23 +167,19 @@ export function addXmlBindingVMClassNotFound(file: File) {
 
 export function addXmlBindingVMFieldNotFound(file: File, binding: Binding) {
   addErrorDiagnosticForBinding(file, 6923, `The bound field "${binding.observerField}" was not found in class "${file.vmClassName}".`, binding);
-  //  (file as any).failedBindings.push(file.bscFile.diagnostics.pop());
 }
 
 export function addXmlBindingVMFunctionNotFound(file: File, binding: Binding) {
   addErrorDiagnosticForBinding(file, 6924, `The event handling function "${binding.observerField}" was not found in class "${file.vmClassName}".`, binding);
-  //  (file as any).failedBindings.push(file.bscFile.diagnostics.pop());
 
 }
 
 export function addXmlBindingVMFunctionWrongArgCount(file: File, binding: Binding, expected: number, actualParams: number) {
   addErrorDiagnosticForBinding(file, 6925, `The event handling function "${binding.observerField}" is configured with wrong number of params. Expected ${expected} parameters; function declaration has ${actualParams}`, binding);
-  //  (file as any).failedBindings.push(file.bscFile.diagnostics.pop());
 }
 
 export function addXmlBindingUnknownFunctionArgs(file: File, binding: Binding) {
   addErrorDiagnosticForBinding(file, 6926, `The event handling function "${binding.observerField}" has an incorrect signature. You can call vm functions with the (), (value), (node), or (value, node)`, binding);
-  //  (file as any).failedBindings.push(file.bscFile.diagnostics.pop());
 }
 
 
@@ -209,7 +201,7 @@ export function addNodeClassDuplicateName(file: BrsFile, line: number = 0, col: 
 }
 
 export function addNodeClassBadDeclaration(file: BrsFile, line: number = 0, col: number = 0, text: string) {
-  file.addDiagnostics([createDiagnostic(file, 6931, `Could not interpret node class annotation "${text}". Should be "'@MNode|MTask [name] extends [baseCompName]`, line, col)]);
+  file.addDiagnostics([createDiagnostic(file, 6931, `Could not interpret node class annotation "${text}". Should be "'@MNode|MTask ([name],[baseCompName])`, line, col)]);
 }
 
 export function addNodeClassNeedsClassDeclaration(file: BrsFile, line: number = 0, col: number = 0) {
@@ -221,6 +213,18 @@ export function addNodeClassNeedsNewDeclaration(file: BrsFile, line: number = 0,
 }
 
 export function addXmlBindingVMFieldRequired(file: File, binding: Binding) {
-  addErrorDiagnosticForBinding(file, 6924, `Field bindings are only available for vm fields. Cannot bind to vm function "${binding.observerField}" in class "${file.vmClassName}".`, binding);
-  //  (file as any).failedBindings.push(file.bscFile.diagnostics.pop());
+  addErrorDiagnosticForBinding(file, 6934, `Field bindings are only available for vm fields. Cannot bind to vm function "${binding.observerField}" in class "${file.vmClassName}".`, binding);
 }
+
+export function addNodeClassFieldNoFieldType(file: BrsFile, line: number = 0, col: number = 0, name: string) {
+  file.addDiagnostics([createDiagnostic(file, 6935, `Node class field "${name}" does not specify a field type. Use '@MField("type") or '@MField("type", "observercallback")`, line, col)]);
+}
+
+export function addNodeClassCallbackNotFound(file: BrsFile, line: number = 0, col: number = 0, name: string, callbackName: string, className: string) {
+  file.addDiagnostics([createDiagnostic(file, 6936, `Node class field "${name}" specifies observer function ${callbackName} which is not found in class ${className}`, line, col)]);
+
+}
+export function addNodeClassCallbackNotDefined(file: BrsFile, line: number = 0, col: number = 0, name: string) {
+  file.addDiagnostics([createDiagnostic(file, 6937, `Node class field "${name}" does not specify the observer function name. Syntax is 'MObserve("CALLBACK_NAME")`, line, col)]);
+}
+

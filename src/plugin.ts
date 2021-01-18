@@ -95,14 +95,12 @@ function afterProgramValidate(program: Program) {
     if (compFile.bindings.length > 0) {
       this.bindingProcessor.validateBindings(compFile);
     }
+
+    this.bindingProcessor.generateCodeForXMLFile(compFile);
   }
 }
 
 function beforePublish(builder: ProgramBuilder, files: FileObj[]): void {
-  for (let compFile of [...this.fileMap.allXMLComponentFiles.values()]) {
-    this.bindingProcessor.generateCodeForXMLFile(compFile);
-  }
-
   this.reflectionUtil.updateRuntimeFile();
 }
 

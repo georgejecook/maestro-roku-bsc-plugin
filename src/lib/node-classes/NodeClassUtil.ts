@@ -5,11 +5,12 @@ const path = require('path');
 const fs = require('fs-extra');
 
 import { ProjectFileMap } from '../files/ProjectFileMap';
-import { addNodeClassBadDeclaration, addNodeClassDuplicateName, addNodeClassNeedsClassDeclaration, addNodeClassNeedsNewDeclaration, addNodeClassNoExtendNodeFound, addNodeClassNoNodeRunMethod } from '../utils/Diagnostics';
+import { addNodeClassBadDeclaration, addNodeClassCallbackNotDefined, addNodeClassCallbackNotFound, addNodeClassDuplicateName, addNodeClassFieldNoFieldType, addNodeClassNeedsClassDeclaration, addNodeClassNeedsNewDeclaration, addNodeClassNoExtendNodeFound, addNodeClassNoNodeRunMethod } from '../utils/Diagnostics';
 import { FileFactory } from '../utils/FileFactory';
 
 import { RawCodeStatement } from '../utils/RawCodeStatement';
-import { NodeClass, NodeClassType } from './NodeClass';
+import { makeASTFunction } from '../utils/Utils';
+import { NodeClass, NodeClassType, NodeField } from './NodeClass';
 
 /*
 Crude brighterscript class processor
@@ -58,7 +59,8 @@ export default class NodeClassUtil {
           if (isValid) {
             //is valid
             let func = cs.memberMap['noderun'] as FunctionStatement;
-            let nodeClass = new NodeClass(nodeType, file, cs, func, nodeName, extendsName);
+            let fields = this.getNodeFields(file, cs);
+            let nodeClass = new NodeClass(nodeType, file, cs, func, nodeName, fields, extendsName);
             this.fileMap.nodeClasses.set(nodeClass.generatedNodeName, nodeClass);
             this.fileMap.nodeClassesByPath.get(file.pathAbsolute).push(nodeClass);
           }
@@ -73,128 +75,46 @@ export default class NodeClassUtil {
     });
   }
 
+  public getNodeFields(file: BrsFile, cs: ClassStatement) {
+    let nodeFields = [];
+    for (let field of cs.fields.filter((f) => f.annotations?.length > 0)) {
+      let annotation = field.annotations.find((a) => a.name === 'MField');
+      if (annotation) {
+
+        let args = annotation.getArguments();
+        if (args?.length === 0) {
+          addNodeClassFieldNoFieldType(file, annotation.range.start.line, annotation.range.start.character, field.name.text);
+          continue;
+        }
+
+        let observerAnnotation = field.annotations.find((a) => a.name === 'MObserver');
+        if (observerAnnotation) {
+
+          let observerArgs = observerAnnotation.getArguments();
+          if (observerArgs?.length !== 1) {
+            addNodeClassCallbackNotDefined(file, annotation.range.start.line, annotation.range.start.character, field.name.text);
+
+          } else if (!cs.methods.find((m) => m.name.text === observerArgs[0])) {
+            addNodeClassCallbackNotFound(file, annotation.range.start.line, annotation.range.start.character, field.name.text, observerArgs[0] as string, cs.getName(ParseMode.BrighterScript));
+            continue;
+          }
+        }
+
+        nodeFields.push(new NodeField(file, field.name.text, annotation, observerAnnotation));
+      }
+    }
+
+    return nodeFields;
+  }
+
+
   public async createNodeClasses(program: Program) {
 
     for (let nodeFile of [...this.fileMap.nodeClasses.values()]) {
-      let members = nodeFile.type === NodeClassType.task ? [] : [...this.getClassMembers(nodeFile.classStatement).values()];
-
-      let xmlText = nodeFile.type === NodeClassType.task ? this.getNodeTaskFileXmlText(nodeFile) : this.getNodeFileXmlText(nodeFile, members);
-      let xmlPath = path.join('components', 'maestro', 'generated', `${nodeFile.generatedNodeName}.xml`);
-      await this.fileFactory.addFile(program, xmlPath, xmlText);
-
-      let bsPath = path.join('components', 'maestro', 'generated', `${nodeFile.generatedNodeName}.bs`);
-      await this.fileFactory.addFile(program, bsPath, '');
-      let bsFile = await program.getFileByPkgPath(bsPath) as BrsFile;
-      bsFile.parser.statements.push(nodeFile.type === NodeClassType.task ? this.getNodeTaskBrsCode(nodeFile) : this.getNodeBrsCode(nodeFile, members));
-      nodeFile.brsFile = bsFile;
-      nodeFile.xmlFile = await program.getFileByPkgPath(xmlPath) as XmlFile;
+      nodeFile.generateCode(this.fileFactory, program, this.fileMap);
     }
   }
 
-  private getNodeTaskFileXmlText(nodeFile: NodeClass): string {
-    return `<?xml version="1.0" encoding="UTF-8" ?>
-<component
-    name="${nodeFile.name}"
-    extends="${nodeFile.extendsName}">
-  <interface>
-    <field id="args" type="assocarray"/>
-    <field id="output" type="assocarray"/>
-    </interface>
-    <children>
-    </children>
-    <script type="text/brightscript" uri="pkg:/${nodeFile.file.pkgPath}"/>
-  </component>
-  `;
-  }
-
-  private getNodeTaskBrsCode(nodeFile: NodeClass): RawCodeStatement {
-    let transpileState = new TranspileState(nodeFile.file);
-
-    let text = `
-  function init()
-    m.top.functionName = "exec"
-  end function
-
-  function exec()
-    m.top.output = nodeRun(m.top.args)
-  end function
-
-  function nodeRun(args)${nodeFile.func.func.body.transpile(transpileState).join('')}
-  end function
-    `;
-    return new RawCodeStatement(text, nodeFile.file, nodeFile.func.range);
-
-  }
-
-  private getNodeFileXmlText(nodeFile: NodeClass, members: (ClassFieldStatement | ClassMethodStatement)[]): string {
-    let text = `<?xml version="1.0" encoding="UTF-8" ?>
-<component
-    name="${nodeFile.name}"
-    extends="${nodeFile.extendsName}">
-  <interface>
-    <field id="data" type="assocarray"/>
-    `
-    for (let member of members.filter((m) => isClassMethodStatement(m))) {
-      text += `
-         <function name="${member.name.text}"/>`
-    }
-    text += `
-      </interface>
-      <children>
-      </children>
-      <script type="text/brightscript" uri="pkg:/${nodeFile.file.pkgPath}"/>
-      </component>
-      `;
-    return text;
-  }
-
-  private getNodeBrsCode(nodeFile: NodeClass, members: (ClassFieldStatement | ClassMethodStatement)[]): RawCodeStatement {
-    //TODO - create more code statements from this
-    let text = `
-    function _getImpl()
-      if m._ncImpl = invalid
-        m._ncImpl = ${nodeFile.classStatement.getName(ParseMode.BrightScript)}(m.top, m.top.data)
-      end if
-      return m._ncImpl
-    end function
-  `;
-
-    for (let member of members.filter((m) => isClassMethodStatement(m))) {
-      let params = (member as ClassMethodStatement).func.parameters;
-      let funcSig = `${member.name.text}(${params.map((p) => p.name.text).join(',')})`;
-      text += `
-    function ${funcSig}
-      return _getImpl().${funcSig}
-    end function`;
-    }
-
-    return new RawCodeStatement(text, nodeFile.file, Range.create(Position.create(10, 1), Position.create(11, 99999)));
-
-  }
-
-  private getClassMembers(classStatement: ClassStatement) {
-    let results = new Map<string, ClassFieldStatement | ClassMethodStatement>();
-    if (classStatement) {
-      let classes = this.getClassHieararchy(classStatement.getName(ParseMode.BrighterScript));
-      for (let cs of classes) {
-        for (let member of [...cs?.fields, ...cs?.methods]) {
-          if (!results.has(member.name.text.toLowerCase() && member)) {
-            results.set(member.name.text.toLowerCase(), member);
-          }
-        }
-      }
-    }
-    return results;
-  }
-  public getClassHieararchy(className: string) {
-    let items = [];
-    let parent = this.fileMap.allClasses.get(className);
-    while (parent) {
-      items.push(parent);
-      parent = this.fileMap.allClasses.get(parent.parentClassName?.getName(ParseMode.BrighterScript));
-    }
-    return items;
-  }
 
 }
 

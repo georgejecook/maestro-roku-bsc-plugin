@@ -1,11 +1,17 @@
 @MNode("NodeTest", "Group")
 class NodeTest
 
-  public url = ""
   function new(top, data)
   end function
 
-  function run()
+  @MObserver("onUrlChange")
+  @MField("string")
+  public url = ""
+  
+  private function onUrlChange(value)
+  end function
+
+  function doit()
     'fetch metadata
     'do reuest for profile
     'do request for entitelments
