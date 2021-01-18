@@ -35,5 +35,6 @@
       "IPlayerAnalytics": [],
       "IAnalytics": []
     }
-  }
+  },
+  "sourceMap": true
 }

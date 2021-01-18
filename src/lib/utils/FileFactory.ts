@@ -8,6 +8,7 @@ export class FileFactory {
     public builder: ProgramBuilder
   ) {
   }
+  public blockingPromises = [];
   public ignoredFilePaths = [];
   private frameworkSourceFileNames = [
     'MRuntime.brs'
@@ -35,8 +36,14 @@ export class FileFactory {
     }
   }
 
-  public async addFile(program, projectPath: string, contents: string) {
-    await program.addOrReplaceFile({ src: path.resolve(projectPath), dest: projectPath }, contents);
+  public addFile(program, projectPath: string, contents: string) {
+    let promise = program.addOrReplaceFile({ src: path.resolve(projectPath), dest: projectPath }, contents);
+    // this.blockingPromises.push(promise);
+    return promise;
+  }
+
+  public resetPromises() {
+    this.blockingPromises = [];
   }
 
   public isIgnoredFile(file: BrsFile | XmlFile): boolean {

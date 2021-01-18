@@ -1,7 +1,8 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <component
     name='BindingTestCode'
-    extends='Group'>
+    extends='Group'
+    vm='BindingTestVM'>
   <interface>
     <!-- public fields/functions -->
     <field
@@ -22,7 +23,7 @@
 
     <InputBox
         id='nameregulsrStatic'
-        text='{{:vm.name}}' />
+        text='{{:name}}' />
 
   </children>
 

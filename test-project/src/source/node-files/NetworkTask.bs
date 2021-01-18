@@ -1,4 +1,4 @@
-@MTask("NetTask", "Task")
+'@MTask("NetTask", "Task")
 class NetworkTask
 
   public function nodeRun(args)

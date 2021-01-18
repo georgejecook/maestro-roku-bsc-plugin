@@ -30,7 +30,7 @@ export default class NodeClassUtil {
     }
     this.fileMap.nodeClassesByPath.set(file.pathAbsolute, []);
 
-    const statementHandler = (cs: ClassStatement) => {
+    for (let cs of file.parser.references.classStatements) {
       let annotation = cs.annotations?.find((a) => a.name.toLowerCase() === 'mtask' || a.name.toLowerCase() === 'mnode');
       let nodeType = NodeClassType.none;
       if (annotation) {
@@ -67,12 +67,6 @@ export default class NodeClassUtil {
         }
       }
     };
-
-    file.parser.ast.walk(createVisitor({
-      ClassStatement: statementHandler,
-    }), {
-      walkMode: WalkMode.visitStatements
-    });
   }
 
   public getNodeFields(file: BrsFile, cs: ClassStatement) {
@@ -108,8 +102,7 @@ export default class NodeClassUtil {
   }
 
 
-  public async createNodeClasses(program: Program) {
-
+  public createNodeClasses(program: Program) {
     for (let nodeFile of [...this.fileMap.nodeClasses.values()]) {
       nodeFile.generateCode(this.fileFactory, program, this.fileMap);
     }

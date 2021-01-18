@@ -30,6 +30,7 @@ export class XMLTag {
       addXMLTagErrorCorruptXMLElement(file, '');
     }
     this.file = file;
+    this.isTopTag = isTopTag;
     this.bindings = this.getBindings(xmlTag);
   }
 
@@ -117,7 +118,11 @@ export class XMLTag {
     }
 
     for (let b of bindings) {
-      xmlElement.setAttribute(b.nodeField.toLowerCase(), undefined);
+      if (this.isTopTag) {
+        (xmlElement.getAttribute('value') as any).value.text = '';
+      } else {
+        xmlElement.setAttribute(b.nodeField.toLowerCase(), undefined);
+      }
     }
     this.hasBindings = bindings.length > 0;
     return bindings;
