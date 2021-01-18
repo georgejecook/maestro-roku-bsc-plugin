@@ -58,24 +58,10 @@ class MaestroPlugin {
   }
 
   afterProgramCreate(program: Program): void {
-    //NOTE bsc will in future be sync and we will not await anything.
-
     if (!this.isFrameworkAdded) {
       this.fileFactory.addFrameworkFiles(program);
       this.isFrameworkAdded = true;
     }
-    var oldTranspile = program.transpile;
-    let fileFactory = this.fileFactory;
-    // program.transpile = async function (fileEntries: FileObj[], stagingFolderPath: string) {
-    //   console.log('>>>>>>>>>>>>> transpile');
-    //   await Promise.all(fileFactory.blockingPromises);
-    //   await oldTranspile.call(program, fileEntries, stagingFolderPath);
-    // };
-    // var oldValidate = program.validate;
-    // program.validate = async function () {
-    //   await Promise.all(fileFactory.blockingPromises);
-    //   await oldValidate.call(program);
-    // };
   }
 
   beforeFileParse(source: SourceObj): void {
@@ -94,10 +80,10 @@ class MaestroPlugin {
     if (isBrsFile(file)) {
       this.importProcessor.processDynamicImports(file, this.builder.program);
       this.reflectionUtil.addFile(file);
-      if (!this.fileMap.nodeClassesByPath.has(file.pathAbsolute)) {
-        console.log('adding node class file for ' + file.pathAbsolute);
-        this.nodeClassUtil.addFile(file);
-      }
+      // if (!this.fileMap.nodeClassesByPath.has(file.pathAbsolute)) {
+      console.log('adding node class file for ' + file.pathAbsolute);
+      this.nodeClassUtil.addFile(file);
+      // }
       for (let nc of this.fileMap.nodeClassesByPath.get(file.pathAbsolute) || []) {
         let debouncer = this.nodeFileDebouncers.get(nc.file.pathAbsolute);
         if (debouncer) {
@@ -160,10 +146,9 @@ class MaestroPlugin {
         }
       }
     }
-    for (let scope of [...scopes.values()]) {
-
-      scope.invalidate();
-    }
+    // for (let scope of [...scopes.values()]) {
+    //   scope.invalidate();
+    // }
   }
 
   afterProgramTranspile(program: Program, entries: TranspileObj[]) {
@@ -172,7 +157,7 @@ class MaestroPlugin {
 
   afterFileValidate(file: BscFile) {
     let compFile = this.fileMap.allFiles.get(file.pathAbsolute);
-    if (file.pathAbsolute.startsWith('components/maestro/generated')) {
+    if (file.pathAbsolute.indexOf('components/maestro/generated') !== -1) {
       (file as any).diagnostics = [];
     } else if (compFile?.fileType === FileType.Xml && compFile?.vmClassName) {
       this.bindingProcessor.parseBindings(compFile);

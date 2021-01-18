@@ -99,9 +99,11 @@ export class NodeClass {
   }
 
   private makeFunction(name, bodyText) {
-    let funcText = `function ${name}()`;
-    funcText += `\n${bodyText}\n`;
-    funcText += `end function\n`;
+    let funcText = `
+    function ${name}()
+      ${bodyText}
+    end function
+    `;
     return funcText;
     // this.brsFile.parser.statements.push(makeASTFunction(funcText));
   }
@@ -110,7 +112,7 @@ export class NodeClass {
   private getNodeBrsCode(nodeFile: NodeClass, members: (ClassFieldStatement | ClassMethodStatement)[]) {
     let text = this.makeFunction('_getImpl', `
       if m._ncImpl = invalid
-        m._ncImpl = ${nodeFile.classStatement.getName(ParseMode.BrightScript)}(m.top, m.top.data)
+        m._ncImpl = new ${nodeFile.classStatement.getName(ParseMode.BrighterScript)}(m.top, m.top.data)
       end if
       return m._ncImpl
   `);
@@ -180,16 +182,14 @@ export class NodeClass {
     let bsPath = path.join('components', 'maestro', 'generated', `${this.generatedNodeName}.bs`);
     let source = `import "pkg:/${this.file.pkgPath}"`;
 
-    let initText = `function init()`;
+    let initBody = ``;
     let otherText = '';
     if (this.type === NodeClassType.node) {
-      for (let field of this.nodeFields.filter((f) => f.observerAnnotation)) {
-        initText += field.getObserverStatementText();
+      for (let field of this.nodeFields.filter((f) => f.observerAnnotation)) {  
+        initBody += field.getObserverStatementText() + '\n';
         otherText += field.getCallbackStatement();
       }
-      initText += `
-        end function`;
-      source += initText + otherText;
+      source += this.makeFunction('init', initBody) + otherText;
     }
 
     if (this.type === NodeClassType.task) {

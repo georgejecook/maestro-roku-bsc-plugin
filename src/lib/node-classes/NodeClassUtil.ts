@@ -86,10 +86,10 @@ export default class NodeClassUtil {
 
           let observerArgs = observerAnnotation.getArguments();
           if (observerArgs?.length !== 1) {
-            addNodeClassCallbackNotDefined(file, annotation.range.start.line, annotation.range.start.character, field.name.text);
+            addNodeClassCallbackNotDefined(file, observerAnnotation.range.start.line, observerAnnotation.range.start.character, field.name.text);
 
           } else if (!cs.methods.find((m) => m.name.text === observerArgs[0])) {
-            addNodeClassCallbackNotFound(file, annotation.range.start.line, annotation.range.start.character, field.name.text, observerArgs[0] as string, cs.getName(ParseMode.BrighterScript));
+            addNodeClassCallbackNotFound(file, observerAnnotation.range.start.line, observerAnnotation.range.start.character, field.name.text, observerArgs[0] as string, cs.getName(ParseMode.BrighterScript));
             continue;
           }
         }

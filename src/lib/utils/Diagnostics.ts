@@ -217,7 +217,7 @@ export function addXmlBindingVMFieldRequired(file: File, binding: Binding) {
 }
 
 export function addNodeClassFieldNoFieldType(file: BrsFile, line: number = 0, col: number = 0, name: string) {
-  file.addDiagnostics([createDiagnostic(file, 6935, `Node class field "${name}" does not specify a field type. Use '@MField("type") or '@MField("type", "observercallback")`, line, col)]);
+  file.addDiagnostics([createDiagnostic(file, 6935, `Node class field "${name}" does not specify a field type. Use '@MField("[NODE_TYPE]")`, line, col)]);
 }
 
 export function addNodeClassCallbackNotFound(file: BrsFile, line: number = 0, col: number = 0, name: string, callbackName: string, className: string) {
