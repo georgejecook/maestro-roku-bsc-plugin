@@ -208,8 +208,8 @@ export function addNodeClassNeedsClassDeclaration(file: BrsFile, line: number = 
   file.addDiagnostics([createDiagnostic(file, 6932, `Node class annotation must immediately precede the target class; but no class statement was found`, line, col)]);
 }
 
-export function addNodeClassNeedsNewDeclaration(file: BrsFile, line: number = 0, col: number = 0) {
-  file.addDiagnostics([createDiagnostic(file, 6933, `Node classes must define a constructor that takes 2 arguments (m.top, and m.top.data (i.e. the data passed into your node))`, line, col)]);
+export function addNodeClassWrongNewSignature(file: BrsFile, line: number = 0, col: number = 0) {
+  file.addDiagnostics([createDiagnostic(file, 6933, `Node classes mconstructors must take 3 arguments: (globalNode, top, data). Extend mc.NodeClass for a base implementation`, line, col)]);
 }
 
 export function addXmlBindingVMFieldRequired(file: File, binding: Binding) {
@@ -228,3 +228,7 @@ export function addNodeClassCallbackNotDefined(file: BrsFile, line: number = 0, 
   file.addDiagnostics([createDiagnostic(file, 6937, `Node class field "${name}" does not specify the observer function name. Syntax is 'MObserve("CALLBACK_NAME")`, line, col)]);
 }
 
+export function addNodeClassCallbackWrongParams(file: BrsFile, line: number = 0, col: number = 0, name: string, callbackName: string, className: string) {
+  file.addDiagnostics([createDiagnostic(file, 6938, `Node class field "${name}" specifies observer function ${callbackName}, in class ${className}, which MUST have one parameter (the value of the updated field)`, line, col)]);
+
+}

@@ -112,7 +112,13 @@ export class NodeClass {
   private getNodeBrsCode(nodeFile: NodeClass, members: (ClassFieldStatement | ClassMethodStatement)[]) {
     let text = this.makeFunction('_getImpl', `
       if m._ncImpl = invalid
-        m._ncImpl = new ${nodeFile.classStatement.getName(ParseMode.BrighterScript)}(m.top, m.top.data)
+        m._ncImpl = new ${nodeFile.classStatement.getName(ParseMode.BrighterScript)}()
+        m._ncImpl.top = m.top
+        m._ncImpl.global = m.global
+        m._ncImpl.data = m.data
+        if m._ncImpl.initialize <> invalid
+          m._ncImpl.initialize()
+        end if
       end if
       return m._ncImpl
   `);
@@ -185,7 +191,7 @@ export class NodeClass {
     let initBody = ``;
     let otherText = '';
     if (this.type === NodeClassType.node) {
-      for (let field of this.nodeFields.filter((f) => f.observerAnnotation)) {  
+      for (let field of this.nodeFields.filter((f) => f.observerAnnotation)) {
         initBody += field.getObserverStatementText() + '\n';
         otherText += field.getCallbackStatement();
       }

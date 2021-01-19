@@ -129,6 +129,7 @@ export class File {
       this.componentName = xmlFile.componentName?.text;
       this.parentComponentName = xmlFile.parentComponentName?.text;
       this.vmClassName = xmlFile.ast.component?.getAttribute("vm")?.value?.text;
+      xmlFile.ast.component?.setAttribute("vm", undefined);
       if (this.componentName && this.parentComponentName) {
         this.fileMap.addXMLComponent(this);
       } else {

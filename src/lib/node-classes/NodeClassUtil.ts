@@ -1,15 +1,8 @@
-import { BsConfig, BrsFile, ParseMode, XmlFile, ProgramBuilder, FunctionStatement, IfStatement, Range, TokenKind, ClassStatement, CommentStatement, createVisitor, isClassStatement, WalkMode, isCommentStatement, isNamespaceStatement, isClassMethodStatement, Program, Statement, createToken, Position, ImportStatement, ClassMethodStatement, ClassFieldStatement } from 'brighterscript';
-import { TranspileState } from 'brighterscript/dist/parser/TranspileState';
-
-const path = require('path');
-const fs = require('fs-extra');
-
+import { BrsFile, ParseMode, ProgramBuilder, FunctionStatement, ClassStatement, isClassMethodStatement, Program, ClassFieldStatement, createIdentifier, createToken, TokenKind } from 'brighterscript';
 import { ProjectFileMap } from '../files/ProjectFileMap';
-import { addNodeClassBadDeclaration, addNodeClassCallbackNotDefined, addNodeClassCallbackNotFound, addNodeClassDuplicateName, addNodeClassFieldNoFieldType, addNodeClassNeedsClassDeclaration, addNodeClassNeedsNewDeclaration, addNodeClassNoExtendNodeFound, addNodeClassNoNodeRunMethod } from '../utils/Diagnostics';
+import { addNodeClassBadDeclaration, addNodeClassCallbackNotDefined, addNodeClassCallbackNotFound, addNodeClassDuplicateName, addNodeClassFieldNoFieldType, addNodeClassWrongNewSignature as addNodeClassWrongNewSignature, addNodeClassNoExtendNodeFound, addNodeClassNoNodeRunMethod, addNodeClassCallbackWrongParams } from '../utils/Diagnostics';
 import { FileFactory } from '../utils/FileFactory';
 
-import { RawCodeStatement } from '../utils/RawCodeStatement';
-import { makeASTFunction } from '../utils/Utils';
 import { NodeClass, NodeClassType, NodeField } from './NodeClass';
 
 /*
@@ -51,8 +44,8 @@ export default class NodeClassUtil {
           if (nodeType === NodeClassType.node) {
 
             let newFunc = cs.memberMap['new'] as FunctionStatement;
-            if (!newFunc || newFunc.func.parameters.length !== 2) {
-              addNodeClassNeedsNewDeclaration(file, annotation.range.start.line, annotation.range.start.character);
+            if (newFunc && newFunc.func.parameters.length !== 3) {
+              addNodeClassWrongNewSignature(file, annotation.range.start.line, annotation.range.start.character);
               isValid = false;
             }
           }
@@ -90,6 +83,9 @@ export default class NodeClassUtil {
 
           } else if (!cs.methods.find((m) => m.name.text === observerArgs[0])) {
             addNodeClassCallbackNotFound(file, observerAnnotation.range.start.line, observerAnnotation.range.start.character, field.name.text, observerArgs[0] as string, cs.getName(ParseMode.BrighterScript));
+            continue;
+          } else if (cs.methods.find((m) => m.name.text === observerArgs[0]).func.parameters.length !== 1) {
+            addNodeClassCallbackWrongParams(file, observerAnnotation.range.start.line, observerAnnotation.range.start.character, field.name.text, observerArgs[0] as string, cs.getName(ParseMode.BrighterScript));
             continue;
           }
         }

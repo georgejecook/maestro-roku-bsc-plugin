@@ -81,7 +81,7 @@ class MaestroPlugin {
       this.importProcessor.processDynamicImports(file, this.builder.program);
       this.reflectionUtil.addFile(file);
       // if (!this.fileMap.nodeClassesByPath.has(file.pathAbsolute)) {
-      console.log('adding node class file for ' + file.pathAbsolute);
+      // console.log('adding node class file for ' + file.pathAbsolute);
       this.nodeClassUtil.addFile(file);
       // }
       for (let nc of this.fileMap.nodeClassesByPath.get(file.pathAbsolute) || []) {
@@ -90,7 +90,7 @@ class MaestroPlugin {
           clearTimeout(debouncer);
         }
         this.nodeFileDebouncers.set(nc.file.pathAbsolute, setTimeout(() => {
-          console.log('generating code for ' + file.pathAbsolute);
+          // console.log('generating code for ' + file.pathAbsolute);
           nc.generateCode(this.fileFactory, this.builder.program, this.fileMap);
         }, 1000));
       }
@@ -120,7 +120,7 @@ class MaestroPlugin {
     for (let debouncer of [...this.nodeFileDebouncers.values()]) {
       clearTimeout(debouncer);
     }
-    console.log('>>>>>> GENERATE ALL NODE CLASSES');
+    // console.log('>>>>>> GENERATE ALL NODE CLASSES');
     this.nodeClassUtil.createNodeClasses(this.builder.program);
 
     for (let compFile of [...this.fileMap.allFiles.values()].filter((f) => f.fileType === FileType.Xml && f.bindings.length > 0)) {
@@ -135,10 +135,10 @@ class MaestroPlugin {
     for (let compFile of [...this.fileMap.allFiles.values()].filter((f) => f.fileType === FileType.Xml && f.vmClassName)) {
 
       if (compFile.bindings.length > 0) {
-        console.log('>>>>>> validate bindings for ' + compFile.fullPath);
+        // console.log('>>>>>> validate bindings for ' + compFile.fullPath);
         compFile.resetDiagnostics();
         this.bindingProcessor.validateBindings(compFile);
-        console.log(compFile.bscFile.getDiagnostics());
+        // console.log(compFile.bscFile.getDiagnostics());
         for (let scope of this.builder.program.getScopesForFile(compFile.bscFile)) {
           if (!scopes.has(scope)) {
             scopes.add(scope);
