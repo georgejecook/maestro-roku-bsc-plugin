@@ -86,8 +86,7 @@ export class XMLTag {
             binding.rawValueText = value.substring(3, value.length - 2);
           }
           else if (mode === BindingType.twoWay) {
-            //have to rip out 2 way bindings like {getField}(setCallback)
-            //and  make 2 sub bindings
+            //is it a bindng and sub binding (e.g. [{vmField}|vmFunc()])
             let parts = /(.*)\| *(.*)/.exec(bindingText);
             if (parts && parts.length > 2) {
               binding.createBinding(true);
@@ -95,7 +94,11 @@ export class XMLTag {
               this.parseSubBindingText(parts[1], binding.getBinding);
               this.parseSubBindingText(parts[2], binding.setBinding);
               binding.rawValueText = value;
+            } else {
+              this.parseBindingText(bindingText, binding, value);
+              binding.rawValueText = value;
             }
+            
           } else {
             this.parseBindingText(bindingText, binding, value);
           }

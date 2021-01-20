@@ -146,8 +146,9 @@ export default class Binding {
   }
 
   private getOneWayTargetText() {
-    let funcText = this.properties.sendMode === BindingSendMode.field ? `"${this.observerField}"` : this.observerField;
-    return `mc_Tasks_observeNodeField(m.${this.nodeId}, "${this.nodeField}", vm.${funcText}, "${this.properties.getModeText()}", ${this.properties.isFiringOnce ? 'true' : 'false'}, vm)`;
+    let funcText = this.properties.sendMode === BindingSendMode.field ? `"${this.observerField}"` : `vm.${this.observerField}`;
+    
+    return `mc_Tasks_observeNodeField(m.${this.nodeId}, "${this.nodeField}", ${funcText}, "${this.properties.getModeText()}", ${this.properties.isFiringOnce ? 'true' : 'false'}, vm)`;
 
   }
 
@@ -191,7 +192,7 @@ export default class Binding {
     this.observerField = parts[1];
     if (parts.length > 2) {
       let callArgs = parts[2] ? parts[2].replace(/ /g, '') : '';
-      if (callArgs === '()') {
+      if (callArgs === '()' || partText.indexOf('(') !== -1 && !partText.endsWith(')')) {
         this.properties.sendMode = BindingSendMode.none;
       } else if (callArgs === '(value)') {
         this.properties.sendMode = BindingSendMode.value;
@@ -199,8 +200,6 @@ export default class Binding {
         this.properties.sendMode = BindingSendMode.node;
       } else if (callArgs === '(value,node)') {
         this.properties.sendMode = BindingSendMode.both;
-      } else if (partText.indexOf('(') !== -1) {
-        addXmlBindingUnknownFunctionArgs(this.file, this);
       } else {
         this.properties.sendMode = BindingSendMode.field;
       }

@@ -201,7 +201,7 @@ export function addNodeClassDuplicateName(file: BrsFile, line: number = 0, col: 
 }
 
 export function addNodeClassBadDeclaration(file: BrsFile, line: number = 0, col: number = 0, text: string) {
-  file.addDiagnostics([createDiagnostic(file, 6931, `Could not interpret node class annotation "${text}". Should be "'@MNode|MTask ([name],[baseCompName])`, line, col)]);
+  file.addDiagnostics([createDiagnostic(file, 6931, `Could not interpret node class annotation "${text}". Should be "'@node|@task ([name],[baseCompName])`, line, col)]);
 }
 
 export function addNodeClassNeedsClassDeclaration(file: BrsFile, line: number = 0, col: number = 0) {
@@ -209,7 +209,7 @@ export function addNodeClassNeedsClassDeclaration(file: BrsFile, line: number = 
 }
 
 export function addNodeClassWrongNewSignature(file: BrsFile, line: number = 0, col: number = 0) {
-  file.addDiagnostics([createDiagnostic(file, 6933, `Node classes mconstructors must take 3 arguments: (globalNode, top, data). Extend mc.NodeClass for a base implementation`, line, col)]);
+  file.addDiagnostics([createDiagnostic(file, 6933, `Node classes mconstructors must take 2 arguments: (globalNode, top). Extend mc.NodeClass for a base implementation`, line, col)]);
 }
 
 export function addXmlBindingVMFieldRequired(file: File, binding: Binding) {
@@ -217,7 +217,7 @@ export function addXmlBindingVMFieldRequired(file: File, binding: Binding) {
 }
 
 export function addNodeClassFieldNoFieldType(file: BrsFile, line: number = 0, col: number = 0, name: string) {
-  file.addDiagnostics([createDiagnostic(file, 6935, `Node class field "${name}" does not specify a field type. Use '@MField("[NODE_TYPE]")`, line, col)]);
+  file.addDiagnostics([createDiagnostic(file, 6935, `Node class field "${name}" does not specify a field type. Use field("[NODE_TYPE]")`, line, col)]);
 }
 
 export function addNodeClassCallbackNotFound(file: BrsFile, line: number = 0, col: number = 0, name: string, callbackName: string, className: string) {
@@ -225,7 +225,7 @@ export function addNodeClassCallbackNotFound(file: BrsFile, line: number = 0, co
 
 }
 export function addNodeClassCallbackNotDefined(file: BrsFile, line: number = 0, col: number = 0, name: string) {
-  file.addDiagnostics([createDiagnostic(file, 6937, `Node class field "${name}" does not specify the observer function name. Syntax is 'MObserve("CALLBACK_NAME")`, line, col)]);
+  file.addDiagnostics([createDiagnostic(file, 6937, `Node class field "${name}" does not specify the observer function name. Syntax is 'observe("CALLBACK_NAME")`, line, col)]);
 }
 
 export function addNodeClassCallbackWrongParams(file: BrsFile, line: number = 0, col: number = 0, name: string, callbackName: string, className: string) {

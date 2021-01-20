@@ -155,6 +155,9 @@ export class File {
   }
 
   public getField(name): ClassFieldStatement {
+    if (!name) {
+      return undefined;
+    }
     name = name.toLowerCase();
     let field = this.bindingClass.memberMap[name] as ClassFieldStatement;
     if (!field) {

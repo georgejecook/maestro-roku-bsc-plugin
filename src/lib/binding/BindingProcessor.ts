@@ -250,7 +250,11 @@ export class BindingProcessor {
         ifStatement.thenBranch.statements.push(new RawCodeStatement(binding.getInitText(), file, binding.range));
 
       }
-      ifStatement.thenBranch.statements.push(new RawCodeStatement('vm.onBindingsConfigured()'));
+      ifStatement.thenBranch.statements.push(new RawCodeStatement(`
+      if vm.onBindingsConfigured <> invalid
+       vm.onBindingsConfigured()
+       end if
+       `));
     }
 
     return func;
@@ -290,7 +294,7 @@ export class BindingProcessor {
       let funcText = 'function m_createNodeVars()';
       funcText +=
         '\n if m._isCreateNodeVarsCalled = true then return invalid else m._isCreateNodeVarsCalled = true';
-      funcText += '\n findNodes([' + tagIds.map((id) => `"${id}"`).join(',');
+      funcText += '\n mv_findNodes([' + tagIds.map((id) => `"${id}"`).join(',');
       funcText += '])\n';
       funcText += '\nend function';
 

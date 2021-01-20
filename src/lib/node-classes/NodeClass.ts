@@ -16,20 +16,20 @@ export enum NodeClassType {
 }
 
 export class NodeField {
-  constructor(public file: BrsFile, public name: string, public annotation: AnnotationExpression, public observerAnnotation?: AnnotationExpression) {
+  constructor(public file: BrsFile, public name: string, public annotation: AnnotationExpression, public observerAnnotation?: AnnotationExpression, public alwaysNotify?: boolean) {
     let args = annotation.getArguments();
     this.type = args[0] ? args[0] as string : undefined;
     this.value = args[1] ? args[1] as string : undefined;
     this.callback = observerAnnotation?.getArguments()[0] as string;
   }
 
-  public type: string
-  public callback: string
-  public value: string
+  public type: string;
+  public callback: string;
+  public value: string;
 
   getObserverStatementText() {
     return `
-    m.top.observeField("${this.name}", "on_${this.name}_bridge")`;
+    m.top.observeField("${this.name}", "on_${this.name}")`;
   }
 
   getInterfaceText() {
@@ -38,8 +38,8 @@ export class NodeField {
     if (this.value) {
       text += ` value="${this.value}" `;
     }
-    if (this.callback) {
-      text += ` onChange="${this.callback}" `;
+    if (this.alwaysNotify) {
+      text += ` alwaysNotify="${this.alwaysNotify}" `;
     }
     text += '/>';
     return text;
@@ -47,8 +47,8 @@ export class NodeField {
 
   getCallbackStatement() {
     return `
-    function on_${this.name}_bridge()
-      _getImpl().${this.callback}(m.top.${this.name})
+    function on_${this.name}()
+      _getVM().${this.callback}(m.top.${this.name})
     end function`;
   }
 }
@@ -64,10 +64,14 @@ export class NodeClass {
     public extendsName: string
   ) {
     this.generatedNodeName = this.name.replace(/[^a-zA-Z0-9]/g, "_");
+    this.bsPath = path.join('components', 'maestro', 'generated', `${this.generatedNodeName}.bs`);
+    this.xmlPath = path.join('components', 'maestro', 'generated', `${this.generatedNodeName}.xml`)
   }
   public generatedNodeName: string;
   public xmlFile: XmlFile;
   public brsFile: BrsFile;
+  public bsPath: string;
+  public xmlPath: string;
   public classMemberFilter = (m) => isClassMethodStatement(m) && m.name.text !== 'nodeRun' && m.name.text !== 'new' && (!m.accessModifier || m.accessModifier.kind === TokenKind.Public);
 
   resetDiagnostics() {
@@ -79,7 +83,7 @@ export class NodeClass {
     }
   }
 
-  private getNodeTaskBrsCode(nodeFile: NodeClass): RawCodeStatement {
+  private getNodeTaskBrsCode(nodeFile: NodeClass) {
     let transpileState = new TranspileState(nodeFile.file);
 
     let text = `
@@ -94,7 +98,8 @@ export class NodeClass {
   function nodeRun(args)${nodeFile.func.func.body.transpile(transpileState).join('')}
   end function
     `;
-    return new RawCodeStatement(text, nodeFile.file, nodeFile.func.range);
+    return text;
+    // return new RawCodeStatement(text, nodeFile.file, nodeFile.func.range);
 
   }
 
@@ -110,17 +115,11 @@ export class NodeClass {
 
 
   private getNodeBrsCode(nodeFile: NodeClass, members: (ClassFieldStatement | ClassMethodStatement)[]) {
-    let text = this.makeFunction('_getImpl', `
-      if m._ncImpl = invalid
-        m._ncImpl = new ${nodeFile.classStatement.getName(ParseMode.BrighterScript)}()
-        m._ncImpl.top = m.top
-        m._ncImpl.global = m.global
-        m._ncImpl.data = m.data
-        if m._ncImpl.initialize <> invalid
-          m._ncImpl.initialize()
-        end if
+    let text = this.makeFunction('_getVM', `
+      if m.vm = invalid
+        m.vm = new ${nodeFile.classStatement.getName(ParseMode.BrighterScript)}(m.global, m.top)
       end if
-      return m._ncImpl
+      return m.vm
   `);
 
     for (let member of members.filter(this.classMemberFilter)) {
@@ -129,10 +128,10 @@ export class NodeClass {
 
         let funcSig = `${member.name.text}(${params.map((p) => p.name.text).join(',')})`;
         text += this.makeFunction(funcSig, `
-         return _getImpl().${funcSig}`);
+         return _getVM().${funcSig}`);
       } else {
         text += this.makeFunction(`${member.name.text}(dummy = invalid)`, `
-          return _getImpl().${member.name.text}()`);
+          return _getVM().${member.name.text}()`);
 
       }
     }
@@ -185,7 +184,7 @@ export class NodeClass {
   generateCode(fileFactory: FileFactory, program: Program, fileMap: ProjectFileMap) {
     let members = this.type === NodeClassType.task ? [] : [...this.getClassMembers(this.classStatement, fileMap).values()];
 
-    let bsPath = path.join('components', 'maestro', 'generated', `${this.generatedNodeName}.bs`);
+
     let source = `import "pkg:/${this.file.pkgPath}"`;
 
     let initBody = ``;
@@ -199,17 +198,17 @@ export class NodeClass {
     }
 
     if (this.type === NodeClassType.task) {
-      this.getNodeTaskBrsCode(this)
+      source += this.getNodeTaskBrsCode(this)
     } else {
       source += this.getNodeBrsCode(this, members);
     }
 
 
-    this.brsFile = fileFactory.addFile(program, bsPath, source);
+    this.brsFile = fileFactory.addFile(program, this.bsPath, source);
     this.brsFile.parser.invalidateReferences();
     let xmlText = this.type === NodeClassType.task ? this.getNodeTaskFileXmlText(this) : this.getNodeFileXmlText(this, members);
-    let xmlPath = path.join('components', 'maestro', 'generated', `${this.generatedNodeName}.xml`);
-    this.xmlFile = fileFactory.addFile(program, xmlPath, xmlText);
+    ;
+    this.xmlFile = fileFactory.addFile(program, this.xmlPath, xmlText);
     this.xmlFile.parser.invalidateReferences();
   }
 
