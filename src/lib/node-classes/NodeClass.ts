@@ -59,7 +59,6 @@ export class NodeField {
   getDebouncedCallbackStatement() {
     return `
     function on_${this.name}()
-      ? " on ${this.name}"
       m.vm.${this.name} = m.top.${this.name}
       addCallback("${this.callback}")
       end function
@@ -126,10 +125,7 @@ export class NodeClass {
     function addCallback(funcName)
       
     m.pendingCallbacks[funcName] = true
-      ? "addcallback " ; funcName
-      ? "m.pendingCallbacks" ; m.pendingCallbacks.count()
       if (m.pendingCallbacks.count() = 1)
-        ? "addobserver"
         mc.tasks.observeNodeField(m.global.tick, "fire", onTick, "none", true)
       end if
     end function
