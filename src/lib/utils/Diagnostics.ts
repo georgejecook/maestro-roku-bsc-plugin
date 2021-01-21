@@ -193,7 +193,7 @@ export function addNodeClassNoNodeRunMethod(file: BrsFile, line: number = 0, col
 }
 
 export function addNodeClassNoExtendNodeFound(file: BrsFile, line: number = 0, col: number = 0, name: string, extendsName: string) {
-  file.addDiagnostics([createDiagnostic(file, 6929, `Node class "${name}" extends component ${extendsName}, which cannot be found in scope. You must extend a Node, Task, Group or a custom node`, line, col)]);
+  file.addDiagnostics([createDiagnostic(file, 6929, `Node class "${name}" extends component ${extendsName}, which cannot be found in scope. You must extend a valid SG Node, or Custom node`, line, col)]);
 }
 
 export function addNodeClassDuplicateName(file: BrsFile, line: number = 0, col: number = 0, name: string) {
@@ -229,6 +229,6 @@ export function addNodeClassCallbackNotDefined(file: BrsFile, line: number = 0, 
 }
 
 export function addNodeClassCallbackWrongParams(file: BrsFile, line: number = 0, col: number = 0, name: string, callbackName: string, className: string) {
-  file.addDiagnostics([createDiagnostic(file, 6938, `Node class field "${name}" specifies observer function ${callbackName}, in class ${className}, which MUST have one parameter (the value of the updated field)`, line, col)]);
+  file.addDiagnostics([createDiagnostic(file, 6938, `Node class field "${name}" specifies observer function ${callbackName}, in class ${className}, which must have zero, or one param (which is the value of the updated field, if specified)`, line, col)]);
 
 }

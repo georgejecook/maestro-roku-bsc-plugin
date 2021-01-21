@@ -2,6 +2,7 @@ import { AnnotationExpression, BrsFile, ClassFieldStatement, ClassMethodStatemen
 import { TranspileState } from 'brighterscript/dist/parser/TranspileState';
 import { resolve } from 'vscode-languageserver/lib/files';
 import { ProjectFileMap } from '../files/ProjectFileMap';
+import { addNodeClassCallbackNotDefined, addNodeClassCallbackNotFound, addNodeClassCallbackWrongParams, addNodeClassNoExtendNodeFound } from '../utils/Diagnostics';
 import { FileFactory } from '../utils/FileFactory';
 import { RawCodeStatement } from '../utils/RawCodeStatement';
 import { makeASTFunction } from '../utils/Utils';
@@ -16,7 +17,7 @@ export enum NodeClassType {
 }
 
 export class NodeField {
-  constructor(public file: BrsFile, public name: string, public annotation: AnnotationExpression, public observerAnnotation?: AnnotationExpression, public alwaysNotify?: boolean) {
+  constructor(public file: BrsFile, public name: string, public annotation: AnnotationExpression, public observerAnnotation?: AnnotationExpression, public alwaysNotify?: boolean, public debounce?: boolean) {
     let args = annotation.getArguments();
     this.type = args[0] ? args[0] as string : undefined;
     this.value = args[1] ? args[1] as string : undefined;
@@ -26,6 +27,7 @@ export class NodeField {
   public type: string;
   public callback: string;
   public value: string;
+  public numArgs: number;
 
   getObserverStatementText() {
     return `
@@ -48,9 +50,42 @@ export class NodeField {
   getCallbackStatement() {
     return `
     function on_${this.name}()
-      _getVM().${this.callback}(m.top.${this.name})
-    end function`;
+      m.vm.${this.name} = m.top.${this.name}
+      m.vm.${this.callback}(${this.numArgs === 1 ? 'm.vm.' + this.name : ''})
+    end function
+    `;
   }
+
+  getDebouncedCallbackStatement() {
+    return `
+    function on_${this.name}()
+      ? " on ${this.name}"
+      m.vm.${this.name} = m.top.${this.name}
+      addCallback("${this.callback}")
+      end function
+      `;
+  }
+
+
+  getLazyCallbackStatement() {
+    return `
+    function on_${this.name}()
+    _getVM().${this.name} = m.top.${this.name}
+    _getVM().${this.callback}(${this.numArgs === 1 ? 'm.top.' + this.name : ''})
+    end function
+    `;
+
+  }
+  getLazyDebouncedCallbackStatement() {
+    return `
+    function on_${this.name}()
+      _getVM().${this.name} = m.top.${this.name}
+      addCallback(${this.callback})
+    end function
+    `;
+  }
+
+
 }
 
 export class NodeClass {
@@ -61,7 +96,10 @@ export class NodeClass {
     public func: FunctionStatement,
     public name: string,
     public nodeFields: NodeField[] = [],
-    public extendsName: string
+    public extendsName: string,
+    public annotation: AnnotationExpression,
+    public fileMap: ProjectFileMap,
+    public isLazy: boolean
   ) {
     this.generatedNodeName = this.name.replace(/[^a-zA-Z0-9]/g, "_");
     this.bsPath = path.join('components', 'maestro', 'generated', `${this.generatedNodeName}.bs`);
@@ -83,18 +121,39 @@ export class NodeClass {
     }
   }
 
+  getDebounceFunction(isLazy) {
+    return `
+    function addCallback(funcName)
+      
+    m.pendingCallbacks[funcName] = true
+      ? "addcallback " ; funcName
+      ? "m.pendingCallbacks" ; m.pendingCallbacks.count()
+      if (m.pendingCallbacks.count() = 1)
+        ? "addobserver"
+        mc.tasks.observeNodeField(m.global.tick, "fire", onTick, "none", true)
+      end if
+    end function
+
+    function onTick()
+      for each funcName in m.pendingCallbacks
+        ${isLazy ? '_getVM()[funcName]()': 'm.vm[funcName]()'}
+      end for
+      m.pendingCallbacks = {}
+    end function
+`
+  }
   private getNodeTaskBrsCode(nodeFile: NodeClass) {
     let transpileState = new TranspileState(nodeFile.file);
 
     let text = `
   function init()
-    m.top.functionName = "exec"
+  m.top.functionName = "exec"
   end function
-
+  
   function exec()
-    m.top.output = nodeRun(m.top.args)
+  m.top.output = nodeRun(m.top.args)
   end function
-
+  
   function nodeRun(args)${nodeFile.func.func.body.transpile(transpileState).join('')}
   end function
     `;
@@ -115,6 +174,25 @@ export class NodeClass {
 
 
   private getNodeBrsCode(nodeFile: NodeClass, members: (ClassFieldStatement | ClassMethodStatement)[]) {
+    let text = '';
+    for (let member of members.filter(this.classMemberFilter)) {
+      let params = (member as ClassMethodStatement).func.parameters;
+      if (params.length) {
+
+        let funcSig = `${member.name.text}(${params.map((p) => p.name.text).join(',')})`;
+        text += this.makeFunction(funcSig, `
+         return m.vm.${funcSig}`);
+      } else {
+        text += this.makeFunction(`${member.name.text}(dummy = invalid)`, `
+          return m.vm.${member.name.text}()`);
+
+      }
+    }
+
+    return text;
+  }
+
+  private getLazyNodeBrsCode(nodeFile: NodeClass, members: (ClassFieldStatement | ClassMethodStatement)[]) {
     let text = this.makeFunction('_getVM', `
       if m.vm = invalid
         m.vm = new ${nodeFile.classStatement.getName(ParseMode.BrighterScript)}(m.global, m.top)
@@ -180,29 +258,49 @@ export class NodeClass {
     return text;
   }
 
-
   generateCode(fileFactory: FileFactory, program: Program, fileMap: ProjectFileMap) {
     let members = this.type === NodeClassType.task ? [] : [...this.getClassMembers(this.classStatement, fileMap).values()];
 
 
     let source = `import "pkg:/${this.file.pkgPath}"`;
-
+    
     let initBody = ``;
     let otherText = '';
+    let hasDebounce = false;
     if (this.type === NodeClassType.node) {
+      if (!this.isLazy) {
+        initBody += `
+        m.vm = new ${this.classStatement.getName(ParseMode.BrighterScript)}(m.global, m.top)`;
+      }
       for (let field of this.nodeFields.filter((f) => f.observerAnnotation)) {
         initBody += field.getObserverStatementText() + '\n';
-        otherText += field.getCallbackStatement();
+        hasDebounce = hasDebounce || field.debounce;
+        if (this.isLazy) {
+          otherText += field.debounce ? field.getLazyDebouncedCallbackStatement() : field.getLazyCallbackStatement();
+        } else {
+          otherText += field.debounce ? field.getDebouncedCallbackStatement() : field.getCallbackStatement();
+        }
+      }
+      if (hasDebounce) {
+        initBody += `
+        m.pendingCallbacks = {}
+        `;
       }
       source += this.makeFunction('init', initBody) + otherText;
+      if (hasDebounce) {
+        source = `import "pkg:/source/roku_modules/mc/Tasks.brs"
+        ` + source;
+        source += this.getDebounceFunction(this.isLazy);
+      }
     }
 
     if (this.type === NodeClassType.task) {
       source += this.getNodeTaskBrsCode(this)
+    } else if (this.isLazy) {
+      source += this.getLazyNodeBrsCode(this, members);
     } else {
       source += this.getNodeBrsCode(this, members);
     }
-
 
     this.brsFile = fileFactory.addFile(program, this.bsPath, source);
     this.brsFile.parser.invalidateReferences();
@@ -238,4 +336,25 @@ export class NodeClass {
     return items;
   }
 
+  public validate() {
+    if (!this.fileMap.allXMLComponentFiles.get(this.extendsName) && (!this.fileMap.validComps.has(this.extendsName))) {
+      addNodeClassNoExtendNodeFound(this.file, this.annotation.range.start.line, this.annotation.range.start.character, this.name, this.extendsName);
+    }
+    for (let field of this.nodeFields) {
+      if (field.observerAnnotation) {
+        let observerArgs = field.observerAnnotation.getArguments();
+        let observerFunc = this.classStatement.methods.find((m) => m.name.text === observerArgs[0]);
+        field.numArgs = observerFunc?.func?.parameters?.length;
+        if (observerArgs?.length !== 1) {
+          addNodeClassCallbackNotDefined(this.file, field.observerAnnotation.range.start.line, field.observerAnnotation.range.start.character, field.name);
+
+        } else if (!observerFunc) {
+          addNodeClassCallbackNotFound(this.file, field.observerAnnotation.range.start.line, field.observerAnnotation.range.start.character, field.name, observerArgs[0] as string, this.classStatement.getName(ParseMode.BrighterScript));
+        } else if (field.numArgs > 1) {
+          addNodeClassCallbackWrongParams(this.file, field.observerAnnotation.range.start.line, field.observerAnnotation.range.start.character, field.name, observerArgs[0] as string, this.classStatement.getName(ParseMode.BrighterScript));
+        }
+      }
+    }
+
+  }
 }

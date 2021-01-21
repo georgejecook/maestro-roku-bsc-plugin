@@ -16,68 +16,6 @@ export default class NodeClassUtil {
   ) {
   }
 
-
-  validComps = new Set<string>(
-    ['Animation',
-      'AnimationBase',
-      'ArrayGrid',
-      'Audio',
-      'BusySpinner',
-      'Button',
-      'ButtonGroup',
-      'ChannelStore',
-      'CheckList',
-      'ColorFieldInterpolator',
-      'ComponentLibrary',
-      'ContentNode',
-      'Dialog',
-      'FloatFieldInterpolator',
-      'Font',
-      'GridPanel',
-      'Group',
-      'Keyboard',
-      'KeyboardDialog',
-      'Label',
-      'LabelList',
-      'LayoutGroup',
-      'ListPanel',
-      'MarkupGrid',
-      'MarkupList',
-      'MaskGroup',
-      'MiniKeyboard',
-      'Node',
-      'Overhang',
-      'OverhangPanelSetScene',
-      'Panel',
-      'PanelSet',
-      'ParallelAnimation',
-      'ParentalControlPinPad',
-      'PinDialog',
-      'PinPad',
-      'Poster',
-      'PosterGrid',
-      'ProgressDialog',
-      'RadioButtonList',
-      'Rectangle',
-      'RowList',
-      'Scene',
-      'ScrollableText',
-      'ScrollingLabel',
-      'SequentialAnimation',
-      'SimpleLabel',
-      'SoundEffect',
-      'TargetGroup',
-      'TargetList',
-      'TargetSet',
-      'Task',
-      'TextEditBox',
-      'TimeGrid',
-      'Timer',
-      'Vector2DFieldInterpolator',
-      'Video',
-      'ZoomRowList']
-  )
-
   public addFile(file: BrsFile) {
     for (let nodeClass of this.fileMap.nodeClassesByPath.get(file.pathAbsolute) || []) {
       this.fileMap.nodeClasses.delete(nodeClass.name);
@@ -86,6 +24,7 @@ export default class NodeClassUtil {
 
     for (let cs of file.parser.references.classStatements) {
       let annotation = cs.annotations?.find((a) => a.name.toLowerCase() === 'task' || a.name.toLowerCase() === 'node');
+      let lazyAnnotation = cs.annotations?.find((a) => a.name.toLowerCase() === 'lazy');
       let nodeType = NodeClassType.none;
       if (annotation) {
         nodeType = annotation.name.toLowerCase() === 'task' ? NodeClassType.task : NodeClassType.node;
@@ -98,8 +37,6 @@ export default class NodeClassUtil {
           addNodeClassBadDeclaration(file, annotation.range.start.line, annotation.range.start.character + 1, '');
         } else if (this.fileMap.nodeClasses.has(nodeName)) {
           addNodeClassDuplicateName(file, annotation.range.start.line, annotation.range.start.character + 1, nodeName);
-        } else if (!this.fileMap.allXMLComponentFiles.get(extendsName) && (!this.validComps.has(extendsName))) {
-          addNodeClassNoExtendNodeFound(file, annotation.range.start.line, annotation.range.start.character, nodeName, extendsName);
         } else {
           let isValid = true;
           if (nodeType === NodeClassType.node) {
@@ -114,7 +51,7 @@ export default class NodeClassUtil {
             //is valid
             let func = cs.memberMap['noderun'] as FunctionStatement;
             let fields = this.getNodeFields(file, cs);
-            let nodeClass = new NodeClass(nodeType, file, cs, func, nodeName, fields, extendsName);
+            let nodeClass = new NodeClass(nodeType, file, cs, func, nodeName, fields, extendsName, annotation, this.fileMap, lazyAnnotation !== undefined);
             this.fileMap.nodeClasses.set(nodeClass.generatedNodeName, nodeClass);
             let nodeClasses = this.fileMap.nodeClassesByPath.get(file.pathAbsolute);
             if (!nodeClasses) {
@@ -140,25 +77,10 @@ export default class NodeClassUtil {
           continue;
         }
 
+        let debounce = field.annotations.find((a) => a.name.toLowerCase() === 'debounce') !== undefined;
         let observerAnnotation = field.annotations.find((a) => a.name.toLowerCase() === 'observer');
         let alwaysNotify = field.annotations.find((a) => a.name.toLowerCase() === 'alwaysnotify') !== undefined;
-        if (observerAnnotation) {
-
-          let observerArgs = observerAnnotation.getArguments();
-          let observerFunc = cs.methods.find((m) => m.name.text === observerArgs[0]);
-          if (observerArgs?.length !== 1) {
-            addNodeClassCallbackNotDefined(file, observerAnnotation.range.start.line, observerAnnotation.range.start.character, field.name.text);
-
-          } else if (!observerFunc) {
-            addNodeClassCallbackNotFound(file, observerAnnotation.range.start.line, observerAnnotation.range.start.character, field.name.text, observerArgs[0] as string, cs.getName(ParseMode.BrighterScript));
-            continue;
-          } else if (observerFunc.func.parameters.length === 0) {
-            addNodeClassCallbackWrongParams(file, observerAnnotation.range.start.line, observerAnnotation.range.start.character, field.name.text, observerArgs[0] as string, cs.getName(ParseMode.BrighterScript));
-            continue;
-          }
-        }
-
-        nodeFields.push(new NodeField(file, field.name.text, annotation, observerAnnotation, alwaysNotify));
+        nodeFields.push(new NodeField(file, field.name.text, annotation, observerAnnotation, alwaysNotify, debounce));
       }
     }
 

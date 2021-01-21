@@ -46,6 +46,7 @@ class MaestroPlugin implements CompilerPlugin {
   private dirtyCompFilePaths = new Set<string>();
   private dirtyNodeClassPaths = new Set<string>();
   private nodeFileDebouncers = new Map<string, any>();
+  public nodeFileDelay = 0;
 
   beforeProgramCreate(builder: ProgramBuilder): void {
     if (!this.fileMap) {
@@ -56,6 +57,7 @@ class MaestroPlugin implements CompilerPlugin {
       this.importProcessor = new ImportProcessor(builder.options);
       this.nodeClassUtil = new NodeClassUtil(this.fileMap, builder, this.fileFactory);
       this.builder = builder;
+      this.nodeFileDelay = (this.builder.options as any).maestro?.nodeFileDelay || 0;
     }
   }
 
@@ -128,18 +130,20 @@ class MaestroPlugin implements CompilerPlugin {
 
     for (let filePath of [...this.dirtyNodeClassPaths.values()]) {
       let debouncer = this.nodeFileDebouncers.get(filePath);
+
       if (debouncer) {
         clearTimeout(debouncer);
       }
       for (let nc of this.fileMap.nodeClassesByPath.get(filePath)) {
-        if (this.fileMap.XMLComponentNames.indexOf(nc.generatedNodeName) === -1) {
-          // console.log('nc does not exist - creating it now ' + nc.generatedNodeName);
-          nc.generateCode(this.fileFactory, this.builder.program, this.fileMap);
-        } else {
-          this.nodeFileDebouncers.set(filePath, setTimeout(() => {
-            // console.log('delayed generation of code for ' + nc.generatedNodeName);
+        nc.validate();
+        if (nc.file.getDiagnostics().length === 0) {
+          if (this.fileMap.XMLComponentNames.indexOf(nc.generatedNodeName) === -1 && this.nodeFileDelay === 0) {
             nc.generateCode(this.fileFactory, this.builder.program, this.fileMap);
-          }, 5000));
+          } else {
+            this.nodeFileDebouncers.set(filePath, setTimeout(() => {
+              nc.generateCode(this.fileFactory, this.builder.program, this.fileMap);
+            }, 5000));
+          }
         }
       }
 
