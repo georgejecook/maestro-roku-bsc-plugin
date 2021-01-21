@@ -79,7 +79,7 @@ export class NodeField {
     return `
     function on_${this.name}()
       _getVM().${this.name} = m.top.${this.name}
-      addCallback(${this.callback})
+      addCallback("${this.callback}")
     end function
     `;
   }
@@ -125,14 +125,16 @@ export class NodeClass {
     function addCallback(funcName)
       
     m.pendingCallbacks[funcName] = true
-      if (m.pendingCallbacks.count() = 1)
+     if (m.pendingCallbacks.count() = 1)
         mc.tasks.observeNodeField(m.global.tick, "fire", onTick, "none", true)
       end if
     end function
 
     function onTick()
       for each funcName in m.pendingCallbacks
-        ${isLazy ? '_getVM()[funcName]()': 'm.vm[funcName]()'}
+        ${isLazy ? `_getVM()
+        m.vm[funcName]()`
+        : 'm.vm[funcName]()'}
       end for
       m.pendingCallbacks = {}
     end function
@@ -259,7 +261,7 @@ export class NodeClass {
 
 
     let source = `import "pkg:/${this.file.pkgPath}"`;
-    
+
     let initBody = ``;
     let otherText = '';
     let hasDebounce = false;
