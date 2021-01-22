@@ -181,7 +181,7 @@ export class File {
     }
 
     resetDiagnostics() {
-        (this.bscFile as any).diagnostics = (this.bscFile.getDiagnostics().filter((d) => d.code >= 6900 && d.code <= 6700));
+        (this.bscFile as any).diagnostics = (this.bscFile.getDiagnostics().filter((d) => typeof d.code !== 'string' || !d.code.includes('MSTO')));
     }
 
     resetBindings() {
