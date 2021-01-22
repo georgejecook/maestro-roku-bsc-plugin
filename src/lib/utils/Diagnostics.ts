@@ -39,7 +39,7 @@ function createDiagnostic(
     endLine = endLine < startLine ? startLine : endLine;
 
     const diagnostic = {
-        code: code,
+        code: `MSTO${code}`,
         message: message,
         range: Range.create(startLine, startCol, endLine, endCol),
         file: bscFile,
