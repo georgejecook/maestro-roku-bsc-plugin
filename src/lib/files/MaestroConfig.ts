@@ -2,23 +2,22 @@ import type { BsConfig, FileResolver } from 'brighterscript';
 import * as fs from 'fs-extra';
 import * as path from 'path';
 
-export enum ProcessorLogLevel {
+export enum MaestroLogLevel {
     error = 0,
     warning = 1,
     info = 2,
     verbose = 3
 }
 
-export interface ProcessorConfig {
-    bsConfig?: BsConfig;
-    logLevel: ProcessorLogLevel;
+export interface MaestroConfig {
+    logLevel?: MaestroLogLevel;
     buildTimeImports?: any;
-    fileResolver?: FileResolver; //allows us to use a bsc file resolver, prior to processing
+    excludeFilters?: string[];
 }
 
 let docsLink = `\nPlease read the docs for usage details https://github.com/georgejecook/maestro/blob/master/docs/index.md#maestro-cli`;
 
-export function createProcessorConfig(config: any): ProcessorConfig {
+export function createProcessorConfig(config: any): MaestroConfig {
     let processorConfig = config;
 
     if (typeof config.bsConfig === 'string') {
@@ -48,7 +47,7 @@ export function createProcessorConfig(config: any): ProcessorConfig {
     }
 
     if (!config.logLevel) {
-        processorConfig.logLevel = ProcessorLogLevel.info;
+        processorConfig.logLevel = MaestroLogLevel.info;
     }
 
     if (config.createRuntimeFiles === undefined) {

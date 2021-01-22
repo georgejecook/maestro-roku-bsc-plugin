@@ -3,6 +3,7 @@ import type { BrsFile, Program } from 'brighterscript';
 import { createToken, TokenKind } from 'brighterscript';
 
 import { ImportStatement } from 'brighterscript/dist/parser';
+import type { MaestroConfig } from '../files/MaestroConfig';
 
 import { addBuildTimeErrorImportMissingKey, addBuildTimeErrorImportMissingPkg } from '../utils/Diagnostics';
 
@@ -10,11 +11,11 @@ import { addBuildTimeErrorImportMissingKey, addBuildTimeErrorImportMissingPkg } 
  * Manages build imports
  */
 export default class ImportProcessor {
-    constructor(config: any) {
-        this.config = config?.maestro || {};
+    constructor(config: MaestroConfig) {
+        this.config = config || {};
     }
 
-    private config: any;
+    public config: MaestroConfig;
 
     private getImportStatements(file: BrsFile, buildKey: string, previousImport: ImportStatement, program: Program) {
         let imports = [];

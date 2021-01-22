@@ -8,10 +8,8 @@ let importProcessor: ImportProcessor;
 describe('build time imports', () => {
     beforeEach(() => {
         importProcessor = new ImportProcessor({
-            'maestro': {
-                'buildTimeImports': {
-                    'IAuthProvider': ['pkg:/source/AuthManager.bs']
-                }
+            'buildTimeImports': {
+                'IAuthProvider': ['pkg:/source/AuthManager.bs']
             }
         });
     });
@@ -60,10 +58,8 @@ end function`);
 
     it('does not add diagnostics for empty build time imports, and parses file correctly', () => {
         importProcessor = new ImportProcessor({
-            'maestro': {
-                'buildTimeImports': {
-                    'IAuthProvider': []
-                }
+            'buildTimeImports': {
+                'IAuthProvider': []
             }
         });
 

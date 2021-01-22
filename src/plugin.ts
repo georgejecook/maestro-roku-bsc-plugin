@@ -10,9 +10,11 @@ import {
 } from 'brighterscript';
 
 import { ProjectFileMap } from './lib/files/ProjectFileMap';
+import type { MaestroConfig } from './lib/files/MaestroConfig';
 
 import { BindingProcessor } from './lib/binding/BindingProcessor';
 import type { File } from './lib/files/File';
+import * as minimatch from 'minimatch';
 
 import { FileType } from './lib/files/FileType';
 import ImportProcessor from './lib/importSupport/ImportProcessor';
@@ -31,6 +33,7 @@ export class MaestroPlugin implements CompilerPlugin {
     public nodeClassUtil: NodeClassUtil;
     public builder: ProgramBuilder;
     public isFrameworkAdded = false;
+    public maestroConfig: MaestroConfig;
     private dirtyCompFilePaths = new Set<string>();
     private dirtyNodeClassPaths = new Set<string>();
 
@@ -40,7 +43,14 @@ export class MaestroPlugin implements CompilerPlugin {
             this.bindingProcessor = new BindingProcessor(this.fileMap);
             this.fileFactory = new FileFactory(this.builder);
             this.reflectionUtil = new ReflectionUtil(this.fileMap, builder);
-            this.importProcessor = new ImportProcessor(builder.options);
+            this.maestroConfig = (builder.options as any).maestro || {};
+
+            //ignore roku modules by default
+            if (this.maestroConfig.excludeFilters === undefined) {
+                this.maestroConfig.excludeFilters = ['**/roku_modules/**/*'];
+            }
+
+            this.importProcessor = new ImportProcessor(this.maestroConfig);
             this.nodeClassUtil = new NodeClassUtil(this.fileMap, builder, this.fileFactory);
             this.builder = builder;
         }
@@ -68,9 +78,11 @@ export class MaestroPlugin implements CompilerPlugin {
         if (isBrsFile(file)) {
             this.importProcessor.processDynamicImports(file, this.builder.program);
             this.reflectionUtil.addFile(file);
-            this.nodeClassUtil.addFile(file);
-            if (this.fileMap.nodeClassesByPath.has(file.pathAbsolute)) {
-                this.dirtyNodeClassPaths.add(file.pathAbsolute);
+            if (this.shouldParseFile(file)) {
+                this.nodeClassUtil.addFile(file);
+                if (this.fileMap.nodeClassesByPath.has(file.pathAbsolute)) {
+                    this.dirtyNodeClassPaths.add(file.pathAbsolute);
+                }
             }
         } else {
             mFile.loadXmlContents();
@@ -79,6 +91,9 @@ export class MaestroPlugin implements CompilerPlugin {
 
     afterFileValidate(file: BscFile) {
         // console.log('afv-----', file.pathAbsolute);
+        if (!this.shouldParseFile(file)) {
+            return;
+        }
         let compFile = this.fileMap.allFiles.get(file.pathAbsolute);
         if (compFile?.fileType === FileType.Xml && compFile?.vmClassName) {
             this.bindingProcessor.parseBindings(compFile);
@@ -136,6 +151,17 @@ export class MaestroPlugin implements CompilerPlugin {
             }
         }
         return compFiles;
+    }
+
+    shouldParseFile(file: BscFile) {
+        if (this.maestroConfig.excludeFilters) {
+            for (let filter of this.maestroConfig.excludeFilters) {
+                if (minimatch(file.pathAbsolute, filter)) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
 }

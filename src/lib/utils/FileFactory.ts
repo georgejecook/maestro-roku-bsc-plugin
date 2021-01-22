@@ -16,7 +16,7 @@ export class FileFactory {
     private frameworkCompNames = [
     ];
 
-    private sourcePath = path.join(__dirname, '../framework');
+    public sourcePath = path.join(__dirname, '../framework');
     private targetPath = 'source/maestro/';
     private targetCompsPath = 'components/maestro';
 

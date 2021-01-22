@@ -125,8 +125,10 @@ export class File {
             this.parentComponentName = xmlFile.parentComponentName?.text;
             this.vmClassName = xmlFile.ast.component?.getAttribute('vm')?.value?.text;
 
-            // eslint-disable-next-line @typescript-eslint/no-confusing-void-expression
-            xmlFile.ast.component?.setAttribute('vm', 'undefined');
+            if (this.vmClassFile) {
+                // eslint-disable-next-line @typescript-eslint/no-confusing-void-expression
+                xmlFile.ast.component?.setAttribute('vm', undefined);
+            }
 
             if (this.componentName && this.parentComponentName) {
                 this.fileMap.addXMLComponent(this);
