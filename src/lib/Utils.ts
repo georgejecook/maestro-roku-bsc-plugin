@@ -1,10 +1,9 @@
-import type { Position, BrsFile, XmlFile, ClassStatement, FunctionStatement, ClassMethodStatement, Statement, Expression } from 'brighterscript';
-import { Range, TokenKind, isClassMethodStatement, isClassStatement, Parser, Lexer, ParseMode, Block, createToken, createIdentifier, createStringLiteral, BinaryExpression, IfStatement } from 'brighterscript';
+import type { ClassMethodStatement, ClassStatement, Expression, FunctionStatement, Statement } from 'brighterscript';
+import { BinaryExpression, Block, createIdentifier, createStringLiteral, createToken, isClassMethodStatement, isClassStatement, Lexer, ParseMode, Parser, TokenKind, Range, IfStatement } from 'brighterscript';
 
-import type { File } from '../files/File';
-import type { ProjectFileMap } from '../files/ProjectFileMap';
+import * as rokuDeploy from 'roku-deploy';
 
-export function spliceString(str: string, index: number, add?: string): string {
+export function spliceString(str: string, index: number, count: number, add: string): string {
     // We cannot pass negative indexes directly to the 2nd slicing operation.
     if (index < 0) {
         index = str.length + index;
@@ -13,23 +12,22 @@ export function spliceString(str: string, index: number, add?: string): string {
         }
     }
 
-    return (
-        str.slice(0, index) + (add || '') + str.slice(index + (add || '').length)
-    );
+    return str.slice(0, index) + (add || '') + str.slice(index + count);
 }
 
 export function getRegexMatchesValues(input, regex, groupIndex): any[] {
     let values = [];
     let matches: any[];
-    regex.lastIndex = 0;
-    while ((matches = regex.exec(input))) {
+    // eslint-disable-next-line
+    while (matches = regex.exec(input)) {
         values.push(matches[groupIndex]);
     }
     return values;
 }
 export function getRegexMatchValue(input, regex, groupIndex): string {
     let matches: any[];
-    while ((matches = regex.exec(input))) {
+    // eslint-disable-next-line
+    while (matches = regex.exec(input)) {
         if (matches.length > groupIndex) {
             return matches[groupIndex];
         }
@@ -54,40 +52,6 @@ export function pad(pad: string, str: string, padLeft: number): string {
     }
 }
 
-export function escapeRegExp(text: string): string {
-    return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
-}
-
-export function getAlternateFileNames(fileName: string): string[] {
-    if (fileName?.toLowerCase().endsWith('.brs')) {
-        return [fileName.substring(0, fileName.length - 4) + '.xml'];
-    } else if (fileName?.toLowerCase().endsWith('.bs')) {
-        return [fileName.substring(0, fileName.length - 3) + '.xml'];
-    } else if (
-        fileName?.toLowerCase().endsWith('.xml')
-    ) {
-        return [fileName.substring(0, fileName.length - 4) + '.brs',
-            fileName.substring(0, fileName.length - 4) + '.bs'];
-    } else {
-        return [];
-    }
-}
-
-export function getAssociatedFile(file: BrsFile | XmlFile, fileMap: ProjectFileMap): File | undefined {
-    for (let filePath of getAlternateFileNames(file.pathAbsolute)) {
-        let mFile = fileMap.allFiles.get(filePath);
-        if (mFile) {
-            return mFile;
-        }
-    }
-    return undefined;
-}
-
-
-export function createRange(pos: Position) {
-    return Range.create(pos.line, pos.character, pos.line, pos.character);
-}
-
 export function makeASTFunction(source: string): FunctionStatement | undefined {
     let tokens = Lexer.scan(source).tokens;
     let { statements } = Parser.parse(tokens, { mode: ParseMode.BrighterScript });
@@ -102,10 +66,10 @@ export function getFunctionBody(source: string): Statement[] {
     return funcStatement ? funcStatement.func.body.statements : [];
 }
 
-export function changeFunctionBody(statement: ClassMethodStatement | FunctionStatement, source: string) {
+export function changeFunctionBody(statement: ClassMethodStatement | FunctionStatement, source: Statement[] | string) {
     let statements = statement.func.body.statements;
     statements.splice(0, statements.length);
-    let newStatements = getFunctionBody(source);
+    let newStatements = (typeof source === 'string') ? getFunctionBody(source) : source;
     for (let newStatement of newStatements) {
         statements.push(newStatement);
     }
@@ -127,7 +91,7 @@ export function addOverriddenMethod(target: ClassStatement, name: string, source
     return false;
 }
 
-export function changeClassMethodBody(target: ClassStatement, name: string, source: string): boolean {
+export function changeClassMethodBody(target: ClassStatement, name: string, source: Statement[] | string): boolean {
     let method = target.methods.find((m) => m.name.text === name);
     if (isClassMethodStatement(method)) {
         changeFunctionBody(method, source);
@@ -141,15 +105,14 @@ export function sanitizeBsJsonString(text: string) {
 }
 
 export function createIfStatement(condition: Expression, statements: Statement[]): IfStatement {
-    let ifToken = createToken(TokenKind.If, 'else if', Range.create(1, 1, 1, 999999));
-    ifToken.text = 'else if';
+    let ifToken = createToken(TokenKind.If, 'if', Range.create(1, 1, 1, 999999));
     let thenBranch = new Block(statements, Range.create(1, 1, 1, 1));
     return new IfStatement({ if: ifToken, then: createToken(TokenKind.Then, '', Range.create(1, 1, 1, 999999)) }, condition, thenBranch);
 }
 
 export function createVarExpression(varName: string, operator: TokenKind, value: string): BinaryExpression {
     let variable = createIdentifier(varName, Range.create(1, 1, 1, 999999));
-    let v = createStringLiteral('"' + value, Range.create(1, 1, 1, 999999));
+    let v = createStringLiteral(value, Range.create(1, 1, 1, 999999));
 
     let t = createToken(operator, getTokenText(operator), Range.create(1, 1, 1, 999999));
     return new BinaryExpression(variable, t, v);
@@ -168,6 +131,37 @@ export function getTokenText(operator: TokenKind): string {
         case TokenKind.Greater:
             return '>';
         default:
-            return '>';
+            return '';
     }
+}
+
+/**
+ * A tagged template literal function for standardizing the path. This has to be defined as standalone function since it's a tagged template literal function,
+ * we can't use `object.tag` syntax.
+ */
+export function standardizePath(stringParts, ...expressions: any[]) {
+    let result = [];
+    for (let i = 0; i < stringParts.length; i++) {
+        result.push(stringParts[i], expressions[i]);
+    }
+    return driveLetterToLower(
+        rokuDeploy.standardizePath(
+            result.join('')
+        )
+    );
+}
+
+function driveLetterToLower(fullPath: string) {
+    if (fullPath) {
+        let firstCharCode = fullPath.charCodeAt(0);
+        if (
+            //is upper case A-Z
+            firstCharCode >= 65 && firstCharCode <= 90 &&
+            //next char is colon
+            fullPath[1] === ':'
+        ) {
+            fullPath = fullPath[0].toLowerCase() + fullPath.substring(1);
+        }
+    }
+    return fullPath;
 }

@@ -1,23 +1,31 @@
 import { expect } from 'chai';
-import * as chai from 'chai';
 
 import { BrsFile, Program } from 'brighterscript';
-
 import ImportProcessor from './ImportProcessor';
-
-const chaiSubset = require('chai-subset');
-chai.use(chaiSubset);
 
 let importProcessor: ImportProcessor;
 
-describe('build time imports', function() {
-  beforeEach(async () => {
-  });
+describe('build time imports', () => {
+    beforeEach(() => {
+        importProcessor = new ImportProcessor({
+            'maestro': {
+                'buildTimeImports': {
+                    'IAuthProvider': ['pkg:/source/AuthManager.bs']
+                }
+            }
+        });
+    });
 
-  it('adds build time imports', function() {
-    let program = new Program({});
-    let file = new BrsFile('/tmp/t.bs', 'source/t.bs', program);
-    file.parse(`import "pkg:/source/mixins/FocusMixin.bs"
+    it('adds build time imports', () => {
+        let program = new Program({});
+        program.addOrReplaceFile('source/AuthManager.bs', `
+        class someClass
+        end class
+    `);
+        program.validate();
+
+        let file = new BrsFile('/tmp/t.bs', 'source/t.bs', program);
+        file.parse(`import "pkg:/source/mixins/FocusMixin.bs"
 import "build:/IAuthProvider"
 
 function Init() as void
@@ -25,27 +33,54 @@ function Init() as void
     m.screenStack = createObject("roArray", 0, true)
     m.top.topScreen = invalid
 end function`);
-    importProcessor.processDynamicImports(file, program);
-    expect(file.getDiagnostics).to.be.empty;
-  });
+        importProcessor.processDynamicImports(file, program);
+        expect(file.getDiagnostics()).to.be.empty;
+    });
 
-  it('throws error when a build time import is encountered, with no matching key in the config', function() {
+    it('empty build time imports', () => {
+        let program = new Program({});
+        program.addOrReplaceFile('source/AuthManager.bs', `
+        class someClass
+        end class
+    `);
+        program.validate();
 
-    let program = new Program({});
-    let file = new BrsFile('/tmp/t.bs', 'source/t.bs', program);
-    file.parse(`import "pkg:/source/mixins/FocusMixin.bs"
+        let file = new BrsFile('/tmp/t.bs', 'source/t.bs', program);
+        file.parse(`import "pkg:/source/mixins/FocusMixin.bs"
 import "build:/IAuthProvider"
 
 function Init() as void
     m.log.I("Init")
     m.screenStack = createObject("roArray", 0, true)
     m.top.topScreen = invalid
-end function
-import "pkg:/source/b2.bs"
-import "pkg:/source/b3.bs"
+end function`);
+        importProcessor.processDynamicImports(file, program);
+        expect(file.getDiagnostics()).to.be.empty;
+    });
+
+    it('does not add diagnostics for empty build time imports, and parses file correctly', () => {
+        importProcessor = new ImportProcessor({
+            'maestro': {
+                'buildTimeImports': {
+                    'IAuthProvider': []
+                }
+            }
+        });
+
+        let program = new Program({});
+        let file = new BrsFile('/tmp/t.bs', 'source/t.bs', program);
+        file.parse(`import "pkg:/source/mixins/FocusMixin.bs"
+        import "build:/IAuthProvider"
+
+        function Init() as void
+        m.log.I("Init")
+        m.screenStack = createObject("roArray", 0, true)
+    m.top.topScreen = invalid
+    end function
 `);
-    importProcessor.processDynamicImports(file, program);
-    expect(() => importProcessor.processDynamicImports(file, program)).to.throw(Error);
-  });
+        importProcessor.processDynamicImports(file, program);
+
+        expect(file.getDiagnostics()).to.have.length(0);
+    });
 
 });

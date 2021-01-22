@@ -1,51 +1,53 @@
-// import { expect } from 'chai';
+import type { XmlFile } from 'brighterscript';
+import { BrsFile, Program } from 'brighterscript';
+import { expect } from 'chai';
 
-// import { File } from './File';
+import { File } from './File';
 
-// import { FileType } from './FileType';
+import { FileType } from './FileType';
+import { ProjectFileMap } from './ProjectFileMap';
 
-// describe('File File', function() {
-//   describe('Initialization', function() {
-//     it('correctly sets directory', function() {
-//       const file = new File('test.xml');
-//       expect(file.fullPath).to.equal('test.xml');
-//     });
-//   });
+describe('File', () => {
+    let projectFileMap;
+    let program = new Program({});
+    beforeEach(() => {
+        projectFileMap = new ProjectFileMap();
+    });
+    describe('Initialization', () => {
+        it('correctly sets directory', () => {
+            const file = new File(makeBrsFile('test.xml'), projectFileMap);
+            expect(file.fullPath).to.equal('test.xml');
+        });
+    });
 
-//   describe('file types', function() {
-//     it('correctly identifies type other', function() {
-//       const file = new File('/fsPath/test.json');
-//       expect(file.fileType).to.equal(FileType.Other);
+    describe('file types', () => {
+        it('correctly identifies type other', () => {
+            const file = new File(makeBrsFile('/fsPath/test.json'), projectFileMap);
+            expect(file.fileType).to.equal(FileType.Other);
 
-//     });
+        });
 
-//     it('correctly identifies type xml', function() {
-//       const file = new File('test.xml');
-//       expect(file.fileType).to.equal(FileType.Xml);
+        it('correctly identifies type xml', () => {
+            const file = new File(makeBrsFile('test.xml'), projectFileMap);
+            expect(file.fileType).to.equal(FileType.Xml);
 
-//     });
+        });
 
-//     it('correctly identifies type brs', function() {
-//       const file = new File('/fsPath/test.brs');
-//       expect(file.fileType).to.equal(FileType.Brs);
+        it('correctly identifies type brs', () => {
+            const file = new File(makeBrsFile('/fsPath/test.brs'), projectFileMap);
+            expect(file.fileType).to.equal(FileType.Brs);
 
-//     });
+        });
 
-//     it('correctly identifies type codebehind', function() {
-//       const file = new File('test.brs');
-//       file.associatedFile = new File('test.xml');
-//       expect(file.fileType).to.equal(FileType.CodeBehind);
-//     });
+        it('correctly identifies type other - no extension', () => {
+            const file = new File(makeBrsFile('/fsPath/test'), projectFileMap);
+            expect(file.fileType).to.equal(FileType.Other);
+        });
+    });
 
-//     it('correctly identifies type codebehind bs', function() {
-//       const file = new File('test.bs');
-//       file.associatedFile = new File('test.xml');
-//       expect(file.fileType).to.equal(FileType.CodeBehind);
-//     });
 
-//     it('correctly identifies type other - no extension', function() {
-//       const file = new File('/fsPath/test');
-//       expect(file.fileType).to.equal(FileType.Other);
-//     });
-//   });
-// });
+    function makeBrsFile<T extends BrsFile | XmlFile>(path) {
+        return new BrsFile(path, path, program);
+    }
+
+});

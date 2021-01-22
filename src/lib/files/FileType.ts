@@ -1,6 +1,6 @@
 export enum FileType {
-  Brs,
-  Xml,
-  Other,
-  Bs,
+    Brs = 0,
+    Xml = 1,
+    Other = 2,
+    Bs = 3
 }
