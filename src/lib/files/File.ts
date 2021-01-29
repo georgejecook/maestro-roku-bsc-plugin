@@ -125,7 +125,7 @@ export class File {
             this.parentComponentName = xmlFile.parentComponentName?.text;
             this.vmClassName = xmlFile.ast.component?.getAttribute('vm')?.value?.text;
 
-            if (this.vmClassFile) {
+            if (this.vmClassName) {
                 // eslint-disable-next-line @typescript-eslint/no-confusing-void-expression
                 xmlFile.ast.component?.setAttribute('vm', undefined);
             }
@@ -183,7 +183,8 @@ export class File {
     }
 
     resetDiagnostics() {
-        (this.bscFile as any).diagnostics = (this.bscFile.getDiagnostics().filter((d) => typeof d.code !== 'string' || !d.code.includes('MSTO')));
+        //clear out diagnostics from maestro; except for xml bindings which would have been reset during an xml file edit
+        (this.bscFile as any).diagnostics = (this.bscFile.getDiagnostics().filter((d) => typeof d.code !== 'string' || !d.code.includes('MSTO') || d.code === 'MSTO1039' || d.code === 'MSTO1015' || d.code === 'MSTO1013'));
     }
 
     resetBindings() {

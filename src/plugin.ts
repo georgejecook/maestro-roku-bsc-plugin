@@ -1,13 +1,16 @@
 import type { BrsFile,
     BscFile,
     CompilerPlugin,
-    Program,
-    ProgramBuilder,
+    Program, ProgramBuilder,
+    TranspileObj,
     XmlFile } from 'brighterscript';
-import {
+import { ClassFieldStatement,
+    createStringLiteral,
+    createToken,
+    ParseMode,
+    TokenKind,
     isBrsFile,
-    isXmlFile
-} from 'brighterscript';
+    isXmlFile } from 'brighterscript';
 
 import { ProjectFileMap } from './lib/files/ProjectFileMap';
 import type { MaestroConfig } from './lib/files/MaestroConfig';
@@ -72,7 +75,7 @@ export class MaestroPlugin implements CompilerPlugin {
         }
         mFile.bscFile = file;
 
-        if (file.pathAbsolute.startsWith('components/maestro/generated')) {
+        if (file.pkgPath.startsWith('components/maestro/generated')) {
             return;
         }
         if (isBrsFile(file)) {
@@ -83,6 +86,9 @@ export class MaestroPlugin implements CompilerPlugin {
                 if (this.fileMap.nodeClassesByPath.has(file.pathAbsolute)) {
                     this.dirtyNodeClassPaths.add(file.pathAbsolute);
                 }
+                // console.log(`processing file ${file.pkgPath}`);
+            } else {
+                // console.log(`skipping file ${file.pkgPath}`);
             }
         } else {
             mFile.loadXmlContents();
@@ -162,6 +168,21 @@ export class MaestroPlugin implements CompilerPlugin {
             }
         }
         return true;
+    }
+
+    beforeFileTranspile (entry: TranspileObj) {
+        if (isBrsFile(entry.file)) {
+            let classes = entry.file.parser.references.classStatements;
+            for (let cs of classes) {
+                if (!cs.memberMap.__className) {
+                    let id = createToken(TokenKind.Identifier, '__className');
+                    let classNameStatement = new ClassFieldStatement(undefined, id, undefined, undefined, createToken(TokenKind.Equal, '='), createStringLiteral('"' + cs.getName(ParseMode.BrighterScript)));
+                    cs.body.push(classNameStatement);
+                    cs.fields.push(classNameStatement);
+                    cs.memberMap.__className = classNameStatement;
+                }
+            }
+        }
     }
 
 }
