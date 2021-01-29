@@ -27,8 +27,6 @@ export default class ImportProcessor {
                         let importToken = createToken(TokenKind.Import, 'import', previousImport.importToken.range);
                         let filePathToken = createToken(TokenKind.SourceFilePathLiteral, `"${pkg}"`, previousImport.importToken.range);
                         imports.push(new ImportStatement(importToken, filePathToken));
-                    } else {
-                        addBuildTimeErrorImportMissingPkg(file, pkg, buildKey, previousImport.range.start.line);
                     }
                 }
             } else {
