@@ -1,6 +1,7 @@
 import type { BrsFile,
     BscFile,
     CompilerPlugin,
+    FileObj,
     Program, ProgramBuilder,
     TranspileObj,
     XmlFile } from 'brighterscript';
@@ -175,8 +176,12 @@ export class MaestroPlugin implements CompilerPlugin {
             let classes = entry.file.parser.references.classStatements;
             for (let cs of classes) {
                 if (!cs.memberMap.__className) {
-                    let id = createToken(TokenKind.Identifier, '__className');
-                    let classNameStatement = new ClassFieldStatement(undefined, id, undefined, undefined, createToken(TokenKind.Equal, '='), createStringLiteral('"' + cs.getName(ParseMode.BrighterScript)));
+                    let id = createToken(TokenKind.Identifier, '__className', cs.range);
+                    let p = createToken(TokenKind.Public, 'public', cs.range);
+                    let a = createToken(TokenKind.As, 'as', cs.range);
+                    let s = createToken(TokenKind.String, 'string', cs.range);
+
+                    let classNameStatement = new ClassFieldStatement(p, id, a, s, createToken(TokenKind.Equal, '=', cs.range), createStringLiteral('"' + cs.getName(ParseMode.BrighterScript), cs.range));
                     cs.body.push(classNameStatement);
                     cs.fields.push(classNameStatement);
                     cs.memberMap.__className = classNameStatement;
@@ -185,6 +190,9 @@ export class MaestroPlugin implements CompilerPlugin {
         }
     }
 
+    beforePublish(builder: ProgramBuilder, files: FileObj[]) {
+        this.reflectionUtil.updateRuntimeFile();
+    }
 }
 
 export default () => {

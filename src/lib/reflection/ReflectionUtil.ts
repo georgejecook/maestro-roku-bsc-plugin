@@ -1,4 +1,6 @@
 import type { BrsFile, ProgramBuilder, FunctionStatement } from 'brighterscript';
+import { Program, createToken, TokenKind, XmlScope } from 'brighterscript';
+import { isXmlScope } from 'brighterscript';
 
 import type { ProjectFileMap } from '../files/ProjectFileMap';
 
@@ -28,7 +30,7 @@ export default class ReflectionUtil {
         let func = file.ast.statements[0] as FunctionStatement;
 
         if (func?.func?.body?.statements.length > 0) {
-            let classNames = this.fileMap.classNames;
+            let classNames = this.fileMap.classNames.map((n) => n.replace(/\./g, '_'));
             let codeText = `if false
         ? "maestro reflection"`;
             for (let name of classNames) {
@@ -61,6 +63,5 @@ export default class ReflectionUtil {
             this.fileMap.addClass(cs, mFile);
         }
     }
-
 }
 
