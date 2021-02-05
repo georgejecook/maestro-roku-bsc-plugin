@@ -1,7 +1,7 @@
 import type { Range } from 'brighterscript';
 import { isClassFieldStatement, isClassMethodStatement, Parser } from 'brighterscript';
 import type { File } from '../files/File';
-import { addXmlBindingVMFieldNotFound, addXmlBindingVMFieldRequired, addXmlBindingVMFunctionNotFound, addXmlBindingVMFunctionWrongArgCount } from '../utils/Diagnostics';
+import { addXmlBindingUnknownFunctionArgs, addXmlBindingVMFieldNotFound, addXmlBindingVMFieldRequired, addXmlBindingVMFunctionNotFound, addXmlBindingVMFunctionWrongArgCount } from '../utils/Diagnostics';
 
 import { BindingProperties } from './BindingProperties';
 import { BindingType, BindingSendMode } from './BindingType';
@@ -66,7 +66,11 @@ export default class Binding {
 
         } else if (!this.isUsingGetterAndSetter) {
             if (!this.file.getField(this.observerField)) {
-                addXmlBindingVMFieldNotFound(this.file, this);
+                if (this.file.getMethod(this.observerField)) {
+                    addXmlBindingUnknownFunctionArgs(this.file, this);
+                } else {
+                    addXmlBindingVMFieldNotFound(this.file, this);
+                }
                 this.isValid = false;
             }
             if (this.isValid && this.properties.type === BindingType.oneWaySource && !isClassFieldStatement(this.file.getField(this.observerField))) {
@@ -143,7 +147,7 @@ export default class Binding {
     }
 
     private getOneWaySourceText() {
-        return `vm.bindField("${this.observerField}", m.${this.nodeId}, "${this.nodeField}", ${this.properties.fireOnSet ? 'true' : 'false'}, ${this.properties.transformFunction || 'invalid'}, ${this.properties.isFiringOnce ? 'true' : 'false'})`;
+        return `vm.bindField("${this.observerField}", m.${this.nodeId}, "${this.nodeField}", ${this.properties.fireOnSetText}, ${this.properties.transformFunction || 'invalid'}, ${this.properties.isFiringOnce ? 'true' : 'false'})`;
     }
 
     private getOneWayTargetText() {

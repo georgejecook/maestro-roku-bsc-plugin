@@ -20,7 +20,7 @@ describe('MaestroPlugin', () => {
     let plugin: MaestroPlugin;
     let options;
 
-    beforeEach(async () => {
+    beforeEach(() => {
         plugin = new MaestroPlugin();
         options = {
             rootDir: _rootDir,
@@ -30,7 +30,7 @@ describe('MaestroPlugin', () => {
         fsExtra.ensureDirSync(_rootDir);
         fsExtra.ensureDirSync(tmpPath);
         builder = new ProgramBuilder();
-        builder.options = await util.normalizeAndResolveConfig(options);
+        builder.options = util.normalizeAndResolveConfig(options);
         builder.program = new Program(builder.options);
         program = builder.program;
         builder.plugins = new PluginInterface([plugin], undefined);
@@ -47,6 +47,52 @@ describe('MaestroPlugin', () => {
     });
 
     describe('binding tests', () => {
+
+
+        it.only('warns when field bindings do not match class', async () => {
+            plugin.afterProgramCreate(program);
+            program.addOrReplaceFile('source/comp.bs', `
+            class myVM
+                public text
+                function onChangeVisible(value)
+                end function
+           end class
+        `);
+            program.addOrReplaceFile('components/comp.brs', `
+
+        `);
+
+            program.addOrReplaceFile('components/comp.xml', `
+            <component name="mv_BaseScreen" extends="mv_BaseView" vm="myVM">
+    <interface>
+    </interface>
+    <script type="text/brightscript" uri="pkg:/components/comp.brs" />
+    <children>
+        <Poster
+            visible='{(onChangeVisible)}'
+            id='topBanner'
+            width='1920'
+            height='174'
+            uri=''
+            translation='[0,0]' />
+    </children>
+</component>`);
+            program.validate();
+            expect(program.getDiagnostics()).to.not.be.empty;
+            await builder.transpile();
+            console.log(builder.getDiagnostics());
+            expect(builder.getDiagnostics()).to.be.empty;
+
+            let a = getContents('components/comp.xml');
+            let b = trimLeading(`<component name="mv_BaseScreen" extends="mv_BaseView">
+            <interface>
+            </interface>
+            <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
+            </component>
+            <!--//# sourceMappingURL=./comp.xml.map -->`);
+            expect(a).to.equal(b);
+
+        });
 
         it('does not manipulate non binding xml files', async () => {
             plugin.afterProgramCreate(program);
@@ -83,6 +129,38 @@ describe('MaestroPlugin', () => {
             await builder.transpile();
             console.log(builder.getDiagnostics());
             expect(builder.getDiagnostics()).to.be.empty;
+
+            let a = getContents('components/comp.xml');
+            let b = trimLeading(`<component name="mv_BaseScreen" extends="mv_BaseView">
+            <interface>
+            </interface>
+            <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
+            </component>
+            <!--//# sourceMappingURL=./comp.xml.map -->`);
+            expect(a).to.equal(b);
+
+        });
+        it('does not remove id if not first tag', async () => {
+            plugin.afterProgramCreate(program);
+            program.addOrReplaceFile('components/comp.xml', `
+            <component name="mv_BaseScreen" extends="mv_BaseView" vm="myVM">
+    <interface>
+    </interface>
+    <children>
+        <Poster
+            visible='{{isTopBannerVisible}}'
+            id='topBanner'
+            width='1920'
+            height='174'
+            uri=''
+            translation='[0,0]' />
+    </children>
+</component>`);
+            program.validate();
+            // expect(program.getDiagnostics()).to.be.empty;
+            await builder.transpile();
+            // console.log(builder.getDiagnostics());
+            // expect(builder.getDiagnostics()).to.be.empty;
 
             let a = getContents('components/comp.xml');
             let b = trimLeading(`<component name="mv_BaseScreen" extends="mv_BaseView">
@@ -503,6 +581,125 @@ describe('MaestroPlugin', () => {
             expect(a).to.equal(b);
 
         });
+        describe('run a local project', () => {
+            it('sanity checks on parsing - only run this outside of ci', () => {
+                let programBuilder = new ProgramBuilder();
+                let config = {
+                    'rootDir': '/home/george/hope/applicaster/zapp-roku-app/src',
+                    'stagingFolderPath': '/home/george/hope/applicaster/zapp-roku-app/build',
+                    'retainStagingFolder': true,
+                    'createPackage': false,
+                    'autoImportComponentScript': true,
+                    'files': [
+                        'manifest',
+                        'source/**/*.*',
+                        'components/**/*.*',
+                        'images/**/*.*',
+                        {
+                            'src': '../external/plugins-src/**/*.*',
+                            'dest': ''
+                        },
+                        {
+                            'src': '../external/plugins-core-src/**/*.*',
+                            'dest': ''
+                        },
+                        {
+                            'src': '../external/private-emmys-src/**/*.*',
+                            'dest': ''
+                        },
+                        {
+                            'src': '../external/private-oc-src/**/*.*',
+                            'dest': ''
+                        },
+                        {
+                            'src': '!../external/plugins-src/**/*.spec.bs',
+                            'dest': ''
+                        },
+                        {
+                            'src': '!../external/plugins-core-src/**/*.spec.*',
+                            'dest': ''
+                        },
+                        {
+                            'src': '!../external/private-emmys-src/**/*.spec.*',
+                            'dest': ''
+                        },
+                        {
+                            'src': '!../external/private-oc-src/**/*.spec.*',
+                            'dest': ''
+                        },
+                        '!**/*.spec.bs'
+                    ],
+                    'diagnosticFilters': [
+                        {
+                            'src': '**/roku_modules/**/*.*',
+                            'codes': [
+                                1107,
+                                1009,
+                                1001,
+                                1067
+                            ]
+                        },
+                        {
+                            'src': 'components/maestro/generated/**/*.*',
+                            'codes': [
+                                1001
+                            ]
+                        },
+                        1013,
+                        {
+                            'src': '../external/plugins-src/components/YouboraAnalytics/*.*'
+                        },
+                        {
+                            'src': '../external/plugins-src/components/segment_analytics/*.*'
+                        },
+                        {
+                            'src': '../external/plugins-src/source/segment_analytics/SegmentAnalytics.brs'
+                        },
+                        {
+                            'src': '**/RALETrackerTask.*'
+                        }
+                    ],
+                    'plugins': [
+                        '/home/george/hope/open-source/roku-log/roku-log-bsc-plugin/dist/plugin.js',
+                        '/home/george/hope/open-source/maestro/maestro-roku-bsc-plugin/dist/plugin.js'
+                    ],
+                    'rooibos': {
+                        'isRecordingCodeCoverage': false,
+                        'testsFilePattern': null
+                    },
+                    'maestro': {
+                        'buildTimeImports': {
+                            'IAuthProvider': [
+                                'pkg:/source/inplayer_auth_plugin_roku/InPlayerAuthPlugin.bs'
+                            ],
+                            'IEntitlementsProvider': [
+                                'pkg:/source/inplayer_entitlements_plugin/InPlayerEntitlementsPlugin.bs'
+                            ],
+                            'IBookmarksProvider': [],
+                            'IPlayerAnalytics': [],
+                            'IAnalytics': [
+                                'pkg:/source/google_analytics_roku/GoogleAnalyticsPlugin.bs'
+                            ]
+                        }
+                    },
+                    'rokuLog': {
+                        'strip': false,
+                        'insertPkgPath': true
+                    },
+                    'sourceMap': true
+                };
+                programBuilder.run(
+                    config
+                //     {
+                //     project: '/home/george/hope/applicaster/zapp-roku-app/bsconfig-test.json'
+                //     // project: '/home/george/hope/open-source/maestro/swerve-app/bsconfig-test.json'
+                // }
+                ).catch(e => {
+                    console.error(e);
+                });
+            });
+        });
+
     });
 });
 

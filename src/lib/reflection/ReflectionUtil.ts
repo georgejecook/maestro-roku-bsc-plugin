@@ -1,6 +1,4 @@
 import type { BrsFile, ProgramBuilder, FunctionStatement } from 'brighterscript';
-import { Program, createToken, TokenKind, XmlScope } from 'brighterscript';
-import { isXmlScope } from 'brighterscript';
 
 import type { ProjectFileMap } from '../files/ProjectFileMap';
 

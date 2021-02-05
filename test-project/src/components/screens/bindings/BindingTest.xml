@@ -15,15 +15,15 @@
 
     <RowList
         id='titleLabel'
-        header='{{:titleText;fireOnSet}}'
+        header='{{:titleText}}'
         style='{{=mc_getComponentStyle("mainList")}}'
-        cursorIndex='{(onCursorIndexChange(value, node);once)}'
-        focusedIndex='{[focusedIndex;once;fireOnSet;transform=aaaa|onClick(value);once;fireOnSet]}' />
+        cursorIndex='{(onCursorIndexChange(value, node):once)}'
+        focusedIndex='{[focusedIndex:once:lazy:transform=aaaa|onClick(value):once:lazy]}' />
 
     <Button
         id='button'
         text='click me'
-        focusedIndex='{(onClick(value);fireOnSet;once)}' />
+        focusedIndex='{(onClick(value):once)}' />
 
 
   </children>

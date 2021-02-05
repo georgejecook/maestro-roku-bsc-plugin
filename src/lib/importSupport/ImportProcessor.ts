@@ -23,11 +23,9 @@ export default class ImportProcessor {
         if (importValues) {
             if (importValues.length > 0) {
                 for (const pkg of this.config.buildTimeImports[buildKey]) {
-                    if (program.getFileByPkgPath(pkg.substring(5))) {
-                        let importToken = createToken(TokenKind.Import, 'import', previousImport.importToken.range);
-                        let filePathToken = createToken(TokenKind.SourceFilePathLiteral, `"${pkg}"`, previousImport.importToken.range);
-                        imports.push(new ImportStatement(importToken, filePathToken));
-                    }
+                    let importToken = createToken(TokenKind.Import, 'import', previousImport.importToken.range);
+                    let filePathToken = createToken(TokenKind.SourceFilePathLiteral, `"${pkg}"`, previousImport.importToken.range);
+                    imports.push(new ImportStatement(importToken, filePathToken));
                 }
             } else {
                 //this is not an error - it can happen

@@ -128,14 +128,14 @@ export function addXMLTagErrorCouldMissingEndBrackets(file: File, tagText: strin
         `Binding could not be parsed: Missing matching end brackets.`, range.start.line, range.start.character);
 }
 
-export function addXMLTagErrorCouldNotParsefireOnSetForField(file: File, partText: string, tagText: string, range: Range) {
+export function addXMLTagErrorCouldNotParseeagerForField(file: File, partText: string, tagText: string, range: Range) {
     addErrorDiagnostic(file, 1014,
-        `Could not parse fireOnSet for field`, range.start.line, range.start.character);
+        `Could not parse eager for field`, range.start.line, range.start.character);
 }
 
 export function addXMLTagErrorCouldNotParseIsFiringOnceForField(file: File, partText: string, binding: Binding) {
     addErrorDiagnosticForBinding(file, 1015,
-        `Could not parse binding setting "${partText}" - valid settings are 'once', 'fireonset' and 'transform'`, binding);
+        `Could not parse binding setting "${partText}" - valid settings are 'once', 'eager', 'lazy' and 'transform'`, binding);
 }
 
 export function addFileErrorCouldNotSave(file: File) {
@@ -179,7 +179,7 @@ export function addXmlBindingVMFunctionWrongArgCount(file: File, binding: Bindin
 }
 
 export function addXmlBindingUnknownFunctionArgs(file: File, binding: Binding) {
-    addErrorDiagnosticForBinding(file, 1026, `The event handling function "${binding.observerField}" has an incorrect signature. You can call vm functions with the (), (value), (node), or (value, node)`, binding);
+    addErrorDiagnosticForBinding(file, 1026, `The event handling bindng "${binding.observerField}" is incorrectly configured. You can call vm functions with the (), (value), (node), or (value, node)`, binding);
 }
 
 

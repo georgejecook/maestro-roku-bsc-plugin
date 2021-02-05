@@ -121,14 +121,14 @@ export class XMLTag {
     }
 
     public parseSubBindingText(text: string, binding: Binding) {
-        const parts = text.split(';');
+        const parts = text.split(':');
         for (let i = 0; i < parts.length; i++) {
             this.parseBindingPart(i, parts[i].replace(/\s/g, ''), binding, text, binding.range);
         }
         binding.rawValueText = text;
     }
     public parseBindingText(text: string, binding: Binding, tagText: string) {
-        const parts = text.split(';');
+        const parts = text.split(':');
         for (let i = 0; i < parts.length; i++) {
             this.parseBindingPart(i, parts[i].replace(/\s/g, ''), binding, tagText, binding.range);
         }
@@ -149,8 +149,10 @@ export class XMLTag {
             } else {
                 addXMLTagErrorCouldNotParseBindingTransformFunctionForField(this.file, partText, tagText, range);
             }
-        } else if (partText.toLowerCase().trim() === 'fireonset') {
-            binding.properties.fireOnSet = true;
+        } else if (partText.toLowerCase().trim() === 'eager') {
+            binding.properties.fireTiming = 'eager';
+        } else if (partText.toLowerCase().trim() === 'lazy') {
+            binding.properties.fireTiming = 'lazy';
         } else if (partText.toLowerCase().trim() === 'once') {
             binding.properties.isFiringOnce = true;
         } else {

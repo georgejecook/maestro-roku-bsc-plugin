@@ -1,5 +1,6 @@
 import type { BrsFile, BscFile, BsDiagnostic, ClassFieldStatement, ClassMethodStatement, ClassStatement, XmlFile } from 'brighterscript';
-import { ParseMode } from 'brighterscript';
+import { ParseMode, isClassFieldStatement, isClassMethodStatement } from 'brighterscript';
+
 import * as path from 'path';
 
 import type Binding from '../binding/Binding';
@@ -144,12 +145,12 @@ export class File {
         if (!method) {
             for (let parent of this.getParents()) {
                 method = parent.memberMap[name] as ClassMethodStatement;
-                if (method) {
+                if (method && method) {
                     return method;
                 }
             }
         }
-        return method;
+        return isClassMethodStatement(method) ? method : undefined;
     }
 
     public getField(name): ClassFieldStatement {
@@ -162,20 +163,20 @@ export class File {
             for (let parent of this.getParents()) {
                 field = parent.memberMap[name] as ClassFieldStatement;
                 if (field) {
-                    return field;
+                    break;
                 }
             }
         }
-        return field;
+        return isClassFieldStatement(field) ? field : undefined;
     }
 
     public getParents(): ClassStatement[] {
-        if (!this.parents) {
+        if (!this.parents || this.parents.length === 0) {
             this.parents = [];
-            let next = this.bindingClass.parentClassName ? this.fileMap.allClasses.get(this.bindingClass.parentClassName.getName(ParseMode.BrighterScript)) : null;
+            let next = this.bindingClass.parentClassName ? this.fileMap.allClasses.get(this.bindingClass.parentClassName.getName(ParseMode.BrighterScript).replace(/_/g, '.')) : null;
             while (next) {
                 this.parents.push(next);
-                next = next.parentClassName ? this.fileMap.allClasses.get(next.parentClassName.getName(ParseMode.BrighterScript)) : null;
+                next = next.parentClassName ? this.fileMap.allClasses.get(next.parentClassName.getName(ParseMode.BrighterScript).replace(/_/g, '.')) : null;
             }
         }
 
