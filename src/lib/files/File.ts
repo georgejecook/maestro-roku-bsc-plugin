@@ -170,6 +170,44 @@ export class File {
         return isClassFieldStatement(field) ? field : undefined;
     }
 
+    public getAllFields(cs: ClassStatement) {
+        let result = {};
+        while (cs) {
+            for (let field of cs.fields) {
+                result[field.name.text.toLowerCase()] = true;
+            }
+            cs = cs.parentClassName ? this.fileMap.allClasses.get(cs.parentClassName.getName(ParseMode.BrighterScript).replace(/_/g, '.')) : null;
+        }
+
+        return result;
+    }
+
+    public getAllAnnotations(cs: ClassStatement) {
+        let result = {};
+        while (cs) {
+            if (cs.annotations) {
+                for (let annotation of cs.annotations) {
+                    result[annotation.name.toLowerCase()] = true;
+                }
+            }
+            cs = cs.parentClassName ? this.fileMap.allClasses.get(cs.parentClassName.getName(ParseMode.BrighterScript).replace(/_/g, '.')) : null;
+        }
+
+        return result;
+    }
+
+    public getAllFuncs(cs: ClassStatement) {
+        let result = {};
+        while (cs) {
+            for (let method of cs.methods) {
+                result[method.name.text.toLowerCase()] = true;
+            }
+            cs = cs.parentClassName ? this.fileMap.allClasses.get(cs.parentClassName.getName(ParseMode.BrighterScript).replace(/_/g, '.')) : null;
+        }
+
+        return result;
+    }
+
     public getParents(): ClassStatement[] {
         if (!this.parents || this.parents.length === 0) {
             this.parents = [];

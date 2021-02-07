@@ -49,7 +49,7 @@ describe('MaestroPlugin', () => {
     describe('binding tests', () => {
 
 
-        it.only('warns when field bindings do not match class', async () => {
+        it('warns when field bindings do not match class', async () => {
             plugin.afterProgramCreate(program);
             program.addOrReplaceFile('source/comp.bs', `
             class myVM
@@ -81,15 +81,19 @@ describe('MaestroPlugin', () => {
             expect(program.getDiagnostics()).to.not.be.empty;
             await builder.transpile();
             console.log(builder.getDiagnostics());
-            expect(builder.getDiagnostics()).to.be.empty;
+            expect(builder.getDiagnostics()).to.not.be.empty;
 
             let a = getContents('components/comp.xml');
             let b = trimLeading(`<component name="mv_BaseScreen" extends="mv_BaseView">
             <interface>
             </interface>
+            <script type="text/brightscript" uri="pkg:/components/comp.brs" />
             <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
+            <children>
+            <Poster id="topBanner" width="1920" height="174" uri="" translation="[0,0]" />
+            </children>
             </component>
-            <!--//# sourceMappingURL=./comp.xml.map -->`);
+            `);
             expect(a).to.equal(b);
 
         });
@@ -113,7 +117,7 @@ describe('MaestroPlugin', () => {
             </interface>
             <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
             </component>
-            <!--//# sourceMappingURL=./comp.xml.map -->`);
+            `);
             expect(a).to.equal(b);
 
         });
@@ -136,39 +140,7 @@ describe('MaestroPlugin', () => {
             </interface>
             <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
             </component>
-            <!--//# sourceMappingURL=./comp.xml.map -->`);
-            expect(a).to.equal(b);
-
-        });
-        it('does not remove id if not first tag', async () => {
-            plugin.afterProgramCreate(program);
-            program.addOrReplaceFile('components/comp.xml', `
-            <component name="mv_BaseScreen" extends="mv_BaseView" vm="myVM">
-    <interface>
-    </interface>
-    <children>
-        <Poster
-            visible='{{isTopBannerVisible}}'
-            id='topBanner'
-            width='1920'
-            height='174'
-            uri=''
-            translation='[0,0]' />
-    </children>
-</component>`);
-            program.validate();
-            // expect(program.getDiagnostics()).to.be.empty;
-            await builder.transpile();
-            // console.log(builder.getDiagnostics());
-            // expect(builder.getDiagnostics()).to.be.empty;
-
-            let a = getContents('components/comp.xml');
-            let b = trimLeading(`<component name="mv_BaseScreen" extends="mv_BaseView">
-            <interface>
-            </interface>
-            <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
-            </component>
-            <!--//# sourceMappingURL=./comp.xml.map -->`);
+            `);
             expect(a).to.equal(b);
 
         });
@@ -202,7 +174,7 @@ describe('MaestroPlugin', () => {
             <Label id="test" text="{{field}}" />
             </children>
             </component>
-            <!--//# sourceMappingURL=./comp.xml.map -->`);
+            `);
             expect(a).to.equal(b);
 
         });
@@ -236,7 +208,7 @@ describe('MaestroPlugin', () => {
             <Label id="test" />
             </children>
             </component>
-            <!--//# sourceMappingURL=./comp.xml.map -->`);
+            `);
             expect(a).to.equal(b);
 
         });
@@ -270,7 +242,7 @@ describe('MaestroPlugin', () => {
             <Label id="test" text="{{field}}" />
             </children>
             </component>
-            <!--//# sourceMappingURL=./comp.xml.map -->`);
+            `);
             expect(a).to.equal(b);
 
         });
@@ -306,7 +278,7 @@ describe('MaestroPlugin', () => {
             <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
             <children />
             </component>
-            <!--//# sourceMappingURL=./Comp.xml.map -->`);
+            `);
             expect(a).to.equal(b);
 
             a = getContents('components/maestro/generated/Comp.brs');
@@ -352,7 +324,7 @@ describe('MaestroPlugin', () => {
             <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
             <children />
             </component>
-            <!--//# sourceMappingURL=./Comp.xml.map -->`);
+            `);
             expect(a).to.equal(b);
 
             a = getContents('components/maestro/generated/Comp.brs');
@@ -402,7 +374,7 @@ describe('MaestroPlugin', () => {
             <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
             <children />
             </component>
-            <!--//# sourceMappingURL=./Comp.xml.map -->`);
+            `);
             expect(a).to.equal(b);
 
             a = getContents('components/maestro/generated/Comp.brs');
@@ -581,7 +553,177 @@ describe('MaestroPlugin', () => {
             expect(a).to.equal(b);
 
         });
-        describe('run a local project', () => {
+
+        describe('extra validation', () => {
+
+            it('gives diagostic for unknown field', () => {
+                plugin.afterProgramCreate(program);
+
+                program.addOrReplaceFile('source/VM.bs', `
+                    @strict
+                    class VM
+                        public fieldA
+                        function doStuff()
+                        m.fieldA = "ok"
+                        m.fieldB = "notOk"
+                        end function
+                    end class
+                `);
+                program.validate();
+                expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.not.be.empty;
+            });
+
+            it('gives diagnostic for  unknown function', () => {
+                plugin.afterProgramCreate(program);
+
+                program.addOrReplaceFile('source/VM.bs', `
+                    @strict
+                    class VM
+                        function doStuff()
+                        m.notThere()
+                        end function
+
+                        function other()
+                        end function
+                    end class
+                `);
+                program.validate();
+                expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.not.be.empty;
+            });
+            it('does not gives diagostic for field in superclass', () => {
+                plugin.afterProgramCreate(program);
+
+                program.addOrReplaceFile('source/VM.bs', `
+                    class VM
+                        public isThere
+                    end class
+                `);
+
+                program.addOrReplaceFile('source/SubVM.bs', `
+                    class SubVM extends VM
+                        function doStuff2()
+                        m.isthere = true
+                        end function
+                    end class
+                `);
+                program.validate();
+                expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+            });
+
+            it('does not gives diagnostic for function in superclass', () => {
+                plugin.afterProgramCreate(program);
+
+                program.addOrReplaceFile('source/VM.bs', `
+                    class VM
+                        function there()
+                        end function
+                    end class
+                `);
+
+                program.addOrReplaceFile('source/SubVM.bs', `
+                    class SubVM extends VM
+                        function doStuff2()
+                        m.there()
+                        end function
+                    end class
+                `);
+                program.validate();
+                expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+            });
+
+        });
+        describe('vms', () => {
+
+            it('replaces m.value = with m.setField', async () => {
+                plugin.afterProgramCreate(program);
+
+                program.addOrReplaceFile('source/VM.bs', `
+                    @useSetField
+                    class VM
+
+                        public fieldA
+                        public fieldB
+                        private fieldC
+                        function doStuff()
+                            m.setField("fieldA", "val1")
+                            m.fieldA = "val1"
+                            m.fieldB = {this:"val2"}
+                            m.fieldC = {this:"val1"}
+                            m.notKnown = true
+                            m.fieldA = something.getVAlues({this:"val1"}, "sdfd")
+                        end function
+                   end class
+                `);
+                await builder.transpile();
+                expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+                let a = getContents('source/VM.brs');
+                let b = trimLeading(`function __VM_builder()
+                instance = {}
+                instance.new = sub()
+                m.fieldA = invalid
+                m.fieldB = invalid
+                m.fieldC = invalid
+                m.__className = "VM"
+                end sub
+                instance.doStuff = function()
+                m.setField("fieldA", "val1")
+                m.setField("fieldA", "val1")
+                m.setField("fieldB", {
+                this: "val2"
+                })
+                m.fieldC = {
+                this: "val1"
+                }
+                m.notKnown = true
+                m.setField("fieldA", something.getVAlues({
+                this: "val1"
+                }, "sdfd"))
+                end function
+                return instance
+                end function
+                function VM()
+                instance = __VM_builder()
+                instance.new()
+                return instance
+                end function`);
+                expect(a).to.equal(b);
+            });
+        });
+        describe('ioc', () => {
+
+            it('wires up fields with inject annocations', async () => {
+                plugin.afterProgramCreate(program);
+
+                program.addOrReplaceFile('source/VM.bs', `
+                    @useSetField
+                    class VM
+                        @inject("EntitleMents")
+                        public fieldA
+                        @injectClass("mc.collections.FieldMapper")
+                        public fieldB
+                   end class
+                `);
+                await builder.transpile();
+                expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+                let a = getContents('source/VM.brs');
+                let b = trimLeading(`function __VM_builder()
+                instance = {}
+                instance.new = sub()
+                m.fieldA = mioc_getInstance("fieldA")
+                m.fieldB = mioc_getClassInstance("fieldB")
+                m.__className = "VM"
+                end sub
+                return instance
+                end function
+                function VM()
+                instance = __VM_builder()
+                instance.new()
+                return instance
+                end function`);
+                expect(a).to.equal(b);
+            });
+        });
+        describe.skip('run a local project', () => {
             it('sanity checks on parsing - only run this outside of ci', () => {
                 let programBuilder = new ProgramBuilder();
                 let config = {

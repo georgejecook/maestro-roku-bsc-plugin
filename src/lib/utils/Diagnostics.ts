@@ -237,3 +237,8 @@ export function addXMLTagErrorCouldNotParseBindingBadPart(file: File, partText: 
     addErrorDiagnostic(file, 1039,
         `Could not parse unknown binding part "${partText}"`, range.start.line, range.start.character);
 }
+
+export function addClassFieldsNotFocundOnSetOrGet(file: File, text: string, className: string, range: Range) {
+    addErrorDiagnostic(file, 1040,
+        `class field: "${text}" was not found on ${className} or it's parent classes`, range.start.line, range.start.character);
+}

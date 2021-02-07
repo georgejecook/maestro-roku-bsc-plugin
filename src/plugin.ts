@@ -1,17 +1,26 @@
-import type { BrsFile,
-    BscFile,
-    CompilerPlugin,
-    FileObj,
-    Program, ProgramBuilder,
-    TranspileObj,
-    XmlFile } from 'brighterscript';
-import { ClassFieldStatement,
+import { isVariableExpression,
+    CallExpression,
+    createIdentifier,
+    DottedGetExpression,
+    ExpressionStatement,
+    createVisitor,
+    WalkMode,
+    ClassFieldStatement,
     createStringLiteral,
     createToken,
     ParseMode,
     TokenKind,
     isBrsFile,
-    isXmlFile } from 'brighterscript';
+    isXmlFile,
+    VariableExpression } from 'brighterscript';
+import type { BrsFile,
+    BscFile,
+    ClassStatement,
+    CompilerPlugin,
+    FileObj,
+    Program, ProgramBuilder,
+    TranspileObj,
+    XmlFile } from 'brighterscript';
 
 import { ProjectFileMap } from './lib/files/ProjectFileMap';
 import type { MaestroConfig } from './lib/files/MaestroConfig';
@@ -25,7 +34,10 @@ import ImportProcessor from './lib/importSupport/ImportProcessor';
 import ReflectionUtil from './lib/reflection/ReflectionUtil';
 import { FileFactory } from './lib/utils/FileFactory';
 import NodeClassUtil from './lib/node-classes/NodeClassUtil';
+import { RawCodeStatement } from './lib/utils/RawCodeStatement';
+import { addClassFieldsNotFocundOnSetOrGet } from './lib/utils/Diagnostics';
 
+type Writeable<T> = { -readonly [P in keyof T]: T[P] };
 
 export class MaestroPlugin implements CompilerPlugin {
     public name = 'maestroPlugin';
@@ -91,6 +103,7 @@ export class MaestroPlugin implements CompilerPlugin {
             } else {
                 // console.log(`skipping file ${file.pkgPath}`);
             }
+
         } else {
             mFile.loadXmlContents();
         }
@@ -109,6 +122,10 @@ export class MaestroPlugin implements CompilerPlugin {
             for (let compFile of this.getCompFilesThatHaveFileInScope(file)) {
                 this.dirtyCompFilePaths.add(compFile.fullPath);
             }
+        }
+        if (isBrsFile(file)) {
+            let mFile = this.fileMap.allFiles.get(file.pathAbsolute);
+            this.checkMReferences(mFile);
         }
     }
 
@@ -186,6 +203,13 @@ export class MaestroPlugin implements CompilerPlugin {
                     cs.fields.push(classNameStatement);
                     cs.memberMap.__className = classNameStatement;
                 }
+                let allClassAnnotations = this.getAllAnnotations(cs);
+                // eslint-disable-next-line @typescript-eslint/dot-notation
+                if (allClassAnnotations['usesetfield']) {
+                    this.updateFieldSets(cs);
+                }
+                this.injectIOCCode(cs, entry.file);
+
             }
         }
     }
@@ -193,7 +217,117 @@ export class MaestroPlugin implements CompilerPlugin {
     beforePublish(builder: ProgramBuilder, files: FileObj[]) {
         this.reflectionUtil.updateRuntimeFile();
     }
+
+    public getAllAnnotations(cs: ClassStatement) {
+        let result = {};
+        while (cs) {
+            if (cs.annotations) {
+                for (let annotation of cs.annotations) {
+                    result[annotation.name.toLowerCase()] = true;
+                }
+            }
+            cs = cs.parentClassName ? this.fileMap.allClasses.get(cs.parentClassName.getName(ParseMode.BrighterScript).replace(/_/g, '.')) : null;
+        }
+
+        return result;
+    }
+
+    public updateFieldSets(cs: ClassStatement) {
+        let fieldMap = new Map<string, ClassFieldStatement>();
+        for (let f of cs.fields.filter((f) => f.accessModifier?.kind === TokenKind.Public)) {
+            fieldMap.set(f.name.text.toLowerCase(), f);
+        }
+
+        cs.walk(createVisitor({
+            DottedSetStatement: (ds) => {
+                if (isVariableExpression(ds.obj) && ds.obj.name.text === 'm') {
+                    let lowerName = ds.name.text.toLowerCase();
+                    if (fieldMap.has(lowerName)) {
+                        if (fieldMap.get(lowerName).accessModifier.kind === TokenKind.Public) {
+                            let callE = new CallExpression(
+                                new DottedGetExpression(
+                                    ds.obj,
+                                    createIdentifier('setField', ds.range).name,
+                                    createToken(TokenKind.Dot, '.', ds.range)),
+                                createToken(TokenKind.LeftParen, '(', ds.range),
+                                createToken(TokenKind.RightParen, ')', ds.range),
+                                [
+                                    createStringLiteral(`"${ds.name.text}"`, ds.range),
+                                    ds.value
+                                ],
+                                null);
+                            let callS = new ExpressionStatement(callE);
+                            return callS;
+                        }
+                    } else {
+
+                    }
+                }
+            }
+        }), { walkMode: WalkMode.visitAllRecursive });
+
+        // cs.walk(createVisitor{
+        //   }, { walkMode: WalkMode.visitAllRecursive });
+
+    }
+
+    private checkMReferences(file: File) {
+
+        for (let cs of (file.bscFile as BrsFile).parser.references.classStatements) {
+            // eslint-disable-next-line @typescript-eslint/dot-notation
+            if (!this.getAllAnnotations(cs)['strict']) {
+                continue;
+            }
+
+            let fieldMap = file.getAllFields(cs);
+            let funcMap = file.getAllFuncs(cs);
+            let skips = {
+                'loginfo': true,
+                'logwarn': true,
+                'logverbose': true,
+                'logerror': true,
+                'logmethod': true,
+                'logdebug': true,
+                'setfield': true
+            };
+            cs.walk(createVisitor({
+                DottedSetStatement: (ds) => {
+                    if (isVariableExpression(ds.obj) && ds.obj.name.text === 'm') {
+                        let lowerName = ds.name.text.toLowerCase();
+                        if (!fieldMap[lowerName] && !skips[lowerName]) {
+                            addClassFieldsNotFocundOnSetOrGet(file, `${ds.obj.name.text}.${ds.name.text}`, cs.name.text, ds.range);
+                        }
+                    }
+                },
+                DottedGetExpression: (ds) => {
+                    if (isVariableExpression(ds.obj) && ds.obj.name.text === 'm') {
+                        let lowerName = ds.name.text.toLowerCase();
+                        if (!fieldMap[lowerName] && !funcMap[lowerName] && !skips[lowerName]) {
+                            addClassFieldsNotFocundOnSetOrGet(file, `${ds.obj.name.text}.${ds.name.text}`, cs.name.text, ds.range);
+                        }
+                    }
+                }
+            }), { walkMode: WalkMode.visitAllRecursive });
+
+        }
+    }
+
+    private injectIOCCode(cs: ClassStatement, file: BrsFile) {
+        for (let f of cs.fields) {
+            if ((f.annotations || []).find((a) => a.name === 'inject')) {
+                let wf = f as Writeable<ClassFieldStatement>;
+                wf.initialValue = new RawCodeStatement(`mioc_getInstance("${f.name.text}")`, file, f.range);
+                wf.equal = createToken(TokenKind.Equal, '=', f.range);
+            } else if ((f.annotations || []).find((a) => a.name === 'injectClass')) {
+                let wf = f as Writeable<ClassFieldStatement>;
+                wf.initialValue = new RawCodeStatement(`mioc_getClassInstance("${f.name.text}")`, file, f.range);
+                wf.equal = createToken(TokenKind.Equal, '=', f.range);
+            }
+
+        }
+    }
 }
+
 
 export default () => {
     return new MaestroPlugin();
