@@ -1,12 +1,12 @@
-import type { BrsFile, XmlFile } from 'brighterscript';
-import { DiagnosticSeverity, Range } from 'brighterscript';
+import type { BrsFile, BscFile, XmlFile } from 'brighterscript';
+import { isBrsFile, isXmlFile, DiagnosticSeverity, Range } from 'brighterscript';
 import type Binding from '../binding/Binding';
 
 
 import type { File } from '../files/File';
 
 function addErrorDiagnostic(
-    file: File,
+    file: any,
     code: number,
     message: string,
     startLine = 0,
@@ -15,7 +15,8 @@ function addErrorDiagnostic(
     endCol = 99999
 ) {
     endLine = endLine === -1 ? startLine : endLine;
-    (file.bscFile as any).diagnostics.push(createDiagnostic(file.bscFile, code, message, startLine, startCol, endLine, endCol, DiagnosticSeverity.Error));
+    let targetFile = isBrsFile(file) || isXmlFile(file) ? file : file.bscFile;
+    targetFile.diagnostics.push(createDiagnostic(targetFile, code, message, startLine, startCol, endLine, endCol, DiagnosticSeverity.Error));
 }
 function addErrorDiagnosticForBinding(
     file: File,
@@ -241,4 +242,14 @@ export function addXMLTagErrorCouldNotParseBindingBadPart(file: File, partText: 
 export function addClassFieldsNotFocundOnSetOrGet(file: File, text: string, className: string, range: Range) {
     addErrorDiagnostic(file, 1040,
         `class field: "${text}" was not found on ${className} or it's parent classes`, range.start.line, range.start.character);
+}
+
+export function addIOCNoTypeSupplied(file: any, text: string, className: string, range: Range) {
+    addErrorDiagnostic(file, 1041,
+        `class field: "${text}" from class ${className} is using an inject tag; but does not specify what to inject. Should supply 1 or 2 args (type, and optional subPath))`, range.start.line, range.start.character);
+}
+
+export function addIOCWrongArgs(file: any, text: string, className: string, range: Range) {
+    addErrorDiagnostic(file, 1041,
+        `injectClass annotation on class field: "${text}" from class ${className} must supply one argument`, range.start.line, range.start.character);
 }

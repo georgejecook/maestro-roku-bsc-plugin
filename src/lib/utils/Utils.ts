@@ -171,3 +171,33 @@ export function getTokenText(operator: TokenKind): string {
             return '>';
     }
 }
+
+export function getAllFields(fileMap: ProjectFileMap, cs: ClassStatement, vis?: TokenKind) {
+    let result = {};
+    while (cs) {
+        for (let field of cs.fields) {
+            if (!vis || field.accessModifier?.kind === vis) {
+                result[field.name.text.toLowerCase()] = field;
+            }
+        }
+        cs = cs.parentClassName ? fileMap.allClasses.get(cs.parentClassName.getName(ParseMode.BrighterScript).replace(/_/g, '.')) : null;
+    }
+
+    return result;
+}
+
+export function getAllAnnotations(fileMap: ProjectFileMap, cs: ClassStatement) {
+    let result = {};
+    while (cs) {
+        if (cs.annotations) {
+            for (let annotation of cs.annotations) {
+                result[annotation.name.toLowerCase()] = true;
+            }
+        }
+        cs = cs.parentClassName ? fileMap.allClasses.get(cs.parentClassName.getName(ParseMode.BrighterScript).replace(/_/g, '.')) : null;
+    }
+
+    return result;
+}
+
+

@@ -35,7 +35,8 @@ import ReflectionUtil from './lib/reflection/ReflectionUtil';
 import { FileFactory } from './lib/utils/FileFactory';
 import NodeClassUtil from './lib/node-classes/NodeClassUtil';
 import { RawCodeStatement } from './lib/utils/RawCodeStatement';
-import { addClassFieldsNotFocundOnSetOrGet } from './lib/utils/Diagnostics';
+import { addClassFieldsNotFocundOnSetOrGet, addIOCNoTypeSupplied, addIOCWrongArgs } from './lib/utils/Diagnostics';
+import { getAllAnnotations, getAllFields } from './lib/utils/Utils';
 
 type Writeable<T> = { -readonly [P in keyof T]: T[P] };
 
@@ -125,7 +126,11 @@ export class MaestroPlugin implements CompilerPlugin {
         }
         if (isBrsFile(file)) {
             let mFile = this.fileMap.allFiles.get(file.pathAbsolute);
-            this.checkMReferences(mFile);
+            if (mFile) {
+                this.checkMReferences(mFile);
+            } else {
+                console.error('could not find MFile for path ', file.pathAbsolute);
+            }
         }
     }
 
@@ -203,7 +208,7 @@ export class MaestroPlugin implements CompilerPlugin {
                     cs.fields.push(classNameStatement);
                     cs.memberMap.__className = classNameStatement;
                 }
-                let allClassAnnotations = this.getAllAnnotations(cs);
+                let allClassAnnotations = getAllAnnotations(this.fileMap, cs);
                 // eslint-disable-next-line @typescript-eslint/dot-notation
                 if (allClassAnnotations['usesetfield']) {
                     this.updateFieldSets(cs);
@@ -218,49 +223,28 @@ export class MaestroPlugin implements CompilerPlugin {
         this.reflectionUtil.updateRuntimeFile();
     }
 
-    public getAllAnnotations(cs: ClassStatement) {
-        let result = {};
-        while (cs) {
-            if (cs.annotations) {
-                for (let annotation of cs.annotations) {
-                    result[annotation.name.toLowerCase()] = true;
-                }
-            }
-            cs = cs.parentClassName ? this.fileMap.allClasses.get(cs.parentClassName.getName(ParseMode.BrighterScript).replace(/_/g, '.')) : null;
-        }
-
-        return result;
-    }
-
     public updateFieldSets(cs: ClassStatement) {
-        let fieldMap = new Map<string, ClassFieldStatement>();
-        for (let f of cs.fields.filter((f) => f.accessModifier?.kind === TokenKind.Public)) {
-            fieldMap.set(f.name.text.toLowerCase(), f);
-        }
+        let fieldMap = getAllFields(this.fileMap, cs, TokenKind.Public);
 
         cs.walk(createVisitor({
             DottedSetStatement: (ds) => {
                 if (isVariableExpression(ds.obj) && ds.obj.name.text === 'm') {
                     let lowerName = ds.name.text.toLowerCase();
-                    if (fieldMap.has(lowerName)) {
-                        if (fieldMap.get(lowerName).accessModifier.kind === TokenKind.Public) {
-                            let callE = new CallExpression(
-                                new DottedGetExpression(
-                                    ds.obj,
-                                    createIdentifier('setField', ds.range).name,
-                                    createToken(TokenKind.Dot, '.', ds.range)),
-                                createToken(TokenKind.LeftParen, '(', ds.range),
-                                createToken(TokenKind.RightParen, ')', ds.range),
-                                [
-                                    createStringLiteral(`"${ds.name.text}"`, ds.range),
-                                    ds.value
-                                ],
-                                null);
-                            let callS = new ExpressionStatement(callE);
-                            return callS;
-                        }
-                    } else {
-
+                    if (fieldMap[lowerName]) {
+                        let callE = new CallExpression(
+                            new DottedGetExpression(
+                                ds.obj,
+                                createIdentifier('setField', ds.range).name,
+                                createToken(TokenKind.Dot, '.', ds.range)),
+                            createToken(TokenKind.LeftParen, '(', ds.range),
+                            createToken(TokenKind.RightParen, ')', ds.range),
+                            [
+                                createStringLiteral(`"${ds.name.text}"`, ds.range),
+                                ds.value
+                            ],
+                            null);
+                        let callS = new ExpressionStatement(callE);
+                        return callS;
                     }
                 }
             }
@@ -275,11 +259,11 @@ export class MaestroPlugin implements CompilerPlugin {
 
         for (let cs of (file.bscFile as BrsFile).parser.references.classStatements) {
             // eslint-disable-next-line @typescript-eslint/dot-notation
-            if (!this.getAllAnnotations(cs)['strict']) {
+            if (!getAllAnnotations(this.fileMap, cs)['strict']) {
                 continue;
             }
 
-            let fieldMap = file.getAllFields(cs);
+            let fieldMap = getAllFields(this.fileMap, cs);
             let funcMap = file.getAllFuncs(cs);
             let skips = {
                 'loginfo': true,
@@ -314,13 +298,28 @@ export class MaestroPlugin implements CompilerPlugin {
 
     private injectIOCCode(cs: ClassStatement, file: BrsFile) {
         for (let f of cs.fields) {
-            if ((f.annotations || []).find((a) => a.name === 'inject')) {
+            let annotation = (f.annotations || []).find((a) => a.name === 'inject' || a.name === 'injectClass');
+            if (annotation) {
+                let args = annotation.getArguments();
+                if (args.length === 0) {
+                    addIOCNoTypeSupplied(file, `${cs.name.text}.${f.name.text}`, cs.name.text, f.range);
+                }
                 let wf = f as Writeable<ClassFieldStatement>;
-                wf.initialValue = new RawCodeStatement(`mioc_getInstance("${f.name.text}")`, file, f.range);
-                wf.equal = createToken(TokenKind.Equal, '=', f.range);
-            } else if ((f.annotations || []).find((a) => a.name === 'injectClass')) {
-                let wf = f as Writeable<ClassFieldStatement>;
-                wf.initialValue = new RawCodeStatement(`mioc_getClassInstance("${f.name.text}")`, file, f.range);
+                if (annotation.name === 'inject') {
+                    if (args.length === 1) {
+                        wf.initialValue = new RawCodeStatement(`mioc_getInstance("${args[0].toString()}")`, file, f.range);
+                    } else if (args.length === 2) {
+                        wf.initialValue = new RawCodeStatement(`mioc_getInstance("${args[0].toString()}", "${args[1].toString()}")`, file, f.range);
+                    } else {
+                        addIOCWrongArgs(file, `${cs.name.text}.${f.name.text}`, cs.name.text, f.range);
+                    }
+                } else if (annotation.name === 'injectClass') {
+                    if (args.length !== 1) {
+                        addIOCWrongArgs(file, `${cs.name.text}.${f.name.text}`, cs.name.text, f.range);
+                    } else {
+                        wf.initialValue = new RawCodeStatement(`mioc_getClassInstance("${args[0].toString()}")`, file, f.range);
+                    }
+                }
                 wf.equal = createToken(TokenKind.Equal, '=', f.range);
             }
 

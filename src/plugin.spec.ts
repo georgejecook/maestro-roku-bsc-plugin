@@ -688,6 +688,81 @@ describe('MaestroPlugin', () => {
                 end function`);
                 expect(a).to.equal(b);
             });
+
+            it('replaces m.value = with m.setField, when field is defined in super class', async () => {
+                plugin.afterProgramCreate(program);
+
+                program.addOrReplaceFile('source/VM.bs', `
+                    @useSetField
+                    class VM
+
+                        public fieldA
+                        public fieldB
+                        private fieldC
+                        function doStuff()
+                        end function
+                   end class
+                    class ChildVM extends VM
+                        function doStuff()
+                            m.setField("fieldA", "val1")
+                            m.fieldA = "val1"
+                            m.fieldB = {this:"val2"}
+                            m.fieldC = {this:"val1"}
+                            m.notKnown = true
+                            m.fieldA = something.getVAlues({this:"val1"}, "sdfd")
+                        end function
+                   end class
+                `);
+                await builder.transpile();
+                expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+                let a = getContents('source/VM.brs');
+                let b = trimLeading(`function __VM_builder()
+                instance = {}
+                instance.new = sub()
+                m.fieldA = invalid
+                m.fieldB = invalid
+                m.fieldC = invalid
+                m.__className = "VM"
+                end sub
+                instance.doStuff = function()
+                end function
+                return instance
+                end function
+                function VM()
+                instance = __VM_builder()
+                instance.new()
+                return instance
+                end function
+                function __ChildVM_builder()
+                instance = __VM_builder()
+                instance.super0_new = instance.new
+                instance.new = sub()
+                m.super0_new()
+                m.__className = "ChildVM"
+                end sub
+                instance.doStuff = function()
+                m.setField("fieldA", "val1")
+                m.setField("fieldA", "val1")
+                m.setField("fieldB", {
+                this: "val2"
+                })
+                m.fieldC = {
+                this: "val1"
+                }
+                m.notKnown = true
+                m.setField("fieldA", something.getVAlues({
+                this: "val1"
+                }, "sdfd"))
+                end function
+                return instance
+                end function
+                function ChildVM()
+                instance = __ChildVM_builder()
+                instance.new()
+                return instance
+                end function`);
+                expect(a).to.equal(b);
+            });
         });
         describe('ioc', () => {
 
@@ -709,8 +784,8 @@ describe('MaestroPlugin', () => {
                 let b = trimLeading(`function __VM_builder()
                 instance = {}
                 instance.new = sub()
-                m.fieldA = mioc_getInstance("fieldA")
-                m.fieldB = mioc_getClassInstance("fieldB")
+                m.fieldA = mioc_getInstance("EntitleMents")
+                m.fieldB = mioc_getClassInstance("mc.collections.FieldMapper")
                 m.__className = "VM"
                 end sub
                 return instance
