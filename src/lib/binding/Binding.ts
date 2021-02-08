@@ -1,4 +1,4 @@
-import type { Range } from 'brighterscript';
+import { Range, TokenKind } from 'brighterscript';
 import { isClassFieldStatement, isClassMethodStatement, Parser } from 'brighterscript';
 import type { File } from '../files/File';
 import { addXmlBindingUnknownFunctionArgs, addXmlBindingVMFieldNotFound, addXmlBindingVMFieldRequired, addXmlBindingVMFunctionNotFound, addXmlBindingVMFunctionWrongArgCount } from '../utils/Diagnostics';
@@ -52,7 +52,7 @@ export default class Binding {
         }
 
         if (this.properties.sendMode > BindingSendMode.field) {
-            let method = this.file.getMethod(this.observerField);
+            let method = this.file.getMethod(this.observerField, TokenKind.Public);
             if (!isClassMethodStatement(method)) {
                 addXmlBindingVMFunctionNotFound(this.file, this);
                 this.isValid = false;
@@ -65,8 +65,8 @@ export default class Binding {
             }
 
         } else if (!this.isUsingGetterAndSetter) {
-            if (!this.file.getField(this.observerField)) {
-                if (this.file.getMethod(this.observerField)) {
+            if (!this.file.getField(this.observerField, TokenKind.Public)) {
+                if (this.file.getMethod(this.observerField, TokenKind.Public)) {
                     addXmlBindingUnknownFunctionArgs(this.file, this);
                 } else {
                     addXmlBindingVMFieldNotFound(this.file, this);

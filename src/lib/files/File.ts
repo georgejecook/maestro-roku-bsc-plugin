@@ -1,4 +1,4 @@
-import type { BrsFile, BscFile, BsDiagnostic, ClassFieldStatement, ClassMethodStatement, ClassStatement, XmlFile } from 'brighterscript';
+import type { BrsFile, BscFile, BsDiagnostic, ClassFieldStatement, ClassMethodStatement, ClassStatement, TokenKind, XmlFile } from 'brighterscript';
 import { ParseMode, isClassFieldStatement, isClassMethodStatement } from 'brighterscript';
 
 import * as path from 'path';
@@ -139,21 +139,25 @@ export class File {
         }
     }
 
-    public getMethod(name): ClassMethodStatement {
+    public getMethod(name, vis?: TokenKind): ClassMethodStatement {
         name = name.toLowerCase();
         let method = this.bindingClass.memberMap[name] as ClassMethodStatement;
         if (!method) {
             for (let parent of this.getParents()) {
                 method = parent.memberMap[name] as ClassMethodStatement;
-                if (method && method) {
-                    return method;
+                if (method) {
+                    break;
                 }
             }
         }
-        return isClassMethodStatement(method) ? method : undefined;
+        if (isClassMethodStatement(method) && (!vis || method.accessModifier?.kind === vis)) {
+            return method;
+        }
+
+        return undefined;
     }
 
-    public getField(name): ClassFieldStatement {
+    public getField(name, vis?: TokenKind): ClassFieldStatement {
         if (!name) {
             return undefined;
         }
@@ -167,7 +171,11 @@ export class File {
                 }
             }
         }
-        return isClassFieldStatement(field) ? field : undefined;
+        if (field && (!vis || field.accessModifier?.kind === vis)) {
+            return field;
+        } else {
+            return undefined;
+        }
     }
 
     public getAllFuncs(cs: ClassStatement) {

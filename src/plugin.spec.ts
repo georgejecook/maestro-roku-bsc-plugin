@@ -98,6 +98,55 @@ describe('MaestroPlugin', () => {
 
         });
 
+        it.only('warns when field bindings are not public', async () => {
+            plugin.afterProgramCreate(program);
+            program.addOrReplaceFile('source/comp.bs', `
+            class myVM
+                private width
+                private function onChangeVisible(value)
+                end function
+           end class
+        `);
+            program.addOrReplaceFile('components/comp.brs', `
+
+        `);
+
+            program.addOrReplaceFile('components/comp.xml', `
+            <component name="mv_BaseScreen" extends="mv_BaseView" vm="myVM">
+    <interface>
+    </interface>
+    <script type="text/brightscript" uri="pkg:/components/comp.brs" />
+    <children>
+        <Poster
+            visible='{(onChangeVisible(value))}'
+            id='topBanner'
+            width='{{width}}'
+            height='174'
+            uri=''
+            translation='[0,0]' />
+    </children>
+</component>`);
+            program.validate();
+            expect(program.getDiagnostics()).to.not.be.empty;
+            await builder.transpile();
+            console.log(builder.getDiagnostics());
+            expect(builder.getDiagnostics()).to.not.be.empty;
+
+            let a = getContents('components/comp.xml');
+            let b = trimLeading(`<component name="mv_BaseScreen" extends="mv_BaseView">
+            <interface>
+            </interface>
+            <script type="text/brightscript" uri="pkg:/components/comp.brs" />
+            <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
+            <children>
+            <Poster id="topBanner" width="1920" height="174" uri="" translation="[0,0]" />
+            </children>
+            </component>
+            `);
+            expect(a).to.equal(b);
+
+        });
+
         it('does not manipulate non binding xml files', async () => {
             plugin.afterProgramCreate(program);
             program.addOrReplaceFile('components/comp.xml', `
