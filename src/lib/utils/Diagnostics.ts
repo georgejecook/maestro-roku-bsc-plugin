@@ -180,8 +180,8 @@ export function addXmlBindingVMFunctionWrongArgCount(file: File, binding: Bindin
     addErrorDiagnosticForBinding(file, 1025, `Binding invokes "${binding.observerField}" with ${actualParams} params when ${expectedText} params was expected`, binding);
 }
 
-export function addXmlBindingUnknownFunctionArgs(file: File, binding: Binding) {
-    addErrorDiagnosticForBinding(file, 1026, `Bindng "${binding.observerField}" is incorrectly configured. Valid method params are (), (value), (node), or (value, node)`, binding);
+export function addXmlBindingUsingFunctionAsField(file: File, binding: Binding) {
+    addErrorDiagnosticForBinding(file, 1026, `Binding "${binding.observerField}" is configured as a field binding; but points to a function. Either use a field as the target of this binding, or indicate the function call signature: e.g. (), (value), (node), or (value, node)`, binding);
 }
 
 export function addBuildTimeErrorImportNoImports(file: BrsFile | XmlFile, buildKey: string, line = 0, col = 0) {
@@ -261,4 +261,8 @@ export function IOCClassNotInScope(file: any, wrongclass: string, text: string, 
 export function IOCClassWrongArgs(file: any, wrongclass: string, text: string, className: string, range: Range) {
     addErrorDiagnostic(file, 1044,
         `Cannot inject ${wrongclass} into field  ${className}.${text}. Constructor arg mistmatch.`, range.start.line, range.start.character);
+}
+
+export function addXmlBindingCantParseFunctionCall(file: File, tagText: string, range: Range) {
+    addErrorDiagnostic(file, 1045, `Binding observer ${tagText} is configured as a function binding; but with an incorrect signature. Either use a field as the target of this binding, or indicate the function call signature: e.g. (), (value), (node), or (value, node).`, range.start.line, range.start.character);
 }

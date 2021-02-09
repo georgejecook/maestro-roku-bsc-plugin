@@ -1,7 +1,7 @@
 import type { Range } from 'brighterscript';
 import { TokenKind, isClassFieldStatement, isClassMethodStatement, Parser } from 'brighterscript';
 import type { File } from '../files/File';
-import { addXmlBindingUnknownFunctionArgs, addXmlBindingVMFieldNotFound, addXmlBindingVMFieldRequired, addXmlBindingVMFunctionNotFound, addXmlBindingVMFunctionWrongArgCount } from '../utils/Diagnostics';
+import { addXmlBindingUsingFunctionAsField, addXmlBindingVMFieldNotFound, addXmlBindingVMFieldRequired, addXmlBindingVMFunctionNotFound, addXmlBindingVMFunctionWrongArgCount } from '../utils/Diagnostics';
 
 import { BindingProperties } from './BindingProperties';
 import { BindingType, BindingSendMode } from './BindingType';
@@ -51,6 +51,10 @@ export default class Binding {
             return false;
         }
 
+        if (this.properties.sendMode === BindingSendMode.badlyFormed) {
+            return false;
+        }
+
         if (this.properties.sendMode > BindingSendMode.field) {
             let method = this.file.getMethod(this.observerField, TokenKind.Public);
             if (!isClassMethodStatement(method)) {
@@ -68,13 +72,13 @@ export default class Binding {
 
         } else if (!this.isUsingGetterAndSetter) {
             if (!this.file.getField(this.observerField, TokenKind.Public)) {
-                if (this.file.getMethod(this.observerField, TokenKind.Public)) {
-                    addXmlBindingUnknownFunctionArgs(this.file, this);
-                } else {
-                    addXmlBindingVMFieldNotFound(this.file, this);
-                }
+                addXmlBindingVMFieldNotFound(this.file, this);
                 this.isValid = false;
             }
+            if (this.file.getMethod(this.observerField)) {
+                addXmlBindingUsingFunctionAsField(this.file, this);
+            }
+
             if (this.isValid && this.properties.type === BindingType.oneWaySource && !isClassFieldStatement(this.file.getField(this.observerField))) {
                 addXmlBindingVMFieldRequired(this.file, this);
                 this.isValid = false;
@@ -199,7 +203,8 @@ export default class Binding {
         this.observerField = parts[1];
         if (parts.length > 2) {
             let callArgs = parts[2] ? parts[2].replace(/ /g, '') : '';
-            if (callArgs === '()' || (partText.includes('(') && !partText.endsWith(')'))) {
+            // if (callArgs === '()' || (partText.includes('(') && !partText.endsWith(')'))) {
+            if (callArgs === '()') {
                 this.properties.sendMode = BindingSendMode.none;
             } else if (callArgs === '(value)') {
                 this.properties.sendMode = BindingSendMode.value;
@@ -207,6 +212,9 @@ export default class Binding {
                 this.properties.sendMode = BindingSendMode.node;
             } else if (callArgs === '(value,node)') {
                 this.properties.sendMode = BindingSendMode.both;
+            } else if (partText.includes('(')) {
+                //must be corrupt
+                this.properties.sendMode = BindingSendMode.badlyFormed;
             } else {
                 this.properties.sendMode = BindingSendMode.field;
             }

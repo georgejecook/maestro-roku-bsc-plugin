@@ -55,7 +55,6 @@ describe('MaestroPlugin', () => {
             plugin.afterProgramCreate(program);
             program.addOrReplaceFile('source/comp.bs', `
             class myVM
-                public text
                 function onChangeVisible(value)
                 end function
            end class
@@ -73,8 +72,10 @@ describe('MaestroPlugin', () => {
         <Poster
             id='poster'
             visible='{(onChangeVisible)}'
-            click='{(onChangeVisible(event, value))}'
+            click0='{(onChangeVisible(wrong))}'
+            click1='{(onChangeVisible(wrong, signature))}'
             click2='{(onChangeVisible(event, value, another)}'
+            click2='{(onChangeVisible(value)}'
             click3='{(onChangeVisible())}'
             width='1920'
             height='174'
@@ -85,9 +86,87 @@ describe('MaestroPlugin', () => {
             program.validate();
             await builder.transpile();
             let diagnostics = program.getDiagnostics();
-            expect(diagnostics).to.have.lengthOf(2);
-            checkDiagnostic(diagnostics[0], 1025, 10);
-            checkDiagnostic(diagnostics[1], 1025, 11);
+            expect(diagnostics).to.have.lengthOf(6);
+            checkDiagnostic(diagnostics[0], 1010, 9);
+            checkDiagnostic(diagnostics[1], 1010, 10);
+            checkDiagnostic(diagnostics[2], 1010, 11);
+            checkDiagnostic(diagnostics[3], 1010, 12);
+            checkDiagnostic(diagnostics[4], 1026, 8);
+            checkDiagnostic(diagnostics[5], 1025, 13);
+        });
+
+        it('does not give diagnostics for valid target bindings', async () => {
+            plugin.afterProgramCreate(program);
+            program.addOrReplaceFile('source/comp.bs', `
+            class myVM
+                public isClicked
+                function onChangeVisible(value = invalid, node = invalid)
+                end function
+           end class
+        `);
+            program.addOrReplaceFile('components/comp.brs', `
+
+        `);
+
+            program.addOrReplaceFile('components/comp.xml', `
+            <component name="mv_BaseScreen" extends="mv_BaseView" vm="myVM">
+    <interface>
+    </interface>
+    <script type="text/brightscript" uri="pkg:/components/comp.brs" />
+    <children>
+        <Poster
+            id='poster'
+            click0='{(onChangeVisible(node))}'
+            click1='{(onChangeVisible(value,node))}'
+            click2='{(onChangeVisible(value, node))}'
+            click3='{(onChangeVisible(value))}'
+            click4='{(onChangeVisible())}'
+            click5='{(isClicked)}'
+            width='1920'
+            height='174'
+            uri=''
+            translation='[0,0]' />
+    </children>
+</component>`);
+            program.validate();
+            await builder.transpile();
+            let diagnostics = program.getDiagnostics();
+            expect(diagnostics).to.be.empty;
+        });
+
+        it('gives diagnostics when trying to set a function call back as a field', async () => {
+            plugin.afterProgramCreate(program);
+            program.addOrReplaceFile('source/comp.bs', `
+            class myVM
+                function onChangeVisible(value)
+                end function
+           end class
+        `);
+            program.addOrReplaceFile('components/comp.brs', `
+
+        `);
+
+            program.addOrReplaceFile('components/comp.xml', `
+            <component name="mv_BaseScreen" extends="mv_BaseView" vm="myVM">
+    <interface>
+    </interface>
+    <script type="text/brightscript" uri="pkg:/components/comp.brs" />
+    <children>
+        <Poster
+            id='poster'
+            visible='{(onChangeVisible)}'
+            click='{(onChangeVisible(value))}'
+            width='1920'
+            height='174'
+            uri=''
+            translation='[0,0]' />
+    </children>
+</component>`);
+            program.validate();
+            await builder.transpile();
+            let diagnostics = program.getDiagnostics();
+            expect(diagnostics).to.have.lengthOf(1);
+            checkDiagnostic(diagnostics[0], 1026, 8);
         });
         it('gives error diagnostics when id is not set', async () => {
             plugin.afterProgramCreate(program);
@@ -128,7 +207,7 @@ describe('MaestroPlugin', () => {
             plugin.afterProgramCreate(program);
             program.addOrReplaceFile('source/comp.bs', `
             class myVM
-                public text
+                public isClicked
                 function onChangeVisible(value = invalid, node = invalid)
                 end function
            end class
@@ -145,10 +224,11 @@ describe('MaestroPlugin', () => {
     <children>
         <Poster
             id='poster'
-            click0='{(onChangeVisible)}'
+            click0='{(isClicked)}'
             click1='{(onChangeVisible())}'
-            click2='{(onChangeVisible(event))}'
-            click3='{(onChangeVisible(event, value)}'
+            click2='{(onChangeVisible(value))}'
+            click3='{(onChangeVisible(value, node))}'
+            click3='{(onChangeVisible(node))}'
             width='1920'
             height='174'
             uri=''
@@ -936,8 +1016,8 @@ describe('MaestroPlugin', () => {
                 instance = {}
                 instance.new = sub()
                 m.fieldA = mioc_getInstance("Entitlements")
-                m.fieldB = createClassInstance("ChildVM")
-                m.fieldC = createClassInstance("ChildVM")
+                m.fieldB = mioc_createClassInstance("ChildVM")
+                m.fieldC = mioc_createClassInstance("ChildVM")
                 m.__className = "VM"
                 end sub
                 return instance
@@ -992,7 +1072,7 @@ describe('MaestroPlugin', () => {
                 expect(d[3].code).to.equal('MSTO1043');
             });
         });
-        describe('run a local project', () => {
+        describe.skip('run a local project', () => {
             it('sanity checks on parsing - only run this outside of ci', () => {
                 let programBuilder = new ProgramBuilder();
                 let config = {

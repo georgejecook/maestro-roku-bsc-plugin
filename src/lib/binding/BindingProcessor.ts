@@ -170,7 +170,7 @@ export class BindingProcessor {
                     errorCount++;
 
                 } else {
-                    for (let binding of file.bindings) {
+                    for (let binding of file.bindings.filter((b) => b.isValid)) {
                         binding.validateAgainstClass();
                         errorCount += binding.isValid ? 0 : 1;
                     }

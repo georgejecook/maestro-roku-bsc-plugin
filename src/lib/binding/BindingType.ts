@@ -7,11 +7,13 @@ export enum BindingType {
     code = 5 //efficient one off binding, with actual code {{=}}
 }
 
+
 export enum BindingSendMode {
     na = 0,
-    field = 1, //set a field on the callback
+    field = 1,
     none = 2,
-    value = 3, //send the data
-    node = 4, //send the node
-    both = 5 //send data,node
+    value = 3,
+    node = 4,
+    both = 5, //send data,node
+    badlyFormed = 6
 }

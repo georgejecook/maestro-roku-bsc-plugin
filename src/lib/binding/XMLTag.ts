@@ -1,8 +1,8 @@
 import type { File } from '../files/File';
 import Binding from './Binding';
-import { BindingType } from './BindingType';
+import { BindingSendMode, BindingType } from './BindingType';
 
-import { addXMLTagErrorCorruptXMLElement,
+import { addXmlBindingCantParseFunctionCall, addXMLTagErrorCorruptXMLElement,
     addXMLTagErrorCouldMissingEndBrackets,
     addXMLTagErrorCouldNotParseBinding,
     addXMLTagErrorCouldNotParseBindingBadPart,
@@ -10,6 +10,7 @@ import { addXMLTagErrorCorruptXMLElement,
     addXMLTagErrorCouldNotParseIsFiringOnceForField as addXMLTagErrorCouldNotParseBindingSettings } from '../utils/Diagnostics';
 import type { Range } from 'brighterscript';
 import type { SGTag } from 'brighterscript/dist/parser/SGTypes';
+import { BindingProperties } from './BindingProperties';
 
 
 export class XMLTag {
@@ -74,24 +75,33 @@ export class XMLTag {
                     if (mode === BindingType.code) {
                         binding.rawValueText = value.substring(3, value.length - 2);
                     } else if (mode === BindingType.twoWay) {
-                        //is it a bindng and sub binding (e.g. [{vmField}|vmFunc()])
+                        //is it a Binding and sub binding (e.g. [{vmField}|vmFunc()])
                         let parts = /(.*)\| *(.*)/.exec(bindingText);
                         if (parts && parts.length > 2) {
                             binding.createBinding(true);
                             binding.createBinding(false);
-                            this.parseSubBindingText(parts[1], binding.getBinding);
-                            this.parseSubBindingText(parts[2], binding.setBinding);
+                            this.parseSubBindingText(parts[1], binding.getBinding, binding.properties.type);
+                            this.parseSubBindingText(parts[2], binding.setBinding, binding.properties.type);
+                            if (!binding.getBinding.isValid) {
+                                binding.isValid = false;
+                                binding.errorMessage = binding.getBinding.errorMessage;
+                            } else if (!binding.setBinding.isValid) {
+                                binding.isValid = false;
+                                binding.errorMessage = binding.setBinding.errorMessage;
+                            }
                             binding.rawValueText = value;
                         } else {
-                            this.parseBindingText(bindingText, binding, value);
+                            this.parseBindingText(bindingText, binding, value, binding.properties.type);
                             binding.rawValueText = value;
                         }
 
                     } else {
-                        this.parseBindingText(bindingText, binding, value);
+                        this.parseBindingText(bindingText, binding, value, binding.properties.type);
                     }
                     binding.tagText = value;
-                    binding.validate();
+                    if (!binding.errorMessage) {
+                        binding.validate();
+                    }
                     bindings.push(binding);
 
                     if (!binding.isValid) {
@@ -120,24 +130,29 @@ export class XMLTag {
         return bindings;
     }
 
-    public parseSubBindingText(text: string, binding: Binding) {
+    public parseSubBindingText(text: string, binding: Binding, bindingType: BindingType) {
         const parts = text.split(':');
         for (let i = 0; i < parts.length; i++) {
-            this.parseBindingPart(i, parts[i].replace(/\s/g, ''), binding, text, binding.range);
+            this.parseBindingPart(i, parts[i].replace(/\s/g, ''), binding, text, binding.range, bindingType);
         }
         binding.rawValueText = text;
     }
-    public parseBindingText(text: string, binding: Binding, tagText: string) {
+
+    public parseBindingText(text: string, binding: Binding, tagText: string, bindingType: BindingType) {
         const parts = text.split(':');
         for (let i = 0; i < parts.length; i++) {
-            this.parseBindingPart(i, parts[i].replace(/\s/g, ''), binding, tagText, binding.range);
+            this.parseBindingPart(i, parts[i].replace(/\s/g, ''), binding, tagText, binding.range, bindingType);
         }
         binding.rawValueText = tagText;
     }
 
-    public parseBindingPart(index: number, partText: string, binding: Binding, tagText: string, range: Range) {
+    public parseBindingPart(index: number, partText: string, binding: Binding, tagText: string, range: Range, bindingType: BindingType) {
         if (index === 0) {
             binding.parseObserveField(partText);
+            if (bindingType === BindingType.oneWayTarget && binding.properties.sendMode === BindingSendMode.badlyFormed) {
+                binding.isValid = false;
+                binding.errorMessage = `Binding observer ${tagText} is configured as a function binding; but with an incorrect signature. Either use a field as the target of this binding, or indicate the function call signature: e.g. (), (value), (node), or (value, node).`;
+            }
         } else if (partText.toLowerCase().includes('transform=')) {
             //transform function
             let transformFunction = partText.substring(10);

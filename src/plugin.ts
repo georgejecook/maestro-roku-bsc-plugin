@@ -363,9 +363,9 @@ export class MaestroPlugin implements CompilerPlugin {
                         }
                     }
                     if (instanceArgs.length > 0) {
-                        wf.initialValue = new RawCodeStatement(`createClassInstance("${args[0].toString()}", [${instanceArgs.join(',')}])`, file, f.range);
+                        wf.initialValue = new RawCodeStatement(`mioc_createClassInstance("${args[0].toString()}", [${instanceArgs.join(',')}])`, file, f.range);
                     } else {
-                        wf.initialValue = new RawCodeStatement(`createClassInstance("${args[0].toString()}")`, file, f.range);
+                        wf.initialValue = new RawCodeStatement(`mioc_createClassInstance("${args[0].toString()}")`, file, f.range);
 
                     }
                 }
