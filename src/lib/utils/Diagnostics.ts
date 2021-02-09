@@ -171,18 +171,18 @@ export function addXmlBindingVMFieldNotFound(file: File, binding: Binding) {
 }
 
 export function addXmlBindingVMFunctionNotFound(file: File, binding: Binding) {
-    addErrorDiagnosticForBinding(file, 1024, `The event handling function "${binding.observerField}" was not found in class "${file.vmClassName}".`, binding);
+    addErrorDiagnosticForBinding(file, 1024, `Function "${binding.observerField}" was not found in class "${file.vmClassName}".`, binding);
 
 }
 
-export function addXmlBindingVMFunctionWrongArgCount(file: File, binding: Binding, expected: number, actualParams: number) {
-    addErrorDiagnosticForBinding(file, 1025, `The event handling function "${binding.observerField}" is configured with wrong number of params. Expected ${expected} parameters; function declaration has ${actualParams}`, binding);
+export function addXmlBindingVMFunctionWrongArgCount(file: File, binding: Binding, minArgs: number, maxArgs: number, actualParams: number) {
+    let expectedText = minArgs !== maxArgs ? `${minArgs} - ${maxArgs}` : `${minArgs}`;
+    addErrorDiagnosticForBinding(file, 1025, `Binding invokes "${binding.observerField}" with ${actualParams} params when ${expectedText} params was expected`, binding);
 }
 
 export function addXmlBindingUnknownFunctionArgs(file: File, binding: Binding) {
-    addErrorDiagnosticForBinding(file, 1026, `The event handling bindng "${binding.observerField}" is incorrectly configured. You can call vm functions with the (), (value), (node), or (value, node)`, binding);
+    addErrorDiagnosticForBinding(file, 1026, `Bindng "${binding.observerField}" is incorrectly configured. Valid method params are (), (value), (node), or (value, node)`, binding);
 }
-
 
 export function addBuildTimeErrorImportNoImports(file: BrsFile | XmlFile, buildKey: string, line = 0, col = 0) {
     file.addDiagnostics([createDiagnostic(file, 1027, `This file imports a build time import key that is defined in bsConfig; but does not include any imports: ${buildKey}`, line, col, line, 99999, DiagnosticSeverity.Warning)]);
@@ -246,10 +246,19 @@ export function addClassFieldsNotFocundOnSetOrGet(file: File, text: string, clas
 
 export function addIOCNoTypeSupplied(file: any, text: string, className: string, range: Range) {
     addErrorDiagnostic(file, 1041,
-        `class field: "${text}" from class ${className} is using an inject tag; but does not specify what to inject. Should supply 1 or 2 args (type, and optional subPath))`, range.start.line, range.start.character);
+        `Cannot inject: ${className}.${text}. Wrong arguments valid arts are: (type, optional subPath)`, range.start.line, range.start.character);
 }
 
 export function addIOCWrongArgs(file: any, text: string, className: string, range: Range) {
-    addErrorDiagnostic(file, 1041,
-        `injectClass annotation on class field: "${text}" from class ${className} must supply one argument`, range.start.line, range.start.character);
+    addErrorDiagnostic(file, 1042,
+        `Inject annotation on ${className}.${text} must supply one argument`, range.start.line, range.start.character);
+}
+
+export function IOCClassNotInScope(file: any, wrongclass: string, text: string, className: string, range: Range) {
+    addErrorDiagnostic(file, 1043,
+        `cannot inject ${wrongclass} into field ${className}.${text}. It is not in scope`, range.start.line, range.start.character);
+}
+export function IOCClassWrongArgs(file: any, wrongclass: string, text: string, className: string, range: Range) {
+    addErrorDiagnostic(file, 1044,
+        `Cannot inject ${wrongclass} into field  ${className}.${text}. Constructor arg mistmatch.`, range.start.line, range.start.character);
 }

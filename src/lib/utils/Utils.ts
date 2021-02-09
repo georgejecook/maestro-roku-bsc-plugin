@@ -83,7 +83,6 @@ export function getAssociatedFile(file: BrsFile | XmlFile, fileMap: ProjectFileM
     return undefined;
 }
 
-
 export function createRange(pos: Position) {
     return Range.create(pos.line, pos.character, pos.line, pos.character);
 }

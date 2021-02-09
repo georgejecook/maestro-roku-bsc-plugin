@@ -136,9 +136,6 @@ export class XMLTag {
     }
 
     public parseBindingPart(index: number, partText: string, binding: Binding, tagText: string, range: Range) {
-        if (partText.includes(',')) {
-            addXMLTagErrorCouldNotParseBindingBadPart(this.file, partText, range);
-        }
         if (index === 0) {
             binding.parseObserveField(partText);
         } else if (partText.toLowerCase().includes('transform=')) {

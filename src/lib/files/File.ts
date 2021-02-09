@@ -1,5 +1,5 @@
-import type { BrsFile, BscFile, BsDiagnostic, ClassFieldStatement, ClassMethodStatement, ClassStatement, TokenKind, XmlFile } from 'brighterscript';
-import { ParseMode, isClassFieldStatement, isClassMethodStatement } from 'brighterscript';
+import type { BrsFile, BscFile, BsDiagnostic, ClassFieldStatement, ClassMethodStatement, ClassStatement, XmlFile } from 'brighterscript';
+import { ParseMode, TokenKind, isClassFieldStatement, isClassMethodStatement } from 'brighterscript';
 
 import * as path from 'path';
 
@@ -150,7 +150,8 @@ export class File {
                 }
             }
         }
-        if (isClassMethodStatement(method) && (!vis || method.accessModifier?.kind === vis)) {
+        if (isClassMethodStatement(method) && (!vis ||
+            (method.accessModifier?.kind === vis || (vis === TokenKind.Public && !method.accessModifier)))) {
             return method;
         }
 
@@ -171,7 +172,7 @@ export class File {
                 }
             }
         }
-        if (field && (!vis || field.accessModifier?.kind === vis)) {
+        if (field && (!vis || (field.accessModifier?.kind === vis || (vis === TokenKind.Public && !field.accessModifier)))) {
             return field;
         } else {
             return undefined;
@@ -205,7 +206,7 @@ export class File {
 
     resetDiagnostics() {
         //clear out diagnostics from maestro; except for xml bindings which would have been reset during an xml file edit
-        (this.bscFile as any).diagnostics = (this.bscFile.getDiagnostics().filter((d) => typeof d.code !== 'string' || !d.code.includes('MSTO') || d.code === 'MSTO1039' || d.code === 'MSTO1015' || d.code === 'MSTO1013'));
+        (this.bscFile as any).diagnostics = (this.bscFile.getDiagnostics().filter((d) => typeof d.code !== 'string' || !d.code.includes('MSTO') || d.code === 'MSTO1039' || d.code === 'MSTO1015' || d.code === 'MSTO1013' || d.code === 'MSTO1010'));
     }
 
     resetBindings() {

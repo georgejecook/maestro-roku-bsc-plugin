@@ -40,6 +40,7 @@ export class BindingProcessor {
             (file) => file.fileType === FileType.Xml
         )) {
             if (file.isValid) {
+                console.log('generating', file.fullPath);
                 this.generateCodeForXMLFile(file);
             }
         }

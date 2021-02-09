@@ -20,7 +20,9 @@ import type { BrsFile,
     FileObj,
     Program, ProgramBuilder,
     TranspileObj,
-    XmlFile } from 'brighterscript';
+    XmlFile,
+    Scope,
+    CallableContainerMap } from 'brighterscript';
 
 import { ProjectFileMap } from './lib/files/ProjectFileMap';
 import type { MaestroConfig } from './lib/files/MaestroConfig';
@@ -35,7 +37,7 @@ import ReflectionUtil from './lib/reflection/ReflectionUtil';
 import { FileFactory } from './lib/utils/FileFactory';
 import NodeClassUtil from './lib/node-classes/NodeClassUtil';
 import { RawCodeStatement } from './lib/utils/RawCodeStatement';
-import { addClassFieldsNotFocundOnSetOrGet, addIOCNoTypeSupplied, addIOCWrongArgs } from './lib/utils/Diagnostics';
+import { addClassFieldsNotFocundOnSetOrGet, addIOCNoTypeSupplied, addIOCWrongArgs, IOCClassNotInScope } from './lib/utils/Diagnostics';
 import { getAllAnnotations, getAllFields } from './lib/utils/Utils';
 
 type Writeable<T> = { -readonly [P in keyof T]: T[P] };
@@ -213,6 +215,7 @@ export class MaestroPlugin implements CompilerPlugin {
                 if (allClassAnnotations['usesetfield']) {
                     this.updateFieldSets(cs);
                 }
+                let mFile = this.fileMap.allFiles.get(entry.file.pathAbsolute);
                 this.injectIOCCode(cs, entry.file);
 
             }
@@ -296,33 +299,78 @@ export class MaestroPlugin implements CompilerPlugin {
         }
     }
 
+    afterScopeValidate(scope: Scope, files: BscFile[], callables: CallableContainerMap) {
+        //validate the ioc calls
+        let classMap = scope.getClassMap();
+        for (let mapItem of [...classMap.values()]) {
+            let cs = mapItem.item;
+            let file = mapItem.file;
+            for (let f of cs.fields) {
+                let annotation = (f.annotations || []).find((a) => a.name === 'inject' || a.name === 'injectClass' || a.name === 'createClass');
+                if (annotation) {
+                    let args = annotation.getArguments();
+                    if (args.length === 0 || args[0].toString().trim() === '') {
+                        addIOCWrongArgs(file, `${f.name.text}`, cs.name.text, f.range);
+                    } else if (annotation.name === 'inject') {
+                        if (args.length === 0 || args.length > 2) {
+                            addIOCNoTypeSupplied(file, `${f.name.text}`, cs.name.text, f.range);
+                        }
+                    } else if (annotation.name === 'injectClass') {
+                        if (args.length !== 1) {
+                            addIOCWrongArgs(file, `${f.name.text}`, cs.name.text, f.range);
+                        } else {
+                            let targetClass = classMap.get(args[0].toString().toLowerCase());
+                            if (!targetClass) {
+                                IOCClassNotInScope(file, args[0].toString(), `${f.name.text}`, cs.name.text, f.range);
+                            }
+                        }
+                    } else if (annotation.name === 'createClass') {
+                        if (args.length < 1) {
+                            addIOCWrongArgs(file, `${cs.name.text}.${f.name.text}`, cs.name.text, f.range);
+                        } else {
+                            let targetClass = classMap.get(args[0].toString().toLowerCase());
+                            if (!targetClass) {
+                                IOCClassNotInScope(file, args[0].toString(), `${f.name.text}`, cs.name.text, f.range);
+                            } //
+                            // TODO - check constructor arg length
+                            //
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     private injectIOCCode(cs: ClassStatement, file: BrsFile) {
         for (let f of cs.fields) {
-            let annotation = (f.annotations || []).find((a) => a.name === 'inject' || a.name === 'injectClass');
+            let annotation = (f.annotations || []).find((a) => a.name === 'inject' || a.name === 'injectClass' || a.name === 'createClass');
             if (annotation) {
                 let args = annotation.getArguments();
-                if (args.length === 0) {
-                    addIOCNoTypeSupplied(file, `${cs.name.text}.${f.name.text}`, cs.name.text, f.range);
-                }
                 let wf = f as Writeable<ClassFieldStatement>;
                 if (annotation.name === 'inject') {
                     if (args.length === 1) {
                         wf.initialValue = new RawCodeStatement(`mioc_getInstance("${args[0].toString()}")`, file, f.range);
                     } else if (args.length === 2) {
                         wf.initialValue = new RawCodeStatement(`mioc_getInstance("${args[0].toString()}", "${args[1].toString()}")`, file, f.range);
-                    } else {
-                        addIOCWrongArgs(file, `${cs.name.text}.${f.name.text}`, cs.name.text, f.range);
                     }
                 } else if (annotation.name === 'injectClass') {
-                    if (args.length !== 1) {
-                        addIOCWrongArgs(file, `${cs.name.text}.${f.name.text}`, cs.name.text, f.range);
+                    wf.initialValue = new RawCodeStatement(`mioc_getClassInstance("${args[0].toString()}")`, file, f.range);
+                } else if (annotation.name === 'createClass') {
+                    let instanceArgs = [];
+                    for (let i = 1; i < args.length - 1; i++) {
+                        if (args[i]) {
+                            instanceArgs.push(args[i].toString());
+                        }
+                    }
+                    if (instanceArgs.length > 0) {
+                        wf.initialValue = new RawCodeStatement(`createClassInstance("${args[0].toString()}", [${instanceArgs.join(',')}])`, file, f.range);
                     } else {
-                        wf.initialValue = new RawCodeStatement(`mioc_getClassInstance("${args[0].toString()}")`, file, f.range);
+                        wf.initialValue = new RawCodeStatement(`createClassInstance("${args[0].toString()}")`, file, f.range);
+
                     }
                 }
                 wf.equal = createToken(TokenKind.Equal, '=', f.range);
             }
-
         }
     }
 }

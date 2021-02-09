@@ -1,5 +1,5 @@
-import { Range, TokenKind } from 'brighterscript';
-import { isClassFieldStatement, isClassMethodStatement, Parser } from 'brighterscript';
+import type { Range } from 'brighterscript';
+import { TokenKind, isClassFieldStatement, isClassMethodStatement, Parser } from 'brighterscript';
 import type { File } from '../files/File';
 import { addXmlBindingUnknownFunctionArgs, addXmlBindingVMFieldNotFound, addXmlBindingVMFieldRequired, addXmlBindingVMFunctionNotFound, addXmlBindingVMFunctionWrongArgCount } from '../utils/Diagnostics';
 
@@ -58,8 +58,10 @@ export default class Binding {
                 this.isValid = false;
             } else {
                 let expectedArgs = callArgsMap.get(this.properties.sendMode);
-                if (method.func.parameters.length !== expectedArgs) {
-                    addXmlBindingVMFunctionWrongArgCount(this.file, this, expectedArgs, method.func.parameters.length);
+                let maxArgs = method.func.parameters.length;
+                let minArgs = method.func.parameters.filter((p) => !p.defaultValue).length;
+                if (expectedArgs < minArgs || expectedArgs > maxArgs) {
+                    addXmlBindingVMFunctionWrongArgCount(this.file, this, minArgs, maxArgs, expectedArgs);
                     this.isValid = false;
                 }
             }

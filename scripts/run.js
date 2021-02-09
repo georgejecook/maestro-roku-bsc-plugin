@@ -31,22 +31,6 @@ let config = {
             'dest': ''
         },
         {
-            'src': '../external/plugins-src/**/*.*',
-            'dest': ''
-        },
-        {
-            'src': '../external/plugins-core-src/**/*.*',
-            'dest': ''
-        },
-        {
-            'src': '../external/private-emmys-src/**/*.*',
-            'dest': ''
-        },
-        {
-            'src': '../external/private-oc-src/**/*.*',
-            'dest': ''
-        },
-        {
             'src': '!../external/plugins-src/**/*.spec.bs',
             'dest': ''
         },
@@ -61,7 +45,8 @@ let config = {
         {
             'src': '!../external/private-oc-src/**/*.spec.*',
             'dest': ''
-        }
+        },
+        '!**/*.spec.bs'
     ],
     'diagnosticFilters': [
         {
@@ -74,16 +59,32 @@ let config = {
             ]
         },
         {
+            'src': '**/Whitelist.xml',
+            'codes': [
+                1067
+            ]
+        },
+        {
             'src': 'components/maestro/generated/**/*.*',
             'codes': [
                 1001
             ]
         },
-        1013
+        1013,
+        {
+            'src': '../external/plugins-src/components/YouboraAnalytics/*.*'
+        },
+        {
+            'src': '../external/plugins-src/components/segment_analytics/*.*'
+        },
+        {
+            'src': '../external/plugins-src/source/segment_analytics/SegmentAnalytics.brs'
+        },
+        {
+            'src': '**/RALETrackerTask.*'
+        }
     ],
     'plugins': [
-        '/home/george/hope/open-source/roku-log/roku-log-bsc-plugin/dist/plugin.js',
-        '/home/george/hope/open-source/rooibos/bsc-plugin/dist/plugin.js',
         '/home/george/hope/open-source/maestro/maestro-roku-bsc-plugin/dist/plugin.js'
     ],
     'rooibos': {
@@ -93,12 +94,16 @@ let config = {
     'maestro': {
         'buildTimeImports': {
             'IAuthProvider': [
-                'pkg:/source/aws_cognito_auth_plugin/AwsCognitoAuthPlugin.bs'
+                'pkg:/source/inplayer_auth_plugin_roku/InPlayerAuthPlugin.bs'
             ],
-            'IEntitlementsProvider': [],
+            'IEntitlementsProvider': [
+                'pkg:/source/inplayer_entitlements_plugin/InPlayerEntitlementsPlugin.bs'
+            ],
             'IBookmarksProvider': [],
             'IPlayerAnalytics': [],
-            'IAnalytics': []
+            'IAnalytics': [
+                'pkg:/source/google_analytics_roku/GoogleAnalyticsPlugin.bs'
+            ]
         }
     },
     'rokuLog': {
@@ -107,8 +112,6 @@ let config = {
     },
     'sourceMap': true
 };
-
-
 let programBuilder = new ProgramBuilder();
 programBuilder.run(
     config

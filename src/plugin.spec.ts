@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-confusing-void-expression */
-import type { BrsFile } from 'brighterscript';
+import type { BrsFile, BsDiagnostic } from 'brighterscript';
 import { DiagnosticSeverity, Program, ProgramBuilder, util } from 'brighterscript';
 import { expect } from 'chai';
 import { MaestroPlugin } from './plugin';
@@ -9,6 +9,8 @@ import * as fsExtra from 'fs-extra';
 import * as path from 'path';
 
 import { trimLeading } from './lib/utils/testHelpers.spec';
+import { Diagnostic } from 'typescript';
+import { assert } from 'console';
 
 let tmpPath = s`${process.cwd()}/tmp`;
 let _rootDir = s`${tmpPath}/rootDir`;
@@ -49,7 +51,7 @@ describe('MaestroPlugin', () => {
     describe('binding tests', () => {
 
 
-        it('warns when field bindings do not match class', async () => {
+        it('gives error diagnostics when field bindings do not match class', async () => {
             plugin.afterProgramCreate(program);
             program.addOrReplaceFile('source/comp.bs', `
             class myVM
@@ -69,8 +71,11 @@ describe('MaestroPlugin', () => {
     <script type="text/brightscript" uri="pkg:/components/comp.brs" />
     <children>
         <Poster
+            id='poster'
             visible='{(onChangeVisible)}'
-            id='topBanner'
+            click='{(onChangeVisible(event, value))}'
+            click2='{(onChangeVisible(event, value, another)}'
+            click3='{(onChangeVisible())}'
             width='1920'
             height='174'
             uri=''
@@ -78,27 +83,85 @@ describe('MaestroPlugin', () => {
     </children>
 </component>`);
             program.validate();
-            expect(program.getDiagnostics()).to.not.be.empty;
             await builder.transpile();
-            console.log(builder.getDiagnostics());
-            expect(builder.getDiagnostics()).to.not.be.empty;
+            let diagnostics = program.getDiagnostics();
+            expect(diagnostics).to.have.lengthOf(2);
+            checkDiagnostic(diagnostics[0], 1025, 10);
+            checkDiagnostic(diagnostics[1], 1025, 11);
+        });
+        it('gives error diagnostics when id is not set', async () => {
+            plugin.afterProgramCreate(program);
+            program.addOrReplaceFile('source/comp.bs', `
+            class myVM
+                public text
+                function onChangeVisible(value)
+                end function
+           end class
+        `);
+            program.addOrReplaceFile('components/comp.brs', `
 
-            let a = getContents('components/comp.xml');
-            let b = trimLeading(`<component name="mv_BaseScreen" extends="mv_BaseView">
-            <interface>
-            </interface>
-            <script type="text/brightscript" uri="pkg:/components/comp.brs" />
-            <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
-            <children>
-            <Poster id="topBanner" width="1920" height="174" uri="" translation="[0,0]" />
-            </children>
-            </component>
-            `);
-            expect(a).to.equal(b);
+        `);
 
+            program.addOrReplaceFile('components/comp.xml', `
+            <component name="mv_BaseScreen" extends="mv_BaseView" vm="myVM">
+    <interface>
+    </interface>
+    <script type="text/brightscript" uri="pkg:/components/comp.brs" />
+    <children>
+        <Poster
+            test='{{text}}'
+            click='{(onChangeVisible(event, value))}'
+            height='174'
+            uri=''
+            translation='[0,0]' />
+    </children>
+</component>`);
+            program.validate();
+            await builder.transpile();
+            let diagnostics = program.getDiagnostics();
+            expect(diagnostics).to.have.lengthOf(2);
+            checkDiagnostic(diagnostics[0], 1010, 7);
+            checkDiagnostic(diagnostics[1], 1010, 8);
         });
 
-        it.only('warns when field bindings are not public', async () => {
+        it('takes optional params into account', async () => {
+            plugin.afterProgramCreate(program);
+            program.addOrReplaceFile('source/comp.bs', `
+            class myVM
+                public text
+                function onChangeVisible(value = invalid, node = invalid)
+                end function
+           end class
+        `);
+            program.addOrReplaceFile('components/comp.brs', `
+
+        `);
+
+            program.addOrReplaceFile('components/comp.xml', `
+            <component name="mv_BaseScreen" extends="mv_BaseView" vm="myVM">
+    <interface>
+    </interface>
+    <script type="text/brightscript" uri="pkg:/components/comp.brs" />
+    <children>
+        <Poster
+            id='poster'
+            click0='{(onChangeVisible)}'
+            click1='{(onChangeVisible())}'
+            click2='{(onChangeVisible(event))}'
+            click3='{(onChangeVisible(event, value)}'
+            width='1920'
+            height='174'
+            uri=''
+            translation='[0,0]' />
+    </children>
+</component>`);
+            program.validate();
+            await builder.transpile();
+            let diagnostics = program.getDiagnostics();
+            expect(diagnostics).to.be.empty;
+        });
+
+        it('warns when field bindings are not public', async () => {
             plugin.afterProgramCreate(program);
             program.addOrReplaceFile('source/comp.bs', `
             class myVM
@@ -131,19 +194,6 @@ describe('MaestroPlugin', () => {
             await builder.transpile();
             console.log(builder.getDiagnostics());
             expect(builder.getDiagnostics()).to.not.be.empty;
-
-            let a = getContents('components/comp.xml');
-            let b = trimLeading(`<component name="mv_BaseScreen" extends="mv_BaseView">
-            <interface>
-            </interface>
-            <script type="text/brightscript" uri="pkg:/components/comp.brs" />
-            <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
-            <children>
-            <Poster id="topBanner" width="1920" height="174" uri="" translation="[0,0]" />
-            </children>
-            </component>
-            `);
-            expect(a).to.equal(b);
 
         });
 
@@ -815,18 +865,22 @@ describe('MaestroPlugin', () => {
         });
         describe('ioc', () => {
 
-            it('wires up fields with inject annocations', async () => {
+            it('wires up fields with inject annotations', async () => {
                 plugin.afterProgramCreate(program);
 
                 program.addOrReplaceFile('source/VM.bs', `
-                    @useSetField
                     class VM
                         @inject("EntitleMents")
                         public fieldA
                         @injectClass("mc.collections.FieldMapper")
                         public fieldB
                    end class
+                   namespace mc.collections
+                    class FieldMapper
+                    end class
+                   end namespace
                 `);
+                program.validate();
                 await builder.transpile();
                 expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
                 let a = getContents('source/VM.brs');
@@ -843,11 +897,102 @@ describe('MaestroPlugin', () => {
                 instance = __VM_builder()
                 instance.new()
                 return instance
+                end function
+                function __mc_collections_FieldMapper_builder()
+                instance = {}
+                instance.new = sub()
+                m.__className = "mc.collections.FieldMapper"
+                end sub
+                return instance
+                end function
+                function mc_collections_FieldMapper()
+                instance = __mc_collections_FieldMapper_builder()
+                instance.new()
+                return instance
                 end function`);
                 expect(a).to.equal(b);
             });
+
+            it('allows instantiation of class objects from annotation', async () => {
+                plugin.afterProgramCreate(program);
+
+                program.addOrReplaceFile('source/VM.bs', `
+                    class VM
+                        @inject("Entitlements")
+                        public fieldA
+                        @createClass("ChildVM")
+                        public fieldB
+                        @createClass("ChildVM", arg1, arg2)
+                        public fieldC
+                    end class
+                    class ChildVM extends VM
+                    end class
+                `);
+                program.validate();
+                await builder.transpile();
+                expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+                let a = getContents('source/VM.brs');
+                let b = trimLeading(`function __VM_builder()
+                instance = {}
+                instance.new = sub()
+                m.fieldA = mioc_getInstance("Entitlements")
+                m.fieldB = createClassInstance("ChildVM")
+                m.fieldC = createClassInstance("ChildVM")
+                m.__className = "VM"
+                end sub
+                return instance
+                end function
+                function VM()
+                instance = __VM_builder()
+                instance.new()
+                return instance
+                end function
+                function __ChildVM_builder()
+                instance = __VM_builder()
+                instance.super0_new = instance.new
+                instance.new = sub()
+                m.super0_new()
+                m.__className = "ChildVM"
+                end sub
+                return instance
+                end function
+                function ChildVM()
+                instance = __ChildVM_builder()
+                instance.new()
+                return instance
+                end function`);
+                expect(a).to.equal(b);
+            });
+
+            it('gives diagnostics when the injection annotations are malformed', () => {
+                plugin.afterProgramCreate(program);
+
+                program.addOrReplaceFile('source/VM.bs', `
+                    class VM
+                        @inject()
+                        public fieldA
+                        @inject("")
+                        public fieldB
+                        @createClass("")
+                        public fieldC
+                        @createClass("notInScope")
+                        public fieldD
+                        @createClass("ChildVM", bad, values)
+                        public fieldE
+                    end class
+                    class ChildVM extends VM
+                    end class
+                `);
+                program.validate();
+                let d = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error);
+                expect(d).to.have.lengthOf(4);
+                expect(d[0].code).to.equal('MSTO1042');
+                expect(d[1].code).to.equal('MSTO1042');
+                expect(d[2].code).to.equal('MSTO1042');
+                expect(d[3].code).to.equal('MSTO1043');
+            });
         });
-        describe.skip('run a local project', () => {
+        describe('run a local project', () => {
             it('sanity checks on parsing - only run this outside of ci', () => {
                 let programBuilder = new ProgramBuilder();
                 let config = {
@@ -906,6 +1051,12 @@ describe('MaestroPlugin', () => {
                             ]
                         },
                         {
+                            'src': '**/Whitelist.xml',
+                            'codes': [
+                                1067
+                            ]
+                        },
+                        {
                             'src': 'components/maestro/generated/**/*.*',
                             'codes': [
                                 1001
@@ -926,7 +1077,6 @@ describe('MaestroPlugin', () => {
                         }
                     ],
                     'plugins': [
-                        '/home/george/hope/open-source/roku-log/roku-log-bsc-plugin/dist/plugin.js',
                         '/home/george/hope/open-source/maestro/maestro-roku-bsc-plugin/dist/plugin.js'
                     ],
                     'rooibos': {
@@ -971,4 +1121,11 @@ describe('MaestroPlugin', () => {
 
 function getContents(filename: string) {
     return trimLeading(fsExtra.readFileSync(s`${_stagingFolderPath}/${filename}`).toString());
+}
+
+function checkDiagnostic(d: BsDiagnostic, expectedCode: number, line?: number) {
+    expect(d.code).is.equal(`MSTO${expectedCode}`);
+    if (line) {
+        expect(d.range.start.line).is.equal(line);
+    }
 }
