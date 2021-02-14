@@ -170,7 +170,7 @@ export default class Binding {
             text += `m.${this.nodeId}.${this.nodeField} = ${this.rawValueText}`;
         } else if (this.properties.type === BindingType.static) {
             const valueText = this.fullFieldPath.split('.').length > 1
-                ? `MU_getContentField(vm,"${this.fullFieldPath}")` : `vm.${this.observerField}`;
+                ? `mc_getPath(vm,"${this.fullFieldPath}")` : `vm.${this.observerField}`;
             if (this.properties.transformFunction) {
                 text += `m.${this.nodeId}.${this.nodeField} = ${this.properties.transformFunction}(${valueText})`;
             } else {

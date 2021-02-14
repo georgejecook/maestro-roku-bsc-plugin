@@ -319,7 +319,7 @@ describe('MaestroPlugin', () => {
             if m.vm <> invalid then
             vm = m.vm
             m_createNodeVars()
-            m.poster.style = MU_getContentField(vm,"riversJson.styles")
+            m.poster.style = mc_getPath(vm,"riversJson.styles")
             m.poster.entry = vm.entry
             end if
             end function`);
