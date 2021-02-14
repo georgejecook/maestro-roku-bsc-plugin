@@ -241,6 +241,91 @@ describe('MaestroPlugin', () => {
             expect(diagnostics).to.be.empty;
         });
 
+        it('inserts static bindings', async () => {
+            plugin.afterProgramCreate(program);
+            program.addOrReplaceFile('source/vm.bs', `
+            class myVM
+                public riversJson
+                public entry
+           end class
+        `);
+
+            program.addOrReplaceFile('components/comp.bs', `
+            class myVM
+                public riversJson
+                public entry
+           end class
+        `);
+
+            program.addOrReplaceFile('components/comp.xml', `
+            <component name="mv_BaseScreen" extends="mv_BaseView" vm="myVM">
+    <interface>
+    </interface>
+    <script type="text/brightscript" uri="pkg:/components/comp.bs" />
+    <children>
+        <Poster
+            id='poster'
+            style='{{:riversJson.styles}}'
+            entry='{{:entry}}'
+            width='1920'
+            height='174'
+            uri=''
+            translation='[0,0]' />
+    </children>
+</component>`);
+            program.validate();
+            await builder.transpile();
+            let diagnostics = program.getDiagnostics();
+            expect(diagnostics).to.be.empty;
+            let a = getContents('components/comp.brs');
+            let b = trimLeading(`function __myVM_builder()
+            instance = {}
+            instance.new = sub()
+            m.riversJson = invalid
+            m.entry = invalid
+            m.__className = "myVM"
+            end sub
+            return instance
+            end function
+            function myVM()
+            instance = __myVM_builder()
+            instance.new()
+            return instance
+            end function
+
+            function m_createNodeVars()
+            if m._isCreateNodeVarsCalled = true then
+            return invalid
+            else
+            m._isCreateNodeVarsCalled = true
+            end if
+            mv_findNodes([
+            "poster"
+            ])
+            end function
+
+            function m_initBindings()
+            if m.vm <> invalid then
+            vm = m.vm
+
+            if vm.onBindingsConfigured <> invalid
+            vm.onBindingsConfigured()
+            end if
+
+            end if
+            end function
+
+            function m_initStaticBindings()
+            if m.vm <> invalid then
+            vm = m.vm
+            m_createNodeVars()
+            m.poster.style = MU_getContentField(vm,"riversJson.styles")
+            m.poster.entry = vm.entry
+            end if
+            end function`);
+            expect(a).to.equal(b);
+        });
+
         it('warns when field bindings are not public', async () => {
             plugin.afterProgramCreate(program);
             program.addOrReplaceFile('source/comp.bs', `

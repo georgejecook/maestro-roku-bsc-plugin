@@ -27,6 +27,7 @@ export default class Binding {
     public isValid = false;
     public isTopBinding = false;
     public observerField: string;
+    public fullFieldPath: string;
     public nodeId: string;
     public nodeField: string;
     public properties: BindingProperties;
@@ -168,8 +169,8 @@ export default class Binding {
         if (this.properties.type === BindingType.code) {
             text += `m.${this.nodeId}.${this.nodeField} = ${this.rawValueText}`;
         } else if (this.properties.type === BindingType.static) {
-            const valueText = this.observerField.split('.').length > 1
-                ? `MU_getContentField(vm,"${this.observerField}")` : `vm.${this.observerField}`;
+            const valueText = this.fullFieldPath.split('.').length > 1
+                ? `MU_getContentField(vm,"${this.fullFieldPath}")` : `vm.${this.observerField}`;
             if (this.properties.transformFunction) {
                 text += `m.${this.nodeId}.${this.nodeField} = ${this.properties.transformFunction}(${valueText})`;
             } else {
@@ -201,6 +202,7 @@ export default class Binding {
         let regex = /([a-z0-8_]*)(\( *(value *,* *node| *value *| *node *)*\))*/gi;
         let parts = regex.exec(partText);
         this.observerField = parts[1];
+        this.fullFieldPath = partText;
         if (parts.length > 2) {
             let callArgs = parts[2] ? parts[2].replace(/ /g, '') : '';
             // if (callArgs === '()' || (partText.includes('(') && !partText.endsWith(')'))) {
