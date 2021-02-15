@@ -84,7 +84,7 @@ export class MaestroPlugin implements CompilerPlugin {
     }
 
     afterFileParse(file: (BrsFile | XmlFile)): void {
-        console.log('afp-----', file.pathAbsolute);
+        // console.log('afp-----', file.pathAbsolute);
         let mFile = this.fileMap.allFiles.get(file.pathAbsolute);
         if (!mFile) {
             mFile = this.fileMap.createFile(file);
@@ -113,7 +113,7 @@ export class MaestroPlugin implements CompilerPlugin {
     }
 
     afterFileValidate(file: BscFile) {
-        console.log('afv-----', file.pathAbsolute);
+        // console.log('afv-----', file.pathAbsolute);
         if (!this.shouldParseFile(file)) {
             return;
         }
@@ -140,7 +140,7 @@ export class MaestroPlugin implements CompilerPlugin {
     }
 
     beforeProgramValidate(program: Program) {
-        console.log('apv-----');
+        // console.log('apv-----');
         for (let filePath of [...this.dirtyCompFilePaths.values()]) {
             let file = this.fileMap.allFiles.get(filePath);
             file.bscFile = this.builder.program.getFileByPathAbsolute(filePath);
