@@ -12,6 +12,7 @@ export enum MaestroLogLevel {
 export interface MaestroConfig {
     logLevel?: MaestroLogLevel;
     buildTimeImports?: any;
+    insertXmlBindingsEarly?: boolean;
     excludeFilters?: string[];
 }
 

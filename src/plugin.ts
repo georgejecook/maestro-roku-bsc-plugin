@@ -84,7 +84,7 @@ export class MaestroPlugin implements CompilerPlugin {
     }
 
     afterFileParse(file: (BrsFile | XmlFile)): void {
-        // console.log('afp-----', file.pathAbsolute);
+        console.log('afp-----', file.pathAbsolute);
         let mFile = this.fileMap.allFiles.get(file.pathAbsolute);
         if (!mFile) {
             mFile = this.fileMap.createFile(file);
@@ -113,8 +113,11 @@ export class MaestroPlugin implements CompilerPlugin {
     }
 
     afterFileValidate(file: BscFile) {
-        // console.log('afv-----', file.pathAbsolute);
+        console.log('afv-----', file.pathAbsolute);
         if (!this.shouldParseFile(file)) {
+            return;
+        }
+        if (file.pkgPath.startsWith('components/maestro/generated')) {
             return;
         }
         let compFile = this.fileMap.allFiles.get(file.pathAbsolute);
@@ -137,13 +140,14 @@ export class MaestroPlugin implements CompilerPlugin {
     }
 
     beforeProgramValidate(program: Program) {
-        // console.log('apv-----');
+        console.log('apv-----');
         for (let filePath of [...this.dirtyCompFilePaths.values()]) {
             let file = this.fileMap.allFiles.get(filePath);
             file.bscFile = this.builder.program.getFileByPathAbsolute(filePath);
             file.resetDiagnostics();
             this.bindingProcessor.validateBindings(file);
-            if (file.isValid) {
+            if (this.maestroConfig.insertXmlBindingsEarly && file.isValid) {
+                console.log('adding xml transpiled code for ', file.bscFile.pkgPath);
                 this.bindingProcessor.generateCodeForXMLFile(file);
             }
         }
@@ -215,9 +219,23 @@ export class MaestroPlugin implements CompilerPlugin {
                 if (allClassAnnotations['usesetfield']) {
                     this.updateFieldSets(cs);
                 }
-                let mFile = this.fileMap.allFiles.get(entry.file.pathAbsolute);
                 this.injectIOCCode(cs, entry.file);
+            }
+        }
+    }
 
+    beforeProgramTranspile(program: Program, entries: TranspileObj[]) {
+        if (!this.maestroConfig.insertXmlBindingsEarly) {
+            console.log('injecting binding code into files with vms');
+
+            for (let entry of entries) {
+                if (isXmlFile(entry.file)) {
+                    let mFile = this.fileMap.allFiles.get(entry.file.pathAbsolute);
+                    if (mFile.isValid) {
+                        console.log('adding xml transpiled code for ', entry.file.pkgPath);
+                        this.bindingProcessor.generateCodeForXMLFile(mFile);
+                    }
+                }
             }
         }
     }
@@ -305,6 +323,9 @@ export class MaestroPlugin implements CompilerPlugin {
         for (let mapItem of [...classMap.values()]) {
             let cs = mapItem.item;
             let file = mapItem.file;
+            if (file.pkgPath.startsWith('components/maestro/generated')) {
+                continue;
+            }
             for (let f of cs.fields) {
                 let annotation = (f.annotations || []).find((a) => a.name === 'inject' || a.name === 'injectClass' || a.name === 'createClass');
                 if (annotation) {
