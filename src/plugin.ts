@@ -92,6 +92,9 @@ export class MaestroPlugin implements CompilerPlugin {
         mFile.bscFile = file;
 
         if (file.pkgPath.startsWith('components/maestro/generated')) {
+
+            // eslint-disable-next-line @typescript-eslint/dot-notation
+            file['diagnostics'] = [];
             return;
         }
         if (isBrsFile(file)) {
@@ -118,6 +121,8 @@ export class MaestroPlugin implements CompilerPlugin {
             return;
         }
         if (file.pkgPath.startsWith('components/maestro/generated')) {
+            // eslint-disable-next-line @typescript-eslint/dot-notation
+            file['diagnostics'] = [];
             return;
         }
         let compFile = this.fileMap.allFiles.get(file.pathAbsolute);
@@ -140,7 +145,7 @@ export class MaestroPlugin implements CompilerPlugin {
     }
 
     beforeProgramValidate(program: Program) {
-        // console.log('apv-----');
+        // console.log('bpv-----');
         for (let filePath of [...this.dirtyCompFilePaths.values()]) {
             let file = this.fileMap.allFiles.get(filePath);
             file.bscFile = this.builder.program.getFileByPathAbsolute(filePath);
