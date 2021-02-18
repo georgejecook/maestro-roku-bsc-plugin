@@ -837,7 +837,7 @@ describe('MaestroPlugin', () => {
                 expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.not.be.empty;
             });
 
-            it.only('gives diagostic for unknown field; but skips __classname', () => {
+            it('gives diagostic for unknown field; but skips valid skips', () => {
                 plugin.afterProgramCreate(program);
 
                 program.addOrReplaceFile('source/VM.bs', `
@@ -847,6 +847,10 @@ describe('MaestroPlugin', () => {
                         function doStuff()
                         ? m.__className
                         m.__className = "foo"
+                        ? m.doesExist("foo")
+                        ? m.lookup("foo")
+                        ? m.keys("foo")
+                        ? m.count("foo")
                         end function
                     end class
                 `);

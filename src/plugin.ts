@@ -57,7 +57,18 @@ export class MaestroPlugin implements CompilerPlugin {
     private dirtyNodeClassPaths = new Set<string>();
 
     private skips = {
-        '__classname': true
+        '__classname': true,
+        'addreplace': true,
+        'lookup': true,
+        'lookupci': true,
+        'doesexist': true,
+        'delete': true,
+        'clear': true,
+        'keys': true,
+        'items': true,
+        'setmodecasesensitive': true,
+        'append': true,
+        'count': true
     };
 
     beforeProgramCreate(builder: ProgramBuilder): void {
