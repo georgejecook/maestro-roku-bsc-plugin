@@ -11,7 +11,6 @@
         "test": "test"
     },
     "dependencies": {
-        "brighterscript": "^0.30.0-local",
         "debounce": "^1.2.0",
         "roku-deploy": "^3.2.4",
         "source-map": "^0.7.3",
@@ -25,6 +24,7 @@
         "@types/node": "^14.14.16",
         "@typescript-eslint/eslint-plugin": "^4.4.1",
         "@typescript-eslint/parser": "^4.4.1",
+        "brighterscript": "file:../../vsc/brighterscript",
         "chai": "^4.2.0",
         "eslint": "^7.11.0",
         "eslint-plugin-github": "^4.1.1",

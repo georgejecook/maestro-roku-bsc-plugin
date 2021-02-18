@@ -837,6 +837,23 @@ describe('MaestroPlugin', () => {
                 expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.not.be.empty;
             });
 
+            it.only('gives diagostic for unknown field; but skips __classname', () => {
+                plugin.afterProgramCreate(program);
+
+                program.addOrReplaceFile('source/VM.bs', `
+                    @strict
+                    class VM
+                        public fieldA
+                        function doStuff()
+                        ? m.__className
+                        m.__className = "foo"
+                        end function
+                    end class
+                `);
+                program.validate();
+                expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+            });
+
             it('gives diagnostic for  unknown function', () => {
                 plugin.afterProgramCreate(program);
 
@@ -1281,7 +1298,7 @@ describe('MaestroPlugin', () => {
             });
         });
     });
-    describe.only('run a local project (s)', () => {
+    describe('run a local project (s)', () => {
         it('sanity checks on parsing - only run this outside of ci', () => {
             let programBuilder = new ProgramBuilder();
             programBuilder.run(
