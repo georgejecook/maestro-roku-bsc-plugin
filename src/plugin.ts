@@ -193,9 +193,7 @@ export class MaestroPlugin implements CompilerPlugin {
                 }
             }
         }
-
         this.dirtyCompFilePaths.clear();
-        this.dirtyNodeClassPaths.clear();
     }
 
     afterProgramValidate(program: Program) {
@@ -218,6 +216,12 @@ export class MaestroPlugin implements CompilerPlugin {
                 }
             }
         }
+        for (let filePath of [...this.dirtyNodeClassPaths.values()]) {
+            for (let nc of this.fileMap.nodeClassesByPath.get(filePath)) {
+                nc.validateBaseComponent(this.builder, this.fileMap.validComps);
+            }
+        }
+        this.dirtyNodeClassPaths.clear();
     }
 
     getCompFilesThatHaveFileInScope(file: BscFile): File[] {
@@ -586,9 +590,7 @@ export class MaestroPlugin implements CompilerPlugin {
         return parts.reverse();
     }
 
-
 }
-
 
 export default () => {
     return new MaestroPlugin();

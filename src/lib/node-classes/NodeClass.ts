@@ -1,4 +1,4 @@
-import type { AnnotationExpression, BrsFile, ClassFieldStatement, ClassMethodStatement, ClassStatement, FunctionStatement, Program, XmlFile } from 'brighterscript';
+import type { AnnotationExpression, BrsFile, ClassFieldStatement, ClassMethodStatement, ClassStatement, FunctionStatement, Program, ProgramBuilder, XmlFile } from 'brighterscript';
 import { isClassMethodStatement, ParseMode, TokenKind } from 'brighterscript';
 import { TranspileState } from 'brighterscript/dist/parser/TranspileState';
 import type { ProjectFileMap } from '../files/ProjectFileMap';
@@ -336,10 +336,17 @@ export class NodeClass {
         return items;
     }
 
-    public validate() {
-        if (!this.fileMap.allXMLComponentFiles.get(this.extendsName) && (!this.fileMap.validComps.has(this.extendsName))) {
-            addNodeClassNoExtendNodeFound(this.file, this.name, this.extendsName, this.annotation.range.start.line, this.annotation.range.start.character);
+    public validateBaseComponent(builder: ProgramBuilder, sgComps: Set<string>) {
+        let comp = builder.program.getComponent(this.extendsName.toLowerCase());
+
+        if (!comp || comp.file.componentName.text !== this.extendsName) {
+            if (!sgComps.has(this.extendsName)) {
+                addNodeClassNoExtendNodeFound(this.file, this.name, this.extendsName, this.annotation.range.start.line, this.annotation.range.start.character);
+            }
         }
+    }
+
+    public validate() {
         for (let field of this.nodeFields) {
             if (field.observerAnnotation) {
                 let observerArgs = field.observerAnnotation.getArguments();
