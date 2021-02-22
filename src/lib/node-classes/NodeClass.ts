@@ -236,7 +236,7 @@ export class NodeClass {
     name="${nodeFile.name}"
     extends="${nodeFile.extendsName}">
   <interface>
-    <field id="data" type="assocarray"/>
+    <field id="json" type="assocarray"/>
     `;
 
         for (let member of nodeFile.nodeFields) {

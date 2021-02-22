@@ -499,7 +499,7 @@ export class MaestroPlugin implements CompilerPlugin {
 
                                 }
                             }
-                        } else {
+                        } else if (nameParts.length > 0) {
                             //is a class method?
                             if (!memberLookup[name.toLowerCase()]) {
                                 // console.log('>> ' + name.toLowerCase());
