@@ -210,7 +210,7 @@ export class MaestroPlugin implements CompilerPlugin {
             } else if (isBrsFile(f) && this.shouldParseFile(f)) {
                 let mFile = this.fileMap.allFiles.get(f.pathAbsolute);
                 if (mFile) {
-                    console.log(' checking ', f.pkgPath);
+                    // console.log(' checking ', f.pkgPath);
                     this.checkMReferences(mFile);
                     this.doExtraValidations(f);
                 } else {
