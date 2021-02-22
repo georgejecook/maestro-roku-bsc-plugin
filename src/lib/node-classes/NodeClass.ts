@@ -222,6 +222,7 @@ export class NodeClass {
   <interface>
     <field id="args" type="assocarray"/>
     <field id="output" type="assocarray"/>
+    <function name="exec"/>
     </interface>
     <children>
     </children>
@@ -259,7 +260,7 @@ export class NodeClass {
         let members = this.type === NodeClassType.task ? [] : [...this.getClassMembers(this.classStatement, fileMap).values()];
 
 
-        let source = `import "pkg:/${this.file.pkgPath}"`;
+        let source = `import "pkg:/${this.file.pkgPath}"\n`;
 
         let initBody = ``;
         let otherText = '';

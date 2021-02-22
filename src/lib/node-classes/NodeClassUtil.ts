@@ -34,10 +34,13 @@ export default class NodeClassUtil {
                 let extendsName = args.length === 2 ? (args[1] as string)?.trim() : undefined;
                 if (nodeType === NodeClassType.task && !isClassMethodStatement(cs.memberMap.noderun)) {
                     addNodeClassNoNodeRunMethod(file, annotation.range.start.line, annotation.range.start.character + 1);
+                    console.log(' no node run in ', file.pkgPath);
                 } else if (args.length < 2 || !nodeName || !extendsName) {
                     addNodeClassBadDeclaration(file, '', annotation.range.start.line, annotation.range.start.character + 1);
+                    console.log(' bad class in ', file.pkgPath);
                 } else if (this.fileMap.nodeClasses.has(nodeName)) {
                     addNodeClassDuplicateName(file, nodeName, annotation.range.start.line, annotation.range.start.character + 1);
+                    console.log(' duplicate node in ', file.pkgPath);
                 } else {
                     let isValid = true;
                     if (nodeType === NodeClassType.node) {
@@ -46,6 +49,7 @@ export default class NodeClassUtil {
                         if (newFunc && newFunc.func.parameters.length !== 2) {
                             addNodeClassWrongNewSignature(file, annotation.range.start.line, annotation.range.start.character);
                             isValid = false;
+                            console.log(' wrong sig in ', file.pkgPath);
                         }
                     }
                     if (isValid) {
@@ -60,6 +64,8 @@ export default class NodeClassUtil {
                             this.fileMap.nodeClassesByPath.set(file.pathAbsolute, nodeClasses);
                         }
                         nodeClasses.push(nodeClass);
+                    } else {
+                        console.log('not adding invalid class', cs.name.text);
                     }
                 }
             }

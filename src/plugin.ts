@@ -12,7 +12,8 @@ import { isVariableExpression,
     TokenKind,
     isBrsFile,
     isXmlFile,
-    VariableExpression } from 'brighterscript';
+    VariableExpression,
+    isDottedGetExpression } from 'brighterscript';
 import type { BrsFile,
     BscFile,
     ClassStatement,
@@ -22,7 +23,9 @@ import type { BrsFile,
     TranspileObj,
     XmlFile,
     Scope,
-    CallableContainerMap } from 'brighterscript';
+    CallableContainerMap,
+    FunctionStatement,
+    Statement } from 'brighterscript';
 
 import { ProjectFileMap } from './lib/files/ProjectFileMap';
 import type { MaestroConfig } from './lib/files/MaestroConfig';
@@ -37,10 +40,25 @@ import ReflectionUtil from './lib/reflection/ReflectionUtil';
 import { FileFactory } from './lib/utils/FileFactory';
 import NodeClassUtil from './lib/node-classes/NodeClassUtil';
 import { RawCodeStatement } from './lib/utils/RawCodeStatement';
-import { addClassFieldsNotFocundOnSetOrGet, addIOCNoTypeSupplied, addIOCWrongArgs, IOCClassNotInScope } from './lib/utils/Diagnostics';
+import { addClassFieldsNotFoundOnSetOrGet, addIOCNoTypeSupplied, addIOCWrongArgs, IOCClassNotInScope, unknownClassMethod, unknownType, wrongMethodArgs } from './lib/utils/Diagnostics';
 import { getAllAnnotations, getAllFields } from './lib/utils/Utils';
+import { getSGMembersLookup } from './SGApi';
 
 type Writeable<T> = { -readonly [P in keyof T]: T[P] };
+interface FunctionInfo {
+    minArgs: number;
+    maxArgs: number;
+}
+interface NamespaceContainer {
+    file: BscFile;
+    fullName: string;
+    nameRange: Range;
+    lastPartName: string;
+    statements: Statement[];
+    classStatements: Record<string, ClassStatement>;
+    functionStatements: Record<string, FunctionStatement>;
+    namespaces: Record<string, NamespaceContainer>;
+}
 
 export class MaestroPlugin implements CompilerPlugin {
     public name = 'maestroPlugin';
@@ -150,15 +168,6 @@ export class MaestroPlugin implements CompilerPlugin {
                 this.dirtyCompFilePaths.add(compFile.fullPath);
             }
         }
-        if (isBrsFile(file)) {
-            let mFile = this.fileMap.allFiles.get(file.pathAbsolute);
-            if (mFile) {
-                this.checkMReferences(mFile);
-            } else {
-                console.error('could not find MFile for path ', file.pathAbsolute);
-            }
-        }
-        // console.log('finished');
     }
 
     beforeProgramValidate(program: Program) {
@@ -179,6 +188,8 @@ export class MaestroPlugin implements CompilerPlugin {
                 nc.validate();
                 if (nc.file.getDiagnostics().length === 0) {
                     nc.generateCode(this.fileFactory, this.builder.program, this.fileMap);
+                } else {
+                    console.log('skipping ', nc.file.pkgPath, ' due to diagnostics');
                 }
             }
         }
@@ -188,12 +199,23 @@ export class MaestroPlugin implements CompilerPlugin {
     }
 
     afterProgramValidate(program: Program) {
-        for (let f of Object.values(this.builder.program.files).filter((f) => f.pkgPath.startsWith('components/maestro/generated'))) {
-            (f as any).diagnostics = [];
-            if (isXmlFile(f)) {
-                let s = f.program.getScopeByName(f.pkgPath);
-                // eslint-disable-next-line @typescript-eslint/dot-notation
-                s['diagnostics'] = [];
+        for (let f of Object.values(this.builder.program.files)) {
+            if (f.pkgPath.startsWith('components/maestro/generated')) {
+                (f as any).diagnostics = [];
+                if (isXmlFile(f)) {
+                    let s = f.program.getScopeByName(f.pkgPath);
+                    // eslint-disable-next-line @typescript-eslint/dot-notation
+                    s['diagnostics'] = [];
+                }
+            } else if (isBrsFile(f) && this.shouldParseFile(f)) {
+                let mFile = this.fileMap.allFiles.get(f.pathAbsolute);
+                if (mFile) {
+                    console.log(' checking ', f.pkgPath);
+                    this.checkMReferences(mFile);
+                    this.doExtraValidations(f);
+                } else {
+                    console.error('could not find MFile for path ', f.pathAbsolute);
+                }
             }
         }
     }
@@ -271,7 +293,7 @@ export class MaestroPlugin implements CompilerPlugin {
 
         cs.walk(createVisitor({
             DottedSetStatement: (ds) => {
-                if (isVariableExpression(ds.obj) && ds.obj.name.text === 'm') {
+                if (isVariableExpression(ds.obj) && ds.obj?.name?.text === 'm') {
                     let lowerName = ds.name.text.toLowerCase();
                     if (fieldMap[lowerName]) {
                         let callE = new CallExpression(
@@ -299,6 +321,7 @@ export class MaestroPlugin implements CompilerPlugin {
     }
 
     private checkMReferences(file: File) {
+        // console.log('>>>', file.fullPath);
 
         for (let cs of (file.bscFile as BrsFile).parser.references.classStatements) {
             // eslint-disable-next-line @typescript-eslint/dot-notation
@@ -310,18 +333,19 @@ export class MaestroPlugin implements CompilerPlugin {
             let funcMap = file.getAllFuncs(cs);
             cs.walk(createVisitor({
                 DottedSetStatement: (ds) => {
-                    if (isVariableExpression(ds.obj) && ds.obj.name.text === 'm') {
+                    if (isVariableExpression(ds.obj) && ds.obj?.name?.text === 'm') {
                         let lowerName = ds.name.text.toLowerCase();
                         if (!fieldMap[lowerName] && !this.skips[lowerName]) {
-                            addClassFieldsNotFocundOnSetOrGet(file, `${ds.obj.name.text}.${ds.name.text}`, cs.name.text, ds.range);
+                            addClassFieldsNotFoundOnSetOrGet(file, `${ds.obj.name.text}.${ds.name.text}`, cs.name.text, ds.range);
                         }
                     }
                 },
                 DottedGetExpression: (ds) => {
-                    if (isVariableExpression(ds.obj) && ds.obj.name.text === 'm') {
+                    if (isVariableExpression(ds.obj) && ds?.obj?.name.text === 'm') {
+                        //TODO - make this not get dotted get's in function calls
                         let lowerName = ds.name.text.toLowerCase();
                         if (!fieldMap[lowerName] && !funcMap[lowerName] && !this.skips[lowerName]) {
-                            addClassFieldsNotFocundOnSetOrGet(file, `${ds.obj.name.text}.${ds.name.text}`, cs.name.text, ds.range);
+                            addClassFieldsNotFoundOnSetOrGet(file, `${ds.obj.name.text}.${ds.name.text}`, cs.name.text, ds.range);
                         }
                     }
                 }
@@ -407,6 +431,162 @@ export class MaestroPlugin implements CompilerPlugin {
             }
         }
     }
+
+    doExtraValidations(file: BrsFile) {
+        //ensure we have all lookups
+        let scopeNamespaces: Record<string, any> = {};
+        let classMemberLookup: Record<string, FunctionInfo | boolean> = {};
+        for (let scope of this.builder.program.getScopesForFile(file)) {
+            scopeNamespaces = { ...this.getNamespaceLookup(scope), ...scopeNamespaces };
+            classMemberLookup = { ...this.buildClassMemberLookup(scope), ...classMemberLookup };
+            this.validateFunctionCalls(file, scopeNamespaces, classMemberLookup);
+        }
+    }
+
+    public validateFunctionCalls(file: BrsFile, nsLookup, memberLookup) {
+        // for now we're only validating classes
+        for (let cs of file.parser.references.classStatements) {
+
+            cs.walk(createVisitor({
+                CallExpression: (ce) => {
+
+
+                    let dg = ce.callee as DottedGetExpression;
+                    let nameParts = this.getAllDottedGetParts(dg);
+                    let name = nameParts.pop();
+
+                    if (name) {
+
+                        //is a namespace?
+                        if (nameParts[0] && nsLookup[nameParts[0].toLowerCase()]) {
+                            //then it must reference something we know
+                            let fullPathName = nameParts.join('.').toLowerCase();
+                            let ns = nsLookup[fullPathName];
+                            if (!ns) {
+                                //look it up minus the tail
+
+                                // eslint-disable-next-line @typescript-eslint/dot-notation
+                                file['diagnostics'].push({
+                                    ...unknownType(`${fullPathName}.${name}`, this.name),
+                                    range: ce.range,
+                                    file: file
+                                });
+                            } else if (!ns.functionStatements[name.toLowerCase()] && !ns.classStatements[name.toLowerCase()]) {
+                                // eslint-disable-next-line @typescript-eslint/dot-notation
+                                file['diagnostics'].push({
+                                    ...unknownType(`${fullPathName}.${name}`, this.name),
+                                    range: ce.range,
+                                    file: file
+                                });
+                            } else {
+                                let member = ns.functionStatements[name.toLowerCase()];
+                                if (member) {
+                                    let numArgs = ce.args.length;
+                                    let minArgs = member.func.parameters.filter((p) => !p.defaultValue).length;
+                                    let maxArgs = member.func.parameters.length;
+                                    if (numArgs < minArgs || numArgs > maxArgs) {
+                                        // eslint-disable-next-line @typescript-eslint/dot-notation
+                                        file['diagnostics'].push({
+                                            ...wrongMethodArgs(`${name}`, numArgs, minArgs, maxArgs),
+                                            range: ce.range,
+                                            file: file
+                                        });
+                                    }
+
+                                }
+                            }
+                        } else {
+                            //is a class method?
+                            if (!memberLookup[name.toLowerCase()]) {
+                                // console.log('>> ' + name.toLowerCase());
+                                // eslint-disable-next-line @typescript-eslint/dot-notation
+                                file['diagnostics'].push({
+                                    ...unknownClassMethod(`${name}`, this.name),
+                                    range: ce.range,
+                                    file: file
+                                });
+                            } else {
+                                let member = memberLookup[name.toLowerCase()] as FunctionInfo;
+                                if (typeof member !== 'boolean') {
+                                    let numArgs = ce.args.length;
+                                    if (numArgs < member.minArgs || numArgs > member.maxArgs) {
+                                        // eslint-disable-next-line @typescript-eslint/dot-notation
+                                        file['diagnostics'].push({
+                                            ...wrongMethodArgs(`${name}`, numArgs, member.minArgs, member.maxArgs),
+                                            range: ce.range,
+                                            file: file
+                                        });
+                                    }
+
+                                }
+                            }
+                        }
+                    }
+
+
+                }
+            }), { walkMode: WalkMode.visitAllRecursive });
+        }
+
+    }
+    public getNamespaceLookup(scope: Scope) {
+        // eslint-disable-next-line @typescript-eslint/dot-notation
+        return scope['cache'].getOrAdd('namespaceLookup', () => scope.buildNamespaceLookup());
+    }
+
+    /**
+     * Dictionary of all class members
+     */
+    public getClassMemberLookup(scope: Scope) {
+        // eslint-disable-next-line @typescript-eslint/dot-notation
+        return scope['cache'].getOrAdd('classMemberLookup', () => this.buildClassMemberLookup(scope));
+    }
+
+    public buildClassMemberLookup(scope: Scope): Record<string, FunctionInfo | boolean> {
+        let lookup = getSGMembersLookup();
+        let filesSearched = new Set<BscFile>();
+        //TODO -needs ALL known SG functions!
+        for (const file of scope.getAllFiles()) {
+            if (isXmlFile(file) || filesSearched.has(file)) {
+                continue;
+            }
+            filesSearched.add(file);
+            for (let cs of file.parser.references.classStatements) {
+                for (let s of [...cs.fields]) {
+                    let lowerName = s.name.text.toLowerCase();
+                    lookup[lowerName] = s;
+                }
+                for (let s of [...cs.methods]) {
+                    let lowerName = s.name.text.toLowerCase();
+                    let currentInfo = lookup[lowerName];
+                    if (!currentInfo) {
+                        lookup[lowerName] = {
+                            minArgs: s.func.parameters.filter((p) => !p.defaultValue).length,
+                            maxArgs: s.func.parameters.length
+                        };
+                    } else if (typeof currentInfo !== 'boolean') {
+                        let minArgs = s.func.parameters.filter((p) => !p.defaultValue).length;
+                        let maxArgs = s.func.parameters.length;
+                        currentInfo.minArgs = minArgs < currentInfo.minArgs ? minArgs : currentInfo.minArgs;
+                        currentInfo.maxArgs = maxArgs > currentInfo.maxArgs ? maxArgs : currentInfo.maxArgs;
+                    }
+                }
+            }
+        }
+        return lookup;
+    }
+
+    getAllDottedGetParts(dg: DottedGetExpression) {
+        let parts = [dg?.name?.text];
+        let nextPart = dg.obj;
+        while (isDottedGetExpression(nextPart) || isVariableExpression(nextPart)) {
+            parts.push(nextPart?.name?.text);
+            nextPart = isDottedGetExpression(nextPart) ? nextPart.obj : undefined;
+        }
+        return parts.reverse();
+    }
+
+
 }
 
 

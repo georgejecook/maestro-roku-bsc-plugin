@@ -206,7 +206,7 @@ export class File {
 
     resetDiagnostics() {
         //clear out diagnostics from maestro; except for xml bindings which would have been reset during an xml file edit
-        (this.bscFile as any).diagnostics = (this.bscFile.getDiagnostics().filter((d) => typeof d.code !== 'string' || !d.code.includes('MSTO') || d.code === 'MSTO1039' || d.code === 'MSTO1015' || d.code === 'MSTO1013' || d.code === 'MSTO1010' || d.code === 'MSTO1045'));
+        // (this.bscFile as any).diagnostics = (this.bscFile.getDiagnostics().filter((d) => typeof d.code !== 'string' || !d.code.includes('MSTO') || d.code === 'MSTO1039' || d.code === 'MSTO1015' || d.code === 'MSTO1013' || d.code === 'MSTO1010' || d.code === 'MSTO1045'));
     }
 
     resetBindings() {

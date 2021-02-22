@@ -875,7 +875,28 @@ describe('MaestroPlugin', () => {
                 program.validate();
                 expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.not.be.empty;
             });
-            it('does not gives diagostic for field in superclass', () => {
+            it.only('does not gives diagostic for field in superclass', () => {
+                plugin.afterProgramCreate(program);
+
+                program.addOrReplaceFile('source/VM.bs', `
+                    class VM
+                        public isThere
+                        protected isThereToo
+                    end class
+                `);
+
+                program.addOrReplaceFile('source/SubVM.bs', `
+                    class SubVM extends VM
+                        function doStuff2()
+                        m.isthere = true
+                        m.isthereToo = true
+                        end function
+                    end class
+                `);
+                program.validate();
+                expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+            });
+            it('takes into account d files from roku modules', () => {
                 plugin.afterProgramCreate(program);
 
                 program.addOrReplaceFile('source/VM.bs', `
@@ -1304,16 +1325,120 @@ describe('MaestroPlugin', () => {
     });
     describe('run a local project (s)', () => {
         it('sanity checks on parsing - only run this outside of ci', () => {
+            let swv = {
+                'stagingFolderPath': 'build',
+                'rootDir': 'src',
+                'files': [
+                    'manifest',
+                    'source/**/*.*',
+                    'images/**/*.*',
+                    'sounds/**/*.*',
+                    'sounds/*.*',
+                    'fonts/**/*.*',
+                    'meta/**/*.*',
+                    'components/**/*.*'
+                ],
+                'autoImportComponentScript': true,
+                'createPackage': false,
+                'diagnosticFilters': [
+                    {
+                        'src': '**/roku_modules/**/*.*'
+                    },
+                    {
+                        'src': '**/Whitelist.xml',
+                        'codes': [
+                            1067
+                        ]
+                    },
+                    {
+                        'src': 'components/maestro/generated/**/*.*'
+                    },
+                    1013,
+                    {
+                        'src': '**/RALETrackerTask.*'
+                    }
+                ],
+                'plugins': [
+                    '/home/george/hope/open-source/maestro/maestro-roku-bsc-plugin/dist/plugin.js',
+                    '/home/george/hope/open-source/rooibos/bsc-plugin/dist/plugin.js'
+                ],
+                'maestro': {
+                    'excludeFilters': [
+                        '**/roku_modules/**/*',
+                        '**/*BaseTestSuite*.bs'
+                    ]
+                },
+                'rooibos': {
+                    'isRecordingCodeCoverage': false,
+                    'testsFilePattern': null
+                },
+                'rokuLog': {
+                    'strip': false,
+                    'insertPkgPath': true,
+                    'removeComments': true
+                },
+                'logLevel': 'error'
+            };
             let programBuilder = new ProgramBuilder();
-            programBuilder.run(
-                {
-                    //     project: '/home/george/hope/applicaster/zapp-roku-app/bsconfig-test.json'
-                    project: '/home/george/hope/open-source/maestro/swerve-app/bsconfig-dev.json'
-                }).catch(e => {
+            programBuilder.run(swv as any).catch(e => {
                 console.error(e);
             });
         });
     });
+
+    it('MV', () => {
+        let config = {
+            'rootDir': 'src',
+            'files': [
+                'manifest',
+                'source/**/*.*',
+                'components/**/*.*'
+            ],
+            'autoImportComponentScript': true,
+            'createPackage': false,
+            'stagingFolderPath': 'build',
+            'diagnosticFilters': [
+                {
+                    'src': '**/roku_modules/**/*.*'
+                },
+                {
+                    'src': '**/WhiteList.xml',
+                    'codes': [
+                        1067
+                    ]
+                },
+                1120
+            ],
+            'emitDefinitions': true,
+            'plugins': [
+                '/home/george/hope/open-source/maestro/maestro-roku-bsc-plugin/dist/plugin.js',
+                '/home/george/hope/open-source/rooibos/bsc-plugin/dist/plugin.js'
+            ],
+            'rooibos': {
+                'isRecordingCodeCoverage': false,
+                'testsFilePattern': null,
+                'tags': [
+                    '!integration',
+                    '!deprecated',
+                    '!fixme'
+                ],
+                'showOnlyFailures': true,
+                'catchCrashes': true,
+                'lineWidth': 70
+            },
+            'rokuLog': {
+                'strip': false,
+                'insertPkgPath': true
+            },
+            'sourceMap': true
+        };
+        let programBuilder = new ProgramBuilder();
+        programBuilder.run(config as any).catch(e => {
+            console.error(e);
+        });
+
+    });
+
 
 });
 

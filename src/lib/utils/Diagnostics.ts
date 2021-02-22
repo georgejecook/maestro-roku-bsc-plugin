@@ -239,7 +239,7 @@ export function addXMLTagErrorCouldNotParseBindingBadPart(file: File, partText: 
         `Could not parse unknown binding part "${partText}"`, range.start.line, range.start.character);
 }
 
-export function addClassFieldsNotFocundOnSetOrGet(file: File, text: string, className: string, range: Range) {
+export function addClassFieldsNotFoundOnSetOrGet(file: File, text: string, className: string, range: Range) {
     addErrorDiagnostic(file, 1040,
         `class field: "${text}" was not found on ${className} or it's parent classes`, range.start.line, range.start.character);
 }
@@ -265,4 +265,31 @@ export function IOCClassWrongArgs(file: any, wrongclass: string, text: string, c
 
 export function addXmlBindingCantParseFunctionCall(file: File, tagText: string, range: Range) {
     addErrorDiagnostic(file, 1045, `Binding observer ${tagText} is configured as a function binding; but with an incorrect signature. Either use a field as the target of this binding, or indicate the function call signature: e.g. (), (value), (node), or (value, node).`, range.start.line, range.start.character);
+
+}
+
+export function unknownType(name: string, scopeName: string) {
+    return { message: `Cannot find namespaced function or class with name '${name}' when this file is included in scope '${scopeName}'`,
+        code: `MSTO${1046}`,
+        severity: DiagnosticSeverity.Error };
+}
+
+export function unknownClassMethod(name: string, scopeName: string) {
+    return { message: `Cannot find class method with name '${name}' when this file is included in scope '${scopeName}'`,
+        code: `MSTO${1047}`,
+        severity: DiagnosticSeverity.Error };
+}
+
+export function unknownClassField(name: string, scopeName: string) {
+    return { message: `Cannot find class field with name '${name}' when this file is included in scope '${scopeName}'`,
+        code: `MSTO${1048}`,
+        severity: DiagnosticSeverity.Error };
+}
+
+export function wrongMethodArgs(name: string, numArgs: number, minArgs: number, maxArgs?: number) {
+    return { message: maxArgs
+        ? `Invoking '${name}' with wrong number of args. Received ${numArgs} instead of expceted ${minArgs} to ${maxArgs}'`
+        : `Invoking '${name}' with wrong number of args. Received ${numArgs} instead of expected ${minArgs}'`,
+    code: `MSTO${1049}`,
+    severity: DiagnosticSeverity.Error };
 }
