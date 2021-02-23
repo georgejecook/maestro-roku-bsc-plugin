@@ -216,10 +216,58 @@ const ProgramBuilder = require('brighterscript').ProgramBuilder;
 //     'sourceMap': true
 // };
 
+//mc
+let mc = {
+    'rootDir': '/home/george/hope/open-source/maestro/maestro-roku-core/src',
+    'files': [
+        'manifest',
+        'source/**/*.*',
+        'components/**/*.*'
+    ],
+    'autoImportComponentScript': true,
+    'createPackage': false,
+    'stagingFolderPath': 'build',
+    'diagnosticFilters': [
+        {
+            'src': '**/roku_modules/**/*.*'
+        },
+        {
+            'src': '**/WhiteList.xml',
+            'codes': [
+                1067
+            ]
+        },
+        1120
+    ],
+    'emitDefinitions': true,
+    'plugins': [
+        '/home/george/hope/open-source/maestro/maestro-roku-bsc-plugin/dist/plugin.js',
+        '/home/george/hope/open-source/rooibos/bsc-plugin/dist/plugin.js'
+    ],
+    'rooibos': {
+        'isRecordingCodeCoverage': false,
+        'testsFilePattern': null,
+        'tags': [
+            '!integration',
+            '!deprecated',
+            '!fixme'
+        ],
+        'showOnlyFailures': true,
+        'catchCrashes': true,
+        'lineWidth': 70
+    },
+    'rokuLog': {
+        'strip': false,
+        'insertPkgPath': true
+    },
+    'sourceMap': true
+};
+
 
 let programBuilder = new ProgramBuilder();
 programBuilder.run(
-    swv
+    // swv
+    mc
     // {
     // project: '/home/george/hope/open-source/maestro/swerve-app/bsconfig.json'
     // project: path.join(__dirname, '../', 'test-project', 'bsconfig.json')
@@ -228,4 +276,3 @@ programBuilder.run(
     console.error(e);
 });
 
-console.log(1);

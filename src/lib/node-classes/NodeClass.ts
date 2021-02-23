@@ -117,7 +117,7 @@ export class NodeClass {
     public brsFile: BrsFile;
     public bsPath: string;
     public xmlPath: string;
-    public classMemberFilter = (m) => isClassMethodStatement(m) && m.name.text !== 'nodeRun' && m.name.text !== 'new' && m.annotations.find((a) => a.name.toLowerCase() === 'interfacefunc');
+    public classMemberFilter = (m) => isClassMethodStatement(m) && m.name.text !== 'nodeRun' && m.name.text !== 'new' && m.annotations?.find((a) => a.name.toLowerCase() === 'nodefunc');
 
     resetDiagnostics() {
         if (this.xmlFile) {
@@ -168,9 +168,9 @@ export class NodeClass {
 
     }
 
-    private makeFunction(name, bodyText) {
+    private makeFunction(name, args, bodyText) {
         let funcText = `
-    function ${name}()
+    function ${name}(${args})
       ${bodyText}
     end function
     `;
@@ -185,11 +185,11 @@ export class NodeClass {
             let params = (member as ClassMethodStatement).func.parameters;
             if (params.length) {
 
-                let funcSig = `${member.name.text}(${params.map((p) => p.name.text).join(',')})`;
-                text += this.makeFunction(funcSig, `
-         return m.vm.${funcSig}`);
+                let args = `${params.map((p) => p.name.text).join(',')}`;
+                text += this.makeFunction(member.name.text, args, `
+         return m.vm.${member.name.text}(${args})`);
             } else {
-                text += this.makeFunction(`${member.name.text}(dummy = invalid)`, `
+                text += this.makeFunction(member.name.text, 'dummy = invalid', `
           return m.vm.${member.name.text}()`);
 
             }
@@ -199,7 +199,7 @@ export class NodeClass {
     }
 
     private getLazyNodeBrsCode(nodeFile: NodeClass, members: (ClassFieldStatement | ClassMethodStatement)[]) {
-        let text = this.makeFunction('_getVM', `
+        let text = this.makeFunction('_getVM', '', `
       if m.vm = invalid
         m.vm = new ${nodeFile.classStatement.getName(ParseMode.BrighterScript)}(m.global, m.top)
       end if
@@ -210,11 +210,11 @@ export class NodeClass {
             let params = (member as ClassMethodStatement).func.parameters;
             if (params.length) {
 
-                let funcSig = `${member.name.text}(${params.map((p) => p.name.text).join(',')})`;
-                text += this.makeFunction(funcSig, `
-         return _getVM().${funcSig}`);
+                let args = `${params.map((p) => p.name.text).join(',')}`;
+                text += this.makeFunction(member.name.text, args, `
+         return _getVM().${member.name.text}(${args})`);
             } else {
-                text += this.makeFunction(`${member.name.text}(dummy = invalid)`, `
+                text += this.makeFunction(member.name.text, '(dummy = invalid)', `
           return _getVM().${member.name.text}()`);
 
             }
@@ -252,7 +252,7 @@ export class NodeClass {
             }
         }
         if (!this.getFieldInParents('data', program)) {
-            text += `    <field id="data" type="assocarray"/>\n`;
+            text += `\n    <field id="data" type="assocarray"/>\n`;
         }
 
         for (let member of members.filter(this.classMemberFilter)) {
@@ -320,7 +320,7 @@ export class NodeClass {
         m.pendingCallbacks = {}
         `;
             }
-            source += this.makeFunction('init', initBody) + otherText;
+            source += this.makeFunction('init', '', initBody) + otherText;
             if (hasDebounce) {
                 source = `import "pkg:/source/roku_modules/mc/Tasks.brs"
         ` + source;
