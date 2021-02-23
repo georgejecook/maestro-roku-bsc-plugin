@@ -16,14 +16,23 @@ export enum NodeClassType {
 }
 
 export class NodeField {
-    constructor(public file: BrsFile, public name: string, public annotation: AnnotationExpression, public observerAnnotation?: AnnotationExpression, public alwaysNotify?: boolean, public debounce?: boolean) {
+    constructor(public file: BrsFile, public field: ClassFieldStatement, public annotation: AnnotationExpression, public observerAnnotation?: AnnotationExpression, public alwaysNotify?: boolean, public debounce?: boolean) {
         let args = annotation.getArguments();
+        this.name = field.name.text;
         this.type = args[0] ? args[0] as string : undefined;
         this.value = args[1] ? args[1] as string : undefined;
+        if (!this.value && this.field.initialValue) {
+            let transpileState = new TranspileState(this.file);
+            let value = this.field.initialValue.transpile(transpileState).toString();
+            if (value !== 'invalid') {
+                this.value = value;
+            }
+        }
         this.callback = observerAnnotation?.getArguments()[0] as string;
     }
 
     public type: string;
+    public name: string;
     public callback: string;
     public value: string;
     public numArgs: number;
@@ -108,7 +117,7 @@ export class NodeClass {
     public brsFile: BrsFile;
     public bsPath: string;
     public xmlPath: string;
-    public classMemberFilter = (m) => isClassMethodStatement(m) && m.name.text !== 'nodeRun' && m.name.text !== 'new' && (!m.accessModifier || m.accessModifier.kind === TokenKind.Public);
+    public classMemberFilter = (m) => isClassMethodStatement(m) && m.name.text !== 'nodeRun' && m.name.text !== 'new' && m.annotations.find((a) => a.name.toLowerCase() === 'interfacefunc');
 
     resetDiagnostics() {
         if (this.xmlFile) {
@@ -230,22 +239,28 @@ export class NodeClass {
     `;
     }
 
-    private getNodeFileXmlText(nodeFile: NodeClass, members: (ClassFieldStatement | ClassMethodStatement)[]): string {
+    private getNodeFileXmlText(nodeFile: NodeClass, members: (ClassFieldStatement | ClassMethodStatement)[], program: Program): string {
         let text = `<?xml version="1.0" encoding="UTF-8" ?>
 <component
     name="${nodeFile.name}"
     extends="${nodeFile.extendsName}">
   <interface>
-    <field id="json" type="assocarray"/>
     `;
-
         for (let member of nodeFile.nodeFields) {
-            text += member.getInterfaceText();
+            if (!this.getFieldInParents(member.name.toLowerCase(), program)) {
+                text += member.getInterfaceText();
+            }
+        }
+        if (!this.getFieldInParents('data', program)) {
+            text += `    <field id="data" type="assocarray"/>\n`;
         }
 
         for (let member of members.filter(this.classMemberFilter)) {
-            text += `
-         <function name="${member.name.text}"/>`;
+
+            if (!this.getFunctionInParents(member.name.text.toLowerCase(), program)) {
+                text += `
+                <function name="${member.name.text}"/>`;
+            }
         }
         text += `
       </interface>
@@ -254,6 +269,27 @@ export class NodeClass {
       </component>
       `;
         return text;
+    }
+
+    private getFieldInParents(name: string, program: Program) {
+        let comp = program.getComponent(this.extendsName.toLowerCase());
+        while (comp) {
+            if (comp.file.parser.ast.component.api.getField(name)) {
+                return true;
+            }
+            comp = program.getComponent(comp.file.parser?.references?.extends?.text?.toLowerCase());
+        }
+        return false;
+    }
+    private getFunctionInParents(name: string, program: Program) {
+        let comp = program.getComponent(this.extendsName.toLowerCase());
+        while (comp) {
+            if (comp.file.parser.ast.component.api.getFunction(name)) {
+                return true;
+            }
+            comp = program.getComponent(comp.file.parser?.references?.extends?.text?.toLowerCase());
+        }
+        return false;
     }
 
     generateCode(fileFactory: FileFactory, program: Program, fileMap: ProjectFileMap) {
@@ -302,7 +338,7 @@ export class NodeClass {
 
         this.brsFile = fileFactory.addFile(program, this.bsPath, source);
         this.brsFile.parser.invalidateReferences();
-        let xmlText = this.type === NodeClassType.task ? this.getNodeTaskFileXmlText(this) : this.getNodeFileXmlText(this, members);
+        let xmlText = this.type === NodeClassType.task ? this.getNodeTaskFileXmlText(this) : this.getNodeFileXmlText(this, members, program);
 
         this.xmlFile = fileFactory.addFile(program, this.xmlPath, xmlText);
         this.xmlFile.parser.invalidateReferences();

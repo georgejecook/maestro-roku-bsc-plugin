@@ -87,7 +87,7 @@ export default class NodeClassUtil {
                 let debounce = field.annotations.find((a) => a.name.toLowerCase() === 'debounce') !== undefined;
                 let observerAnnotation = field.annotations.find((a) => a.name.toLowerCase() === 'observer');
                 let alwaysNotify = field.annotations.find((a) => a.name.toLowerCase() === 'alwaysnotify') !== undefined;
-                nodeFields.push(new NodeField(file, field.name.text, annotation, observerAnnotation, alwaysNotify, debounce));
+                nodeFields.push(new NodeField(file, field, annotation, observerAnnotation, alwaysNotify, debounce));
             }
         }
 
