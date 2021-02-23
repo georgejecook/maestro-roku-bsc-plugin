@@ -24,7 +24,8 @@ export class NodeField {
         if (!this.value && this.field.initialValue) {
             let transpileState = new TranspileState(this.file);
             let value = this.field.initialValue.transpile(transpileState).toString();
-            if (value !== 'invalid') {
+            //TODO check values based on the type
+            if (value !== 'invalid' && value !== '{,}') {
                 this.value = value;
             }
         }
