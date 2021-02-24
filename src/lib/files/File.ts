@@ -10,6 +10,7 @@ import type { ProjectFileMap } from './ProjectFileMap';
 
 import { addFileErrorCouldNotParseXML } from '../utils/Diagnostics';
 import type { SGComponent } from 'brighterscript/dist/parser/SGTypes';
+import type { NodeClass } from '../node-classes/NodeClass';
 
 /**
  * describes a file in our project.
@@ -44,6 +45,7 @@ export class File {
     public vmClassVersion = 0;
     public bindingTargetFiles = new Set<XmlFile>();
     public bindings: Binding[];
+    public nodeClasses = new Map<string, NodeClass>();
 
     get parentXmlFile(): XmlFile | undefined {
         return this.fileMap.allXMLComponentFiles.get(this.parentComponentName)?.bscFile as XmlFile;

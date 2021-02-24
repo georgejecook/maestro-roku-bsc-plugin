@@ -1,5 +1,6 @@
 import type { BrsFile, ProgramBuilder, FunctionStatement, ClassStatement } from 'brighterscript';
 import { isClassMethodStatement } from 'brighterscript';
+import type { File } from '../files/File';
 import type { ProjectFileMap } from '../files/ProjectFileMap';
 import { addNodeClassBadDeclaration, addNodeClassDuplicateName, addNodeClassFieldNoFieldType, addNodeClassWrongNewSignature, addNodeClassNoNodeRunMethod } from '../utils/Diagnostics';
 import type { FileFactory } from '../utils/FileFactory';
@@ -17,9 +18,10 @@ export default class NodeClassUtil {
     ) {
     }
 
-    public addFile(file: BrsFile) {
+    public addFile(file: BrsFile, mFile: File) {
         for (let nodeClass of this.fileMap.nodeClassesByPath.get(file.pathAbsolute) || []) {
             this.fileMap.nodeClasses.delete(nodeClass.name);
+            mFile.nodeClasses.delete(nodeClass.name);
         }
         this.fileMap.nodeClassesByPath.delete(file.pathAbsolute);
 
@@ -64,6 +66,7 @@ export default class NodeClassUtil {
                             this.fileMap.nodeClassesByPath.set(file.pathAbsolute, nodeClasses);
                         }
                         nodeClasses.push(nodeClass);
+                        mFile.nodeClasses.set(nodeClass.name, nodeClass);
                     } else {
                         console.log('not adding invalid class', cs.name.text);
                     }
@@ -87,7 +90,14 @@ export default class NodeClassUtil {
                 let debounce = field.annotations.find((a) => a.name.toLowerCase() === 'debounce') !== undefined;
                 let observerAnnotation = field.annotations.find((a) => a.name.toLowerCase() === 'observer');
                 let alwaysNotify = field.annotations.find((a) => a.name.toLowerCase() === 'alwaysnotify') !== undefined;
-                nodeFields.push(new NodeField(file, field, annotation, observerAnnotation, alwaysNotify, debounce));
+                let f = new NodeField(file, field, annotation, observerAnnotation, alwaysNotify, debounce);
+                let observerArgs = observerAnnotation?.getArguments() || [];
+                if (observerArgs.length > 0) {
+                    let observerFunc = cs.methods.find((m) => m.name.text === observerArgs[0]);
+                    f.numArgs = observerFunc?.func?.parameters?.length;
+                }
+                nodeFields.push(f);
+
             }
         }
 
