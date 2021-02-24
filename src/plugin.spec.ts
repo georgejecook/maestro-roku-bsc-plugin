@@ -875,7 +875,7 @@ describe('MaestroPlugin', () => {
                 program.validate();
                 expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.not.be.empty;
             });
-            it.only('does not gives diagostic for field in superclass', () => {
+            it('does not gives diagostic for field in superclass', () => {
                 plugin.afterProgramCreate(program);
 
                 program.addOrReplaceFile('source/VM.bs', `

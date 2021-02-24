@@ -266,8 +266,8 @@ let mc = {
 
 let programBuilder = new ProgramBuilder();
 programBuilder.run(
-    // swv
-    mc
+    swv
+    // mc
     // {
     // project: '/home/george/hope/open-source/maestro/swerve-app/bsconfig.json'
     // project: path.join(__dirname, '../', 'test-project', 'bsconfig.json')

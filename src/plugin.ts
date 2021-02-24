@@ -186,11 +186,11 @@ export class MaestroPlugin implements CompilerPlugin {
         for (let filePath of [...this.dirtyNodeClassPaths.values()]) {
             for (let nc of this.fileMap.nodeClassesByPath.get(filePath)) {
                 nc.validate();
-                if (nc.file.getDiagnostics().length === 0) {
-                    nc.generateCode(this.fileFactory, this.builder.program, this.fileMap);
-                } else {
-                    console.log('skipping ', nc.file.pkgPath, ' due to diagnostics');
-                }
+                // if (nc.file.getDiagnostics().length === 0) {
+                //     nc.generateCode(this.fileFactory, this.builder.program, this.fileMap);
+                // } else {
+                //     console.log('skipping ', nc.file.pkgPath, ' due to diagnostics');
+                // }
             }
         }
         this.dirtyCompFilePaths.clear();
@@ -218,7 +218,7 @@ export class MaestroPlugin implements CompilerPlugin {
         }
         for (let filePath of [...this.dirtyNodeClassPaths.values()]) {
             for (let nc of this.fileMap.nodeClassesByPath.get(filePath)) {
-                nc.validateBaseComponent(this.builder, this.fileMap.validComps);
+                nc.validateBaseComponent(this.builder, this.fileMap);
             }
         }
         this.dirtyNodeClassPaths.clear();
@@ -274,7 +274,7 @@ export class MaestroPlugin implements CompilerPlugin {
 
     beforeProgramTranspile(program: Program, entries: TranspileObj[]) {
         if (!this.maestroConfig.insertXmlBindingsEarly) {
-            // console.log('injecting binding code into files with vms');
+            console.log('injecting binding code into files with vms...');
 
             for (let entry of entries) {
                 if (isXmlFile(entry.file)) {
@@ -284,6 +284,15 @@ export class MaestroPlugin implements CompilerPlugin {
                         this.bindingProcessor.generateCodeForXMLFile(mFile);
                     }
                 }
+            }
+        }
+
+        console.log('generating node classes and tasks...');
+        for (let nc of [...this.fileMap.nodeClasses.values()]) {
+            if (nc.file.getDiagnostics().length === 0) {
+                nc.generateCode(this.fileFactory, this.builder.program, this.fileMap);
+            } else {
+                console.log(`not Generating ${nc.name}  from ${nc.file.pkgPath}: It contains errors`);
             }
         }
     }
