@@ -13,6 +13,7 @@ export interface MaestroConfig {
     logLevel?: MaestroLogLevel;
     buildTimeImports?: any;
     insertXmlBindingsEarly?: boolean;
+    buildNodeClasses?: boolean;
     excludeFilters?: string[];
 }
 

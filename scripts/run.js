@@ -48,7 +48,8 @@ let swv = {
         'excludeFilters': [
             '**/roku_modules/**/*',
             '**/rooibos/**/*'
-        ]
+        ],
+        buildNodeClasses: false
     },
     'rooibos': {
         'isRecordingCodeCoverage': false,
@@ -260,7 +261,10 @@ let mc = {
         'strip': false,
         'insertPkgPath': true
     },
-    'sourceMap': true
+    'sourceMap': true,
+    'maestro': {
+        buildNodeClasses: false
+    }
 };
 
 

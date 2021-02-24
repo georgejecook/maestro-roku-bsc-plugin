@@ -101,6 +101,9 @@ export class MaestroPlugin implements CompilerPlugin {
             if (this.maestroConfig.excludeFilters === undefined) {
                 this.maestroConfig.excludeFilters = ['**/roku_modules/**/*'];
             }
+            if (this.maestroConfig.buildNodeClasses === undefined) {
+                this.maestroConfig.buildNodeClasses = true;
+            }
 
             this.importProcessor = new ImportProcessor(this.maestroConfig);
             this.nodeClassUtil = new NodeClassUtil(this.fileMap, builder, this.fileFactory);
@@ -134,8 +137,11 @@ export class MaestroPlugin implements CompilerPlugin {
             this.importProcessor.processDynamicImports(file, this.builder.program);
             this.reflectionUtil.addFile(file);
             if (this.shouldParseFile(file)) {
-                this.nodeClassUtil.addFile(file);
-                if (this.fileMap.nodeClassesByPath.has(file.pathAbsolute)) {
+                this.nodeClassUtil.addFile(file, mFile);
+                for (let nc of [...mFile.nodeClasses.values()]) {
+                    nc.generateCode(this.fileFactory, this.builder.program, this.fileMap, this.maestroConfig.buildNodeClasses);
+                }
+                if (mFile.nodeClasses.size > 0) {
                     this.dirtyNodeClassPaths.add(file.pathAbsolute);
                 }
                 // console.log(`processing file ${file.pkgPath}`);
@@ -182,17 +188,6 @@ export class MaestroPlugin implements CompilerPlugin {
                 this.bindingProcessor.generateCodeForXMLFile(file);
             }
         }
-
-        for (let filePath of [...this.dirtyNodeClassPaths.values()]) {
-            for (let nc of this.fileMap.nodeClassesByPath.get(filePath)) {
-                nc.validate();
-                // if (nc.file.getDiagnostics().length === 0) {
-                //     nc.generateCode(this.fileFactory, this.builder.program, this.fileMap);
-                // } else {
-                //     console.log('skipping ', nc.file.pkgPath, ' due to diagnostics');
-                // }
-            }
-        }
         this.dirtyCompFilePaths.clear();
     }
 
@@ -216,6 +211,7 @@ export class MaestroPlugin implements CompilerPlugin {
                 }
             }
         }
+
         for (let filePath of [...this.dirtyNodeClassPaths.values()]) {
             for (let nc of this.fileMap.nodeClassesByPath.get(filePath)) {
                 nc.validateBaseComponent(this.builder, this.fileMap);
@@ -284,15 +280,6 @@ export class MaestroPlugin implements CompilerPlugin {
                         this.bindingProcessor.generateCodeForXMLFile(mFile);
                     }
                 }
-            }
-        }
-
-        console.log('generating node classes and tasks...');
-        for (let nc of [...this.fileMap.nodeClasses.values()]) {
-            if (nc.file.getDiagnostics().length === 0) {
-                nc.generateCode(this.fileFactory, this.builder.program, this.fileMap);
-            } else {
-                console.log(`not Generating ${nc.name}  from ${nc.file.pkgPath}: It contains errors`);
             }
         }
     }
