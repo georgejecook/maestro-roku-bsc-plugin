@@ -25,7 +25,7 @@ export class NodeField {
             let value = this.field.initialValue.transpile(transpileState).toString();
             //TODO check values based on the type
             if (value !== 'invalid' && value !== '{,}') {
-                this.value = value;
+                this.value = value.replace(/^"(.*)"$/, '$1');
             }
         }
         this.callback = observerAnnotation?.getArguments()[0] as string;
@@ -292,12 +292,12 @@ export class NodeClass {
         return false;
     }
 
-    generateCode(fileFactory: FileFactory, program: Program, fileMap: ProjectFileMap, buildBrsFile: boolean) {
+    generateCode(fileFactory: FileFactory, program: Program, fileMap: ProjectFileMap, isIDEBuild: boolean) {
         let members = this.type === NodeClassType.task ? [] : [...this.getClassMembers(this.classStatement, fileMap).values()];
 
-        console.log('Generating node class', this.name, 'with brsfile?', buildBrsFile
+        console.log('Generating node class', this.name, 'with brsfile?', isIDEBuild
         );
-        if (buildBrsFile) {
+        if (!isIDEBuild) {
             let source = `import "pkg:/${this.file.pkgPath}"\n`;
 
             let initBody = ``;

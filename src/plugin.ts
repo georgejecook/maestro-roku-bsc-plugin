@@ -101,8 +101,8 @@ export class MaestroPlugin implements CompilerPlugin {
             if (this.maestroConfig.excludeFilters === undefined) {
                 this.maestroConfig.excludeFilters = ['**/roku_modules/**/*'];
             }
-            if (this.maestroConfig.buildNodeClasses === undefined) {
-                this.maestroConfig.buildNodeClasses = true;
+            if (this.maestroConfig.buildForIDE === undefined) {
+                this.maestroConfig.buildForIDE = false;
             }
 
             this.importProcessor = new ImportProcessor(this.maestroConfig);
@@ -138,8 +138,10 @@ export class MaestroPlugin implements CompilerPlugin {
             this.reflectionUtil.addFile(file);
             if (this.shouldParseFile(file)) {
                 this.nodeClassUtil.addFile(file, mFile);
-                for (let nc of [...mFile.nodeClasses.values()]) {
-                    nc.generateCode(this.fileFactory, this.builder.program, this.fileMap, this.maestroConfig.buildNodeClasses);
+                if (this.maestroConfig.buildForIDE) {
+                    for (let nc of [...mFile.nodeClasses.values()]) {
+                        nc.generateCode(this.fileFactory, this.builder.program, this.fileMap, this.maestroConfig.buildForIDE);
+                    }
                 }
                 if (mFile.nodeClasses.size > 0) {
                     this.dirtyNodeClassPaths.add(file.pathAbsolute);
@@ -186,6 +188,13 @@ export class MaestroPlugin implements CompilerPlugin {
             if (this.maestroConfig.insertXmlBindingsEarly && file.isValid) {
                 // console.log('adding xml transpiled code for ', file.bscFile.pkgPath);
                 this.bindingProcessor.generateCodeForXMLFile(file);
+            }
+        }
+
+        if (!this.maestroConfig.buildForIDE) {
+            console.log('building all comp files...');
+            for (let nc of [...this.fileMap.nodeClasses.values()]) {
+                nc.generateCode(this.fileFactory, this.builder.program, this.fileMap, false);
             }
         }
         this.dirtyCompFilePaths.clear();

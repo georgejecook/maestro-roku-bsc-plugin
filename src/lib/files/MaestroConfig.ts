@@ -13,8 +13,8 @@ export interface MaestroConfig {
     logLevel?: MaestroLogLevel;
     buildTimeImports?: any;
     insertXmlBindingsEarly?: boolean;
-    buildNodeClasses?: boolean;
     excludeFilters?: string[];
+    buildForIDE?: boolean; // turns on optimizations for IDE builds
 }
 
 let docsLink = `\nPlease read the docs for usage details https://github.com/georgejecook/maestro/blob/master/docs/index.md#maestro-cli`;
