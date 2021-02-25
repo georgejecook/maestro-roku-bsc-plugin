@@ -1,5 +1,5 @@
-import type { ClassMethodStatement, ClassStatement, Expression, FunctionStatement, Statement } from 'brighterscript';
-import { BinaryExpression, Block, createIdentifier, createStringLiteral, createToken, isClassMethodStatement, isClassStatement, Lexer, ParseMode, Parser, TokenKind, Range, IfStatement } from 'brighterscript';
+import type { ClassMethodStatement, ClassStatement, Expression, FunctionStatement, LiteralExpression, Statement } from 'brighterscript';
+import { isAALiteralExpression, isArrayLiteralExpression, isCommentStatement, isIntegerType, isLiteralBoolean, isLiteralNumber, isLiteralString, isLongIntegerType, isUnaryExpression, BinaryExpression, Block, createIdentifier, createStringLiteral, createToken, isClassMethodStatement, isClassStatement, Lexer, ParseMode, Parser, TokenKind, Range, IfStatement } from 'brighterscript';
 
 import * as rokuDeploy from 'roku-deploy';
 
@@ -164,4 +164,48 @@ function driveLetterToLower(fullPath: string) {
         }
     }
     return fullPath;
+}
+
+
+// eslint-disable-next-line @typescript-eslint/consistent-indexed-object-style
+export function expressionToValue(expr: Expression): string | undefined {
+    if (!expr) {
+        return undefined;
+    }
+    if (isUnaryExpression(expr) && isLiteralNumber(expr.right)) {
+        return numberExpressionToValue(expr.right, expr.operator.text).toString();
+    }
+    if (isLiteralString(expr)) {
+        //remove leading and trailing quotes
+        return expr.token.text.replace(/^"/, '').replace(/"$/, '');
+    }
+    if (isLiteralNumber(expr)) {
+        return numberExpressionToValue(expr).toString();
+    }
+
+    if (isLiteralBoolean(expr)) {
+        return expr.token.text.toLowerCase() === 'true' ? 'true' : 'false';
+    }
+    if (isArrayLiteralExpression(expr)) {
+        return `[${expr.elements
+            .filter(e => !isCommentStatement(e))
+            .map(e => expressionToValue(e)).toString()}]`;
+    }
+    if (isAALiteralExpression(expr)) {
+        return `{${expr.elements.reduce((acc, e) => {
+            if (!isCommentStatement(e)) {
+                acc[e.keyToken.text] = expressionToValue(e.value);
+            }
+            return acc;
+        }, '')}`;
+    }
+    return undefined;
+}
+
+function numberExpressionToValue(expr: LiteralExpression, operator = '') {
+    if (isIntegerType(expr.type) || isLongIntegerType(expr.type)) {
+        return parseInt(operator + expr.token.text);
+    } else {
+        return parseFloat(operator + expr.token.text);
+    }
 }

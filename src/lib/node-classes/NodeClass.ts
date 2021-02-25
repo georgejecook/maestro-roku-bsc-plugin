@@ -1,7 +1,9 @@
 import type { AnnotationExpression, BrsFile, ClassFieldStatement, ClassMethodStatement, ClassStatement, FunctionStatement, Program, ProgramBuilder, XmlFile } from 'brighterscript';
 import { isClassMethodStatement, ParseMode, TokenKind } from 'brighterscript';
 import { TranspileState } from 'brighterscript/dist/parser/TranspileState';
+import { isArrayLiteralExpression } from 'typescript';
 import type { ProjectFileMap } from '../files/ProjectFileMap';
+import { expressionToValue } from '../Utils';
 import { addNodeClassCallbackNotDefined, addNodeClassCallbackNotFound, addNodeClassCallbackWrongParams, addNodeClassNoExtendNodeFound } from '../utils/Diagnostics';
 import type { FileFactory } from '../utils/FileFactory';
 
@@ -20,14 +22,7 @@ export class NodeField {
         let args = annotation.getArguments();
         this.name = field.name.text;
         this.type = args[0] ? args[0] as string : undefined;
-        if (!this.value && this.field.initialValue) {
-            let transpileState = new TranspileState(this.file);
-            let value = this.field.initialValue.transpile(transpileState).toString();
-            //TODO check values based on the type
-            if (value !== 'invalid' && value !== '{,}') {
-                this.value = value.replace(/^"(.*)"$/, '$1');
-            }
-        }
+        this.value = expressionToValue(this.field.initialValue);
         this.callback = observerAnnotation?.getArguments()[0] as string;
     }
 
