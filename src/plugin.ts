@@ -223,6 +223,7 @@ export class MaestroPlugin implements CompilerPlugin {
 
         for (let filePath of [...this.dirtyNodeClassPaths.values()]) {
             for (let nc of this.fileMap.nodeClassesByPath.get(filePath)) {
+                nc.validate();
                 nc.validateBaseComponent(this.builder, this.fileMap);
             }
         }
