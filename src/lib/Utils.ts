@@ -197,7 +197,7 @@ export function expressionToValue(expr: Expression): string | undefined {
                 acc[e.keyToken.text] = expressionToValue(e.value);
             }
             return acc;
-        }, '')}`;
+        }, '')}}`;
     }
     return undefined;
 }
