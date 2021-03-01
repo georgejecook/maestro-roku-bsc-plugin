@@ -168,7 +168,7 @@ function driveLetterToLower(fullPath: string) {
 
 
 // eslint-disable-next-line @typescript-eslint/consistent-indexed-object-style
-export function expressionToValue(expr: Expression): string | undefined {
+export function expressionToString(expr: Expression): string | undefined {
     if (!expr) {
         return undefined;
     }
@@ -189,15 +189,48 @@ export function expressionToValue(expr: Expression): string | undefined {
     if (isArrayLiteralExpression(expr)) {
         return `[${expr.elements
             .filter(e => !isCommentStatement(e))
-            .map(e => expressionToValue(e)).toString()}]`;
+            .map(e => expressionToString(e))}]`;
     }
     if (isAALiteralExpression(expr)) {
         return `{${expr.elements.reduce((acc, e) => {
             if (!isCommentStatement(e)) {
-                acc[e.keyToken.text] = expressionToValue(e.value);
+                acc[e.keyToken.text] = expressionToString(e.value);
             }
             return acc;
         }, '')}}`;
+    }
+    return undefined;
+}
+export function expressionToValue(expr: Expression): any | undefined {
+    if (!expr) {
+        return undefined;
+    }
+    if (isUnaryExpression(expr) && isLiteralNumber(expr.right)) {
+        return numberExpressionToValue(expr.right, expr.operator.text);
+    }
+    if (isLiteralString(expr)) {
+        //remove leading and trailing quotes
+        return expr.token.text.replace(/^"/, '').replace(/"$/, '');
+    }
+    if (isLiteralNumber(expr)) {
+        return numberExpressionToValue(expr);
+    }
+
+    if (isLiteralBoolean(expr)) {
+        return expr.token.text.toLowerCase() === 'true';
+    }
+    if (isArrayLiteralExpression(expr)) {
+        return expr.elements
+            .filter(e => !isCommentStatement(e))
+            .map(e => expressionToValue(e));
+    }
+    if (isAALiteralExpression(expr)) {
+        return expr.elements.reduce((acc, e) => {
+            if (!isCommentStatement(e)) {
+                acc[e.keyToken.text] = expressionToValue(e.value);
+            }
+            return acc;
+        }, {});
     }
     return undefined;
 }

@@ -1,9 +1,8 @@
-import type { AnnotationExpression, BrsFile, ClassFieldStatement, ClassMethodStatement, ClassStatement, FunctionStatement, Program, ProgramBuilder, XmlFile } from 'brighterscript';
-import { isClassMethodStatement, ParseMode, TokenKind } from 'brighterscript';
+import type { AnnotationExpression, BrsFile, ClassFieldStatement, ClassMethodStatement, ClassStatement, FunctionParameterExpression, FunctionStatement, Program, ProgramBuilder, XmlFile } from 'brighterscript';
+import { isClassMethodStatement, ParseMode } from 'brighterscript';
 import { TranspileState } from 'brighterscript/dist/parser/TranspileState';
-import { isArrayLiteralExpression } from 'typescript';
 import type { ProjectFileMap } from '../files/ProjectFileMap';
-import { expressionToValue } from '../Utils';
+import { expressionToString, expressionToValue } from '../Utils';
 import { addNodeClassCallbackNotDefined, addNodeClassCallbackNotFound, addNodeClassCallbackWrongParams, addNodeClassNoExtendNodeFound } from '../utils/Diagnostics';
 import type { FileFactory } from '../utils/FileFactory';
 
@@ -22,7 +21,7 @@ export class NodeField {
         let args = annotation.getArguments();
         this.name = field.name.text;
         this.type = args[0] ? args[0] as string : undefined;
-        this.value = expressionToValue(this.field.initialValue);
+        this.value = expressionToString(this.field.initialValue);
         this.callback = observerAnnotation?.getArguments()[0] as string;
     }
 
@@ -179,42 +178,49 @@ export class NodeClass {
         for (let member of members.filter(this.classMemberFilter)) {
             let params = (member as ClassMethodStatement).func.parameters;
             if (params.length) {
-
-                let args = `${params.map((p) => p.name.text).join(',')}`;
+                let args = this.getWrapperCallArgs(params);
                 text += this.makeFunction(member.name.text, args, `
-         return m.vm.${member.name.text}(${args})`);
+                return m.vm.${member.name.text}(${args})`);
             } else {
                 text += this.makeFunction(member.name.text, 'dummy = invalid', `
-          return m.vm.${member.name.text}()`);
+                return m.vm.${member.name.text}()`);
 
             }
         }
 
         return text;
     }
+    private getWrapperCallArgs(params: FunctionParameterExpression[]) {
+        return `${params.map((p) => {
+            let defaultValue = expressionToValue(p.defaultValue);
+            if (typeof defaultValue === 'string') {
+                defaultValue = `"${defaultValue}"`;
+            }
+            return p.name.text + ' = ' + (defaultValue ? defaultValue : 'invalid');
+        }).join(',')}`;
+
+    }
 
     private getLazyNodeBrsCode(nodeFile: NodeClass, members: (ClassFieldStatement | ClassMethodStatement)[]) {
         let text = this.makeFunction('_getVM', '', `
-      if m.vm = invalid
+        if m.vm = invalid
         m.vm = new ${nodeFile.classStatement.getName(ParseMode.BrighterScript)}(m.global, m.top)
-      end if
-      return m.vm
-  `);
+        end if
+        return m.vm
+        `);
 
         for (let member of members.filter(this.classMemberFilter)) {
             let params = (member as ClassMethodStatement).func.parameters;
             if (params.length) {
-
-                let args = `${params.map((p) => p.name.text).join(',')}`;
+                let args = this.getWrapperCallArgs(params);
                 text += this.makeFunction(member.name.text, args, `
-         return _getVM().${member.name.text}(${args})`);
+                return _getVM().${member.name.text}(${args})`);
             } else {
                 text += this.makeFunction(member.name.text, '(dummy = invalid)', `
-          return _getVM().${member.name.text}()`);
+                return _getVM().${member.name.text}()`);
 
             }
         }
-
         return text;
     }
 

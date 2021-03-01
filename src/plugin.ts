@@ -13,7 +13,8 @@ import { isVariableExpression,
     isBrsFile,
     isXmlFile,
     VariableExpression,
-    isDottedGetExpression } from 'brighterscript';
+    isDottedGetExpression,
+    DottedSetStatement } from 'brighterscript';
 import type { BrsFile,
     BscFile,
     ClassStatement,
@@ -25,7 +26,8 @@ import type { BrsFile,
     Scope,
     CallableContainerMap,
     FunctionStatement,
-    Statement } from 'brighterscript';
+    Statement,
+    ClassMethodStatement } from 'brighterscript';
 
 import { ProjectFileMap } from './lib/files/ProjectFileMap';
 import type { MaestroConfig } from './lib/files/MaestroConfig';
@@ -41,7 +43,7 @@ import { FileFactory } from './lib/utils/FileFactory';
 import NodeClassUtil from './lib/node-classes/NodeClassUtil';
 import { RawCodeStatement } from './lib/utils/RawCodeStatement';
 import { addClassFieldsNotFoundOnSetOrGet, addIOCNoTypeSupplied, addIOCWrongArgs, IOCClassNotInScope, unknownClassMethod, unknownType, wrongMethodArgs } from './lib/utils/Diagnostics';
-import { getAllAnnotations, getAllFields } from './lib/utils/Utils';
+import { getAllAnnotations, getAllFields, getAllMethods, makeASTFunction } from './lib/utils/Utils';
 import { getSGMembersLookup } from './SGApi';
 
 type Writeable<T> = { -readonly [P in keyof T]: T[P] };
@@ -257,8 +259,10 @@ export class MaestroPlugin implements CompilerPlugin {
         if (isBrsFile(entry.file)) {
             let classes = entry.file.parser.references.classStatements;
             for (let cs of classes) {
-                if (!cs.memberMap.__className) {
-                    let id = createToken(TokenKind.Identifier, '__className', cs.range);
+                let fieldMap = getAllFields(this.fileMap, cs);
+                let id = createToken(TokenKind.Identifier, '__classname', cs.range);
+                // eslint-disable-next-line @typescript-eslint/dot-notation
+                if (!fieldMap['__classname']) {
                     let p = createToken(TokenKind.Public, 'public', cs.range);
                     let a = createToken(TokenKind.As, 'as', cs.range);
                     let s = createToken(TokenKind.String, 'string', cs.range);
@@ -267,6 +271,17 @@ export class MaestroPlugin implements CompilerPlugin {
                     cs.body.push(classNameStatement);
                     cs.fields.push(classNameStatement);
                     cs.memberMap.__className = classNameStatement;
+                } else {
+                    //this is more complicated, have to add this to the constructor
+                    let s = new RawCodeStatement(`m.__className = "${cs.getName(ParseMode.BrighterScript)}"`, entry.file, cs.range);
+
+                    let constructor = cs.memberMap.new as ClassMethodStatement;
+                    if (constructor) {
+                        constructor.func.body.statements.push(s);
+                    } else {
+                        //have to create a constructor, with same args as parent..
+                        console.log('TBD: create a constructor to inject for ', cs.name.text);
+                    }
                 }
                 let allClassAnnotations = getAllAnnotations(this.fileMap, cs);
                 // eslint-disable-next-line @typescript-eslint/dot-notation

@@ -49,7 +49,7 @@ let swv = {
             '**/roku_modules/**/*',
             '**/rooibos/**/*'
         ],
-        buildForIDE: true
+        buildForIDE: false
     },
     'rooibos': {
         'isRecordingCodeCoverage': false,

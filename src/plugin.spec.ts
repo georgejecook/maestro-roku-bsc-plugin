@@ -39,6 +39,7 @@ describe('MaestroPlugin', () => {
         program.plugins = new PluginInterface([plugin], undefined);
         program.createSourceScope(); //ensure source scope is created
         plugin.beforeProgramCreate(builder);
+        program.addOrReplaceFile('manifest', ``);
 
     });
     afterEach(() => {
@@ -814,6 +815,29 @@ describe('MaestroPlugin', () => {
             instance.new(globalNode, top)
             return instance
         end function`);
+            expect(a).to.equal(b);
+
+        });
+
+        it('does not add __classname if in parent class', async () => {
+            plugin.afterProgramCreate(program);
+            program.addOrReplaceFile('source/main.bs', `
+                class ClassA
+                    public title
+                end class
+                class ClassB extends ClassA
+                    public title
+                end class
+            `);
+            await builder.transpile();
+            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+            let classFile = program.getFileByPkgPath<BrsFile>('source/myClass.bs');
+            let cs = classFile.parser.references.classStatements[0];
+            expect(cs.body.length === 3);
+            expect(cs.fields.length === 2);
+            expect(cs.memberMap['__className'].name.text === '__className');
+            let a = getContents('source/main.brs');
+            let b = trimLeading(``);
             expect(a).to.equal(b);
 
         });

@@ -185,6 +185,20 @@ export function getAllFields(fileMap: ProjectFileMap, cs: ClassStatement, vis?: 
     return result;
 }
 
+export function getAllMethods(fileMap: ProjectFileMap, cs: ClassStatement, vis?: TokenKind) {
+    let result = {};
+    while (cs) {
+        for (let method of cs.methods) {
+            if (!vis || method.accessModifier?.kind === vis) {
+                result[method.name.text.toLowerCase()] = method;
+            }
+        }
+        cs = cs.parentClassName ? fileMap.allClasses.get(cs.parentClassName.getName(ParseMode.BrighterScript).replace(/_/g, '.')) : null;
+    }
+
+    return result;
+}
+
 export function getAllAnnotations(fileMap: ProjectFileMap, cs: ClassStatement) {
     let result = {};
     while (cs) {

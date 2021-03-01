@@ -36,7 +36,11 @@ export class FileFactory {
     }
 
     public addFile(program, projectPath: string, contents: string) {
-        return program.addOrReplaceFile({ src: path.resolve(projectPath), dest: projectPath }, contents);
+        try {
+            return program.addOrReplaceFile({ src: path.resolve(projectPath), dest: projectPath }, contents);
+        } catch (error) {
+            console.error(`Error adding framework file: ${projectPath} : ${error.message}`);
+        }
     }
 
     public isIgnoredFile(file: BrsFile | XmlFile): boolean {
