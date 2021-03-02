@@ -256,7 +256,7 @@ export class MaestroPlugin implements CompilerPlugin {
     }
 
     beforeFileTranspile (entry: TranspileObj) {
-        if (isBrsFile(entry.file)) {
+        if (isBrsFile(entry.file) && this.shouldParseFile(entry.file)) {
             let classes = entry.file.parser.references.classStatements;
             for (let cs of classes) {
                 let fieldMap = getAllFields(this.fileMap, cs);
