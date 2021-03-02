@@ -178,8 +178,8 @@ export class NodeClass {
         for (let member of members.filter(this.classMemberFilter)) {
             let params = (member as ClassMethodStatement).func.parameters;
             if (params.length) {
-                let args = this.getWrapperCallArgs(params);
-                text += this.makeFunction(member.name.text, args, `
+                let args = `${params.map((p) => p.name.text).join(',')}`;
+                text += this.makeFunction(member.name.text, this.getWrapperCallFuncParams(params), `
                 return m.vm.${member.name.text}(${args})`);
             } else {
                 text += this.makeFunction(member.name.text, 'dummy = invalid', `
@@ -190,7 +190,7 @@ export class NodeClass {
 
         return text;
     }
-    private getWrapperCallArgs(params: FunctionParameterExpression[]) {
+    private getWrapperCallFuncParams(params: FunctionParameterExpression[]) {
         return `${params.map((p) => {
             let defaultValue = expressionToValue(p.defaultValue);
             if (typeof defaultValue === 'string') {
@@ -212,8 +212,8 @@ export class NodeClass {
         for (let member of members.filter(this.classMemberFilter)) {
             let params = (member as ClassMethodStatement).func.parameters;
             if (params.length) {
-                let args = this.getWrapperCallArgs(params);
-                text += this.makeFunction(member.name.text, args, `
+                let args = `${params.map((p) => p.name.text).join(',')}`;
+                text += this.makeFunction(member.name.text, this.getWrapperCallFuncParams(params), `
                 return _getVM().${member.name.text}(${args})`);
             } else {
                 text += this.makeFunction(member.name.text, '(dummy = invalid)', `
