@@ -296,7 +296,7 @@ export class NodeClass {
     generateCode(fileFactory: FileFactory, program: Program, fileMap: ProjectFileMap, isIDEBuild: boolean) {
         let members = this.type === NodeClassType.task ? [] : [...this.getClassMembers(this.classStatement, fileMap).values()];
 
-        console.log('Generating node class', this.name, 'with brsfile?', isIDEBuild
+        console.log('Generating node class', this.name, 'with brsfile?', !isIDEBuild
         );
         if (!isIDEBuild) {
             let source = `import "pkg:/${this.file.pkgPath}"\n`;

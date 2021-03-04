@@ -2,6 +2,123 @@
 const path = require('path');
 // eslint-disable-next-line
 
+let zapp = {
+    'rootDir': '/home/george/hope/applicaster/4/zapp-roku-app/src',
+    'stagingFolderPath': '/home/george/hope/applicaster/4/zapp-roku-app/build',
+    'retainStagingFolder': true,
+    'createPackage': false,
+    'autoImportComponentScript': true,
+    'files': [
+        'manifest',
+        'source/**/*.*',
+        'components/**/*.*',
+        'images/**/*.*',
+        {
+            'src': '../external/plugins-src/**/*.*',
+            'dest': ''
+        },
+        {
+            'src': '../external/plugins-core-src/**/*.*',
+            'dest': ''
+        },
+        {
+            'src': '../external/private-emmys-src/**/*.*',
+            'dest': ''
+        },
+        {
+            'src': '../external/private-oc-src/**/*.*',
+            'dest': ''
+        },
+        {
+            'src': '!../external/plugins-src/**/*.spec.bs',
+            'dest': ''
+        },
+        {
+            'src': '!../external/plugins-core-src/**/*.spec.*',
+            'dest': ''
+        },
+        {
+            'src': '!../external/private-emmys-src/**/*.spec.*',
+            'dest': ''
+        },
+        {
+            'src': '!../external/private-oc-src/**/*.spec.*',
+            'dest': ''
+        },
+        '!**/*.spec.bs'
+    ],
+    'diagnosticFilters': [
+        {
+            'src': '**/roku_modules/**/*.*',
+            'codes': [
+                1107,
+                1009,
+                1001,
+                1067
+            ]
+        },
+        {
+            'src': '**/Whitelist.xml',
+            'codes': [
+                1067
+            ]
+        },
+        {
+            'src': 'components/maestro/generated/**/*.*',
+            'codes': [
+                1001
+            ]
+        },
+        1013,
+        {
+            'src': '../external/plugins-src/components/YouboraAnalytics/*.*'
+        },
+        {
+            'src': '../external/plugins-src/components/segment_analytics/*.*'
+        },
+        {
+            'src': '../external/plugins-src/source/segment_analytics/SegmentAnalytics.brs'
+        },
+        {
+            'src': '../external/plugins-src/source/segment_analytics/SegmentAnalyticsConnector.brs'
+        },
+        {
+            'src': '**/RALETrackerTask.*'
+        }
+    ],
+    'plugins': [
+        '/home/george/hope/open-source/maestro/maestro-roku-bsc-plugin/dist/plugin.js',
+        '/home/george/hope/open-source/rooibos/bsc-plugin/dist/plugin.js'
+    ],
+    'rooibos': {
+        'isRecordingCodeCoverage': false,
+        'testsFilePattern': null
+    },
+    'maestro': {
+        'buildForIDE': false,
+        'excludeFilters': [
+            '**/roku_modules/**/*',
+            '**/rooibos/**/*'
+        ],
+        'buildTimeImports': {
+            'IAuthProvider': [
+                'pkg:/source/zapp_oauth_plugin/ZappOauthPlugin.bs'
+            ],
+            'IEntitlementsProvider': [
+                'pkg:/source/simple_entitlements_roku/SimpleEntitlementsPlugin.bs'
+            ],
+            'IBookmarksProvider': [],
+            'IPlayerAnalytics': [],
+            'IAnalytics': []
+        }
+    },
+    'rokuLog': {
+        'strip': false,
+        'insertPkgPath': true,
+        'removeComments': true
+    },
+    'sourceMap': true
+};
 
 let swv = {
     'stagingFolderPath': 'build',
@@ -270,7 +387,8 @@ let mc = {
 
 let programBuilder = new ProgramBuilder();
 programBuilder.run(
-    swv
+    // swv
+    zapp
     // mc
     // {
     // project: '/home/george/hope/open-source/maestro/swerve-app/bsconfig.json'
