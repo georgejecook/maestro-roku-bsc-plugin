@@ -111,7 +111,7 @@ export class NodeClass {
     public brsFile: BrsFile;
     public bsPath: string;
     public xmlPath: string;
-    public classMemberFilter = (m) => isClassMethodStatement(m) && m.name.text !== 'nodeRun' && m.name.text !== 'new' && m.annotations?.find((a) => a.name.toLowerCase() === 'nodefunc');
+    public classMemberFilter = (m) => isClassMethodStatement(m) && m.name.text !== 'nodeRun' && m.name.text !== 'new' && m.annotations?.find((a) => a.name.toLowerCase() === 'func');
 
     resetDiagnostics() {
         if (this.xmlFile) {
