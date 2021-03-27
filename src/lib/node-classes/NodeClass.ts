@@ -1,10 +1,12 @@
 import type { AnnotationExpression, BrsFile, ClassFieldStatement, ClassMethodStatement, ClassStatement, FunctionParameterExpression, FunctionStatement, Program, ProgramBuilder, XmlFile } from 'brighterscript';
-import { isClassMethodStatement, ParseMode } from 'brighterscript';
+import { TokenKind, isClassMethodStatement, ParseMode, createVisitor, isVariableExpression, WalkMode } from 'brighterscript';
 import { TranspileState } from 'brighterscript/dist/parser/TranspileState';
 import type { ProjectFileMap } from '../files/ProjectFileMap';
 import { expressionToString, expressionToValue } from '../Utils';
 import { addNodeClassCallbackNotDefined, addNodeClassCallbackNotFound, addNodeClassCallbackWrongParams, addNodeClassNoExtendNodeFound } from '../utils/Diagnostics';
 import type { FileFactory } from '../utils/FileFactory';
+import { RawCodeStatement } from '../utils/RawCodeStatement';
+import { getAllFields } from '../utils/Utils';
 
 // eslint-disable-next-line
 const path = require('path');
@@ -17,10 +19,9 @@ export enum NodeClassType {
 }
 
 export class NodeField {
-    constructor(public file: BrsFile, public field: ClassFieldStatement, public annotation: AnnotationExpression, public observerAnnotation?: AnnotationExpression, public alwaysNotify?: boolean, public debounce?: boolean) {
-        let args = annotation.getArguments();
+    constructor(public file: BrsFile, public field: ClassFieldStatement, public fieldType: string, public observerAnnotation?: AnnotationExpression, public alwaysNotify?: boolean, public debounce?: boolean) {
         this.name = field.name.text;
-        this.type = args[0] ? args[0] as string : undefined;
+        this.type = fieldType;
         this.value = expressionToString(this.field.initialValue);
         this.callback = observerAnnotation?.getArguments()[0] as string;
     }
@@ -52,10 +53,10 @@ export class NodeField {
     getCallbackStatement() {
         return `
     function on_${this.name}()
-      m.vm.${this.name} = m.top.${this.name}
-      m.vm.${this.callback}(${this.numArgs === 1 ? 'm.vm.' + this.name : ''})
+    m.vm.${this.callback}(${this.numArgs === 1 ? 'm.vm.' + this.name : ''})
     end function
     `;
+    // m.vm.${this.name} = m.top.${this.name} - probs don't need this coz we rewrite vars to m.top
     }
 
     getDebouncedCallbackStatement() {
@@ -65,6 +66,7 @@ export class NodeField {
       addCallback("${this.callback}")
       end function
       `;
+    //   m.vm.${this.name} = m.top.${this.name} - probs dont' need this, coz we rewrite vars to m.top
     }
 
 
@@ -111,7 +113,7 @@ export class NodeClass {
     public brsFile: BrsFile;
     public bsPath: string;
     public xmlPath: string;
-    public classMemberFilter = (m) => isClassMethodStatement(m) && m.name.text !== 'nodeRun' && m.name.text !== 'new' && m.annotations?.find((a) => a.name.toLowerCase() === 'func');
+    public classMemberFilter = (m) => isClassMethodStatement(m) && (!m.accessModifier || m.accessModifier.kind === TokenKind.Public) && m.name.text !== 'nodeRun' && m.name.text !== 'new';
 
     resetDiagnostics() {
         if (this.xmlFile) {
@@ -204,7 +206,9 @@ export class NodeClass {
     private getLazyNodeBrsCode(nodeFile: NodeClass, members: (ClassFieldStatement | ClassMethodStatement)[]) {
         let text = this.makeFunction('_getVM', '', `
         if m.vm = invalid
-        m.vm = new ${nodeFile.classStatement.getName(ParseMode.BrighterScript)}(m.global, m.top)
+            m.append(__${nodeFile.classStatement.getName(ParseMode.BrightScript)}_builder())
+            m.vm = m
+            m.new(m.global, m.top)
         end if
         return m.vm
         `);
@@ -296,7 +300,7 @@ export class NodeClass {
     generateCode(fileFactory: FileFactory, program: Program, fileMap: ProjectFileMap, isIDEBuild: boolean) {
         let members = this.type === NodeClassType.task ? [] : [...this.getClassMembers(this.classStatement, fileMap).values()];
 
-        console.log('Generating node class', this.name, 'with brsfile?', !isIDEBuild
+        console.log('Generating node class', this.name, 'isIDEBuild?', isIDEBuild
         );
         if (!isIDEBuild) {
             let source = `import "pkg:/${this.file.pkgPath}"\n`;
@@ -307,7 +311,10 @@ export class NodeClass {
             if (this.type === NodeClassType.node) {
                 if (!this.isLazy) {
                     initBody += `
-                m.vm = new ${this.classStatement.getName(ParseMode.BrighterScript)}(m.global, m.top)`;
+                    m.append(__${this.classStatement.getName(ParseMode.BrightScript)}_builder())
+                    m.vm = m
+                    m.new(m.global, m.top)
+                    `;
                 }
                 for (let field of this.nodeFields.filter((f) => f.observerAnnotation)) {
                     initBody += field.getObserverStatementText() + '\n';
@@ -400,5 +407,35 @@ export class NodeClass {
             }
         }
 
+    }
+
+    public replacePublicMFieldRefs(fileMap: ProjectFileMap) {
+        let allTopFields = getAllFields(fileMap, this.classStatement, TokenKind.Public) as any;
+        delete (allTopFields.__classname);
+        let logVisitor = createVisitor({
+            DottedGetExpression: (de) => {
+                if (isVariableExpression(de.obj) && de.obj.name.text === 'm' && allTopFields[de.name.text.toLowerCase()]) {
+                    try {
+                        // eslint-disable-next-line
+                        (de as any)['obj'] = new RawCodeStatement(`m.top`, this.file, de.range);
+                    } catch (e) {
+                        console.log(`Error updating m.public field to dotted get: ${this.file.pkgPath} ${e.getMessage()}`);
+                    }
+                }
+            },
+            DottedSetStatement: (ds) => {
+                if (isVariableExpression(ds.obj) && ds.obj.name.text === 'm' && allTopFields[ds.name.text.toLowerCase()]) {
+                    try {
+                        // eslint-disable-next-line
+                        (ds as any)['obj'] = new RawCodeStatement(`m.top`, this.file, ds.range);
+                    } catch (e) {
+                        console.log(`Error updating m.public field to dotted get: ${this.file.pkgPath} ${e.getMessage()}`);
+                    }
+                }
+            }
+
+        }
+        );
+        this.classStatement.walk(logVisitor, { walkMode: WalkMode.visitAllRecursive });
     }
 }

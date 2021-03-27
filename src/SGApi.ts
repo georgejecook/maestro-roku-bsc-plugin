@@ -392,6 +392,7 @@ export function getSGMembersLookup() {
         'isadidtrackingdisabled': true,
         'isappinstalled': true,
         'isaudioguideenabled': true,
+        'isInFocusChain': true,
         'isrequestsucceeded': true,
         'isconnected': true,
         'isdev': true,

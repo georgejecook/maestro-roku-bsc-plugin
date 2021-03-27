@@ -122,7 +122,7 @@ let zapp = {
 
 let swv = {
     'stagingFolderPath': 'build',
-    'rootDir': '/home/george/hope/open-source/maestro/swerve-app/src',
+    'rootDir': '/home/george/hope/swerve/swerve-app/src',
     'autoImportComponentScript': true,
     'createPackage': false,
     'diagnosticFilters': [
@@ -387,8 +387,8 @@ let mc = {
 
 let programBuilder = new ProgramBuilder();
 programBuilder.run(
-    // swv
-    zapp
+    swv
+    // zapp
     // mc
     // {
     // project: '/home/george/hope/open-source/maestro/swerve-app/bsconfig.json'

@@ -1,11 +1,12 @@
-import type { BrsFile, ProgramBuilder, FunctionStatement, ClassStatement } from 'brighterscript';
-import { isClassMethodStatement } from 'brighterscript';
+import type { BrsFile, ProgramBuilder, FunctionStatement, ClassStatement, ClassFieldStatement } from 'brighterscript';
+import { isLiteralExpression, TokenKind, isClassMethodStatement, isAALiteralExpression, isArrayLiteralExpression } from 'brighterscript';
 import type { ProjectFileMap } from '../files/ProjectFileMap';
 import type { File } from '../files/File';
 import { addNodeClassBadDeclaration, addNodeClassDuplicateName, addNodeClassFieldNoFieldType, addNodeClassWrongNewSignature, addNodeClassNoNodeRunMethod } from '../utils/Diagnostics';
 import type { FileFactory } from '../utils/FileFactory';
 
 import { NodeClass, NodeClassType, NodeField } from './NodeClass';
+import { TokenClass } from 'typescript';
 
 /*
 Crude brighterscript class processor
@@ -77,31 +78,49 @@ export default class NodeClassUtil {
 
     public getNodeFields(file: BrsFile, cs: ClassStatement) {
         let nodeFields = [];
-        for (let field of cs.fields.filter((f) => f.annotations?.length > 0)) {
-            let annotation = field.annotations.find((a) => a.name.toLowerCase() === 'field');
-            if (annotation) {
-
-                let args = annotation.getArguments();
-                if (args?.length === 0) {
-                    addNodeClassFieldNoFieldType(file, field.name.text, annotation.range.start.line, annotation.range.start.character);
-                    continue;
-                }
-
-                let debounce = field.annotations.find((a) => a.name.toLowerCase() === 'debounce') !== undefined;
-                let observerAnnotation = field.annotations.find((a) => a.name.toLowerCase() === 'observer');
-                let alwaysNotify = field.annotations.find((a) => a.name.toLowerCase() === 'alwaysnotify') !== undefined;
-                let f = new NodeField(file, field, annotation, observerAnnotation, alwaysNotify, debounce);
-                let observerArgs = observerAnnotation?.getArguments() ?? [];
-                if (observerArgs.length > 0) {
-                    let observerFunc = cs.methods.find((m) => m.name.text === observerArgs[0]);
-                    f.numArgs = observerFunc?.func?.parameters?.length;
-                }
-
-                nodeFields.push(f);
+        for (let field of cs.fields.filter((f) => !f.accessModifier || f.accessModifier.kind === TokenKind.Public)) {
+            let fieldType = this.getFieldType(field);
+            if (!fieldType) {
+                addNodeClassFieldNoFieldType(file, field.name.text, field.range.start.line, field.range.start.character);
+                continue;
             }
+
+            let debounce = field.annotations?.find((a) => a.name.toLowerCase() === 'debounce') !== undefined;
+            let observerAnnotation = field.annotations?.find((a) => a.name.toLowerCase() === 'observer');
+            let alwaysNotify = field.annotations?.find((a) => a.name.toLowerCase() === 'alwaysnotify') !== undefined;
+            let f = new NodeField(file, field, fieldType, observerAnnotation, alwaysNotify, debounce);
+            let observerArgs = observerAnnotation?.getArguments() ?? [];
+            if (observerArgs.length > 0) {
+                let observerFunc = cs.methods.find((m) => m.name.text === observerArgs[0]);
+                f.numArgs = observerFunc?.func?.parameters?.length;
+            }
+
+            nodeFields.push(f);
         }
 
         return nodeFields;
+    }
+    getFieldType(field: ClassFieldStatement) {
+        let fieldType;
+        if (field.type) {
+            fieldType = field.type.text.toLowerCase();
+            if (fieldType === 'mc.types.assocarray') {
+                fieldType = 'assocarray';
+            } else if (fieldType === 'mc.types.node') {
+                fieldType = 'node';
+            } else if (fieldType === 'mc.types.array') {
+                fieldType = 'assocarray';
+            }
+            console.log('fieldType', fieldType);
+        } else if (isLiteralExpression(field.initialValue)) {
+            fieldType = field.initialValue.type.toTypeString();
+        } else if (isAALiteralExpression(field.initialValue)) {
+            fieldType = 'assocarray';
+        } else if (isArrayLiteralExpression(field.initialValue)) {
+            fieldType = 'array';
+        }
+        return fieldType === 'invalid' ? 'undefined' : fieldType;
+
     }
 
 }

@@ -73,6 +73,7 @@ export class MaestroPlugin implements CompilerPlugin {
     public builder: ProgramBuilder;
     public isFrameworkAdded = false;
     public maestroConfig: MaestroConfig;
+    private mFilesToValidate = new Map<string, BrsFile>();
     private dirtyCompFilePaths = new Set<string>();
     private dirtyNodeClassPaths = new Set<string>();
 
@@ -148,9 +149,8 @@ export class MaestroPlugin implements CompilerPlugin {
                 if (mFile.nodeClasses.size > 0) {
                     this.dirtyNodeClassPaths.add(file.pathAbsolute);
                 }
-                // console.log(`processing file ${file.pkgPath}`);
+                this.mFilesToValidate.set(file.pkgPath, file);
             } else {
-                // console.log(`skipping file ${file.pkgPath}`);
             }
 
         } else {
@@ -211,18 +211,17 @@ export class MaestroPlugin implements CompilerPlugin {
                     // eslint-disable-next-line @typescript-eslint/dot-notation
                     s['diagnostics'] = [];
                 }
-            } else if (isBrsFile(f) && this.shouldParseFile(f)) {
-                let mFile = this.fileMap.allFiles.get(f.pathAbsolute);
-                if (mFile) {
-                    // console.log(' checking ', f.pkgPath);
-                    this.checkMReferences(mFile);
-                    this.doExtraValidations(f);
-                } else {
-                    console.error('could not find MFile for path ', f.pathAbsolute);
-                }
+            }
+        }
+        for (let f of [...this.mFilesToValidate.values()]) {
+            let mFile = this.fileMap.allFiles.get(f.pathAbsolute);
+            if (mFile) {
+                this.checkMReferences(mFile);
+                this.doExtraValidations(f);
             }
         }
 
+        this.mFilesToValidate.clear();
         for (let filePath of [...this.dirtyNodeClassPaths.values()]) {
             for (let nc of this.fileMap.nodeClassesByPath.get(filePath)) {
                 nc.validate();
@@ -290,6 +289,9 @@ export class MaestroPlugin implements CompilerPlugin {
                 }
                 this.injectIOCCode(cs, entry.file);
             }
+        }
+        for (let nc of this.fileMap.nodeClasses.values()) {
+            nc.replacePublicMFieldRefs(this.fileMap);
         }
     }
 
