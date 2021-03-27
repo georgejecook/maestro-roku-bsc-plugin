@@ -1,5 +1,5 @@
 import type { BrsFile, ProgramBuilder, FunctionStatement, ClassStatement, ClassFieldStatement } from 'brighterscript';
-import { isLiteralExpression, TokenKind, isClassMethodStatement, isAALiteralExpression, isArrayLiteralExpression } from 'brighterscript';
+import { isLiteralNumber, isUnaryExpression, isIntegerType, isLongIntegerType, isLiteralExpression, TokenKind, isClassMethodStatement, isAALiteralExpression, isArrayLiteralExpression } from 'brighterscript';
 import type { ProjectFileMap } from '../files/ProjectFileMap';
 import type { File } from '../files/File';
 import { addNodeClassBadDeclaration, addNodeClassDuplicateName, addNodeClassFieldNoFieldType, addNodeClassWrongNewSignature, addNodeClassNoNodeRunMethod } from '../utils/Diagnostics';
@@ -35,10 +35,7 @@ export default class NodeClassUtil {
                 let args = annotation.getArguments();
                 let nodeName = args.length === 2 ? (args[0] as string)?.trim() : undefined;
                 let extendsName = args.length === 2 ? (args[1] as string)?.trim() : undefined;
-                if (nodeType === NodeClassType.task && !isClassMethodStatement(cs.memberMap.noderun)) {
-                    addNodeClassNoNodeRunMethod(file, annotation.range.start.line, annotation.range.start.character + 1);
-                    console.log(' no node run in ', file.pkgPath);
-                } else if (args.length < 2 || !nodeName || !extendsName) {
+                if (args.length < 2 || !nodeName || !extendsName) {
                     addNodeClassBadDeclaration(file, '', annotation.range.start.line, annotation.range.start.character + 1);
                     console.log(' bad class in ', file.pkgPath);
                 } else if (this.fileMap.nodeClasses.has(nodeName)) {
@@ -49,7 +46,7 @@ export default class NodeClassUtil {
                     if (nodeType === NodeClassType.node) {
 
                         let newFunc = cs.memberMap.new as FunctionStatement;
-                        if (newFunc && newFunc.func.parameters.length !== 2) {
+                        if (newFunc && newFunc.func.parameters.length !== 0) {
                             addNodeClassWrongNewSignature(file, annotation.range.start.line, annotation.range.start.character);
                             isValid = false;
                             console.log(' wrong sig in ', file.pkgPath);
@@ -68,6 +65,8 @@ export default class NodeClassUtil {
                         }
                         mFile.nodeClasses.set(file.pathAbsolute, nodeClass);
                         nodeClasses.push(nodeClass);
+                        // eslint-disable-next-line @typescript-eslint/dot-notation
+                        cs['_isNodeClass'] = true;
                     } else {
                         console.log('not adding invalid class', cs.name.text);
                     }
@@ -118,8 +117,14 @@ export default class NodeClassUtil {
             fieldType = 'assocarray';
         } else if (isArrayLiteralExpression(field.initialValue)) {
             fieldType = 'array';
+        } else if (isUnaryExpression(field.initialValue) && isLiteralNumber(field.initialValue.right)) {
+            if (isIntegerType(field.initialValue.right.type) || isLongIntegerType(field.initialValue.right.type)) {
+                fieldType = 'integer';
+            } else {
+                fieldType = 'float';
+            }
         }
-        return fieldType === 'invalid' ? 'undefined' : fieldType;
+        return fieldType === 'invalid' ? undefined : fieldType;
 
     }
 

@@ -210,7 +210,7 @@ export function addNodeClassNeedsClassDeclaration(file: BrsFile, line = 0, col =
 }
 
 export function addNodeClassWrongNewSignature(file: BrsFile, line = 0, col = 0) {
-    file.addDiagnostics([createDiagnostic(file, 1033, `Node classes mconstructors must take 2 arguments: (globalNode, top). Extend mc.NodeClass for a base implementation`, line, col)]);
+    file.addDiagnostics([createDiagnostic(file, 1033, `Node classes constructors must take 0 arguments`, line, col)]);
 }
 
 export function addXmlBindingVMFieldRequired(file: File, binding: Binding) {

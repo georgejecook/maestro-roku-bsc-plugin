@@ -53,20 +53,17 @@ export class NodeField {
     getCallbackStatement() {
         return `
     function on_${this.name}()
-    m.vm.${this.callback}(${this.numArgs === 1 ? 'm.vm.' + this.name : ''})
+      m.${this.callback}(${this.numArgs === 1 ? 'm.top.' + this.name : ''})
     end function
     `;
-    // m.vm.${this.name} = m.top.${this.name} - probs don't need this coz we rewrite vars to m.top
     }
 
     getDebouncedCallbackStatement() {
         return `
     function on_${this.name}()
-      m.vm.${this.name} = m.top.${this.name}
       addCallback("${this.callback}")
       end function
       `;
-    //   m.vm.${this.name} = m.top.${this.name} - probs dont' need this, coz we rewrite vars to m.top
     }
 
 
@@ -137,8 +134,8 @@ export class NodeClass {
     function onTick()
       for each funcName in m.pendingCallbacks
         ${isLazy ? `_getVM()
-        m.vm[funcName]()`
-        : 'm.vm[funcName]()'}
+        m.[funcName]()`
+        : 'm.[funcName]()'}
       end for
       m.pendingCallbacks = {}
     end function
@@ -149,19 +146,18 @@ export class NodeClass {
 
         let text = `
   function init()
-  m.top.functionName = "exec"
+      m.top.functionName = "exec"
   end function
 
   function exec()
-  m.top.output = nodeRun(m.top.args)
-  end function
+    m.append(__${nodeFile.classStatement.getName(ParseMode.BrightScript)}_builder())
+    m.__isVMCreated = true
+    m.new()
 
-  function nodeRun(args)${nodeFile.func.func.body.transpile(transpileState).join('')}
+    m.top.output = m.execute(m.top.args)
   end function
     `;
         return text;
-        // return new RawCodeStatement(text, nodeFile.file, nodeFile.func.range);
-
     }
 
     private makeFunction(name, args, bodyText) {
@@ -182,10 +178,10 @@ export class NodeClass {
             if (params.length) {
                 let args = `${params.map((p) => p.name.text).join(',')}`;
                 text += this.makeFunction(member.name.text, this.getWrapperCallFuncParams(params), `
-                return m.vm.${member.name.text}(${args})`);
+                return m.${member.name.text}(${args})`);
             } else {
                 text += this.makeFunction(member.name.text, 'dummy = invalid', `
-                return m.vm.${member.name.text}()`);
+                return m.${member.name.text}()`);
 
             }
         }
@@ -205,12 +201,12 @@ export class NodeClass {
 
     private getLazyNodeBrsCode(nodeFile: NodeClass, members: (ClassFieldStatement | ClassMethodStatement)[]) {
         let text = this.makeFunction('_getVM', '', `
-        if m.vm = invalid
+        if m.__isVMCreated = invalid
             m.append(__${nodeFile.classStatement.getName(ParseMode.BrightScript)}_builder())
-            m.vm = m
-            m.new(m.global, m.top)
+            m.__isVMCreated = true
+            m.new()
         end if
-        return m.vm
+        return m
         `);
 
         for (let member of members.filter(this.classMemberFilter)) {
@@ -220,7 +216,7 @@ export class NodeClass {
                 text += this.makeFunction(member.name.text, this.getWrapperCallFuncParams(params), `
                 return _getVM().${member.name.text}(${args})`);
             } else {
-                text += this.makeFunction(member.name.text, '(dummy = invalid)', `
+                text += this.makeFunction(member.name.text, 'dummy = invalid', `
                 return _getVM().${member.name.text}()`);
 
             }
@@ -312,8 +308,7 @@ export class NodeClass {
                 if (!this.isLazy) {
                     initBody += `
                     m.append(__${this.classStatement.getName(ParseMode.BrightScript)}_builder())
-                    m.vm = m
-                    m.new(m.global, m.top)
+                    m.new()
                     `;
                 }
                 for (let field of this.nodeFields.filter((f) => f.observerAnnotation)) {
@@ -331,6 +326,10 @@ export class NodeClass {
                 `;
                 }
                 source += this.makeFunction('init', '', initBody) + otherText;
+                source += `function __m_setTopField(field, value)
+                    m.top[field] = value
+                    return value
+                    end function`;
                 if (hasDebounce) {
                     source = `import "pkg:/source/roku_modules/mc/Tasks.brs"
         ` + source;

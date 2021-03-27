@@ -355,7 +355,8 @@ export class MaestroPlugin implements CompilerPlugin {
             if (!getAllAnnotations(this.fileMap, cs)['strict']) {
                 continue;
             }
-
+            // eslint-disable-next-line @typescript-eslint/dot-notation
+            let isNodeClass = cs['_isNodeClass'];
             let fieldMap = getAllFields(this.fileMap, cs);
             let funcMap = file.getAllFuncs(cs);
             cs.walk(createVisitor({
@@ -363,7 +364,9 @@ export class MaestroPlugin implements CompilerPlugin {
                     if (isVariableExpression(ds.obj) && ds.obj?.name?.text === 'm') {
                         let lowerName = ds.name.text.toLowerCase();
                         if (!fieldMap[lowerName] && !this.skips[lowerName]) {
-                            addClassFieldsNotFoundOnSetOrGet(file, `${ds.obj.name.text}.${ds.name.text}`, cs.name.text, ds.range);
+                            if (!isNodeClass || (lowerName === 'top' || lowerName === 'global')) {
+                                addClassFieldsNotFoundOnSetOrGet(file, `${ds.obj.name.text}.${ds.name.text}`, cs.name.text, ds.range);
+                            }
                         }
                     }
                 },
@@ -372,14 +375,19 @@ export class MaestroPlugin implements CompilerPlugin {
                         //TODO - make this not get dotted get's in function calls
                         let lowerName = ds.name.text.toLowerCase();
                         if (!fieldMap[lowerName] && !funcMap[lowerName] && !this.skips[lowerName]) {
-                            addClassFieldsNotFoundOnSetOrGet(file, `${ds.obj.name.text}.${ds.name.text}`, cs.name.text, ds.range);
+                            if (!isNodeClass || (lowerName !== 'top' && lowerName !== 'global')) {
+                                addClassFieldsNotFoundOnSetOrGet(file, `${ds.obj.name.text}.${ds.name.text}`, cs.name.text, ds.range);
+                            }
                         }
                     }
                 }
             }), { walkMode: WalkMode.visitAllRecursive });
 
         }
+
+
     }
+
 
     afterScopeValidate(scope: Scope, files: BscFile[], callables: CallableContainerMap) {
         //validate the ioc calls
@@ -427,16 +435,28 @@ export class MaestroPlugin implements CompilerPlugin {
     }
 
     private injectIOCCode(cs: ClassStatement, file: BrsFile) {
+
+        // eslint-disable-next-line @typescript-eslint/dot-notation
+        let isNodeClass = cs['_isNodeClass'] === true;
+
         for (let f of cs.fields) {
             let annotation = (f.annotations || []).find((a) => a.name === 'inject' || a.name === 'injectClass' || a.name === 'createClass');
             if (annotation) {
                 let args = annotation.getArguments();
                 let wf = f as Writeable<ClassFieldStatement>;
                 if (annotation.name === 'inject') {
-                    if (args.length === 1) {
-                        wf.initialValue = new RawCodeStatement(`mioc_getInstance("${args[0].toString()}")`, file, f.range);
-                    } else if (args.length === 2) {
-                        wf.initialValue = new RawCodeStatement(`mioc_getInstance("${args[0].toString()}", "${args[1].toString()}")`, file, f.range);
+                    if (isNodeClass && (f.accessModifier || f.accessModifier.kind === TokenKind.Public)) {
+                        if (args.length === 1) {
+                            wf.initialValue = new RawCodeStatement(`__m_setTopField(${f.name.text}, mioc_getInstance("${args[0].toString()}"))`, file, f.range);
+                        } else if (args.length === 2) {
+                            wf.initialValue = new RawCodeStatement(`__m_setTopField(${f.name.text}, mioc_getInstance("${args[0].toString()}", "${args[1].toString()}"))`, file, f.range);
+                        }
+                    } else {
+                        if (args.length === 1) {
+                            wf.initialValue = new RawCodeStatement(`mioc_getInstance("${args[0].toString()}")`, file, f.range);
+                        } else if (args.length === 2) {
+                            wf.initialValue = new RawCodeStatement(`mioc_getInstance("${args[0].toString()}", "${args[1].toString()}")`, file, f.range);
+                        }
                     }
                 } else if (annotation.name === 'injectClass') {
                     wf.initialValue = new RawCodeStatement(`mioc_getClassInstance("${args[0].toString()}")`, file, f.range);
@@ -476,7 +496,6 @@ export class MaestroPlugin implements CompilerPlugin {
 
             cs.walk(createVisitor({
                 CallExpression: (ce) => {
-
 
                     let dg = ce.callee as DottedGetExpression;
                     let nameParts = this.getAllDottedGetParts(dg);

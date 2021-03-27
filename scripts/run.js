@@ -177,7 +177,7 @@ let swv = {
 
 const ProgramBuilder = require('brighterscript').ProgramBuilder;
 
-// let config = {
+// let m = {
 //     'rootDir': '/home/george/hope/applicaster/zapp-roku-app/src',
 //     'stagingFolderPath': '/home/george/hope/applicaster/zapp-roku-app/build',
 //     'retainStagingFolder': true,
@@ -336,7 +336,7 @@ const ProgramBuilder = require('brighterscript').ProgramBuilder;
 
 //mc
 let mc = {
-    'rootDir': '/home/george/hope/open-source/maestro/maestro-roku-core/src',
+    'rootDir': '/home/george/hope/open-source/maestro/maestro-roku/src',
     'files': [
         'manifest',
         'source/**/*.*',
@@ -387,9 +387,9 @@ let mc = {
 
 let programBuilder = new ProgramBuilder();
 programBuilder.run(
-    swv
+    // swv
     // zapp
-    // mc
+    mc
     // {
     // project: '/home/george/hope/open-source/maestro/swerve-app/bsconfig.json'
     // project: path.join(__dirname, '../', 'test-project', 'bsconfig.json')
