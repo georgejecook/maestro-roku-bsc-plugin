@@ -1,22 +1,16 @@
 '@MTask("NetTask", "Task")
 class NetworkTask
 
-  public function nodeRun(args)
-    instance = new NetworkTask(args.url)
-    instance.url = args.url
-    return instance.run()
-  end function
-
   public url = ""
 
   function new(url)
     m.url = url
   end function
 
-  function doswttuff()
+  function dostuff()
   end function
 
-  function run()
+  function execute(args)
     'fetch metadata
     'do reuest for profile
     'do request for entitelments

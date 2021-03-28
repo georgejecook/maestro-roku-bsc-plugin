@@ -188,9 +188,8 @@ export function addBuildTimeErrorImportNoImports(file: BrsFile | XmlFile, buildK
     file.addDiagnostics([createDiagnostic(file, 1027, `This file imports a build time import key that is defined in bsConfig; but does not include any imports: ${buildKey}`, line, col, line, 99999, DiagnosticSeverity.Warning)]);
 }
 
-export function addNodeClassNoNodeRunMethod(file: BrsFile, line = 0, col = 0) {
-    file.addDiagnostics([createDiagnostic(file, 1028, `Node classes must declare a function name nodeRun(args), which returns dynamic`, line, col)]);
-
+export function addNodeClassNoExecuteMethod(file: BrsFile, line = 0, col = 0) {
+    file.addDiagnostics([createDiagnostic(file, 1028, `Node classes must declare a function name execute(args as assoccarray), which returns dynamic`, line, col)]);
 }
 
 export function addNodeClassNoExtendNodeFound(file: BrsFile, name: string, extendsName: string, line = 0, col = 0) {

@@ -2,7 +2,7 @@ import type { BrsFile, ProgramBuilder, FunctionStatement, ClassStatement, ClassF
 import { isLiteralNumber, isUnaryExpression, isIntegerType, isLongIntegerType, isLiteralExpression, TokenKind, isClassMethodStatement, isAALiteralExpression, isArrayLiteralExpression } from 'brighterscript';
 import type { ProjectFileMap } from '../files/ProjectFileMap';
 import type { File } from '../files/File';
-import { addNodeClassBadDeclaration, addNodeClassDuplicateName, addNodeClassFieldNoFieldType, addNodeClassWrongNewSignature, addNodeClassNoNodeRunMethod } from '../utils/Diagnostics';
+import { addNodeClassBadDeclaration, addNodeClassDuplicateName, addNodeClassFieldNoFieldType, addNodeClassNoExtendNodeFound, addNodeClassWrongNewSignature } from '../utils/Diagnostics';
 import type { FileFactory } from '../utils/FileFactory';
 
 import { NodeClass, NodeClassType, NodeField } from './NodeClass';
@@ -44,7 +44,6 @@ export default class NodeClassUtil {
                 } else {
                     let isValid = true;
                     if (nodeType === NodeClassType.node) {
-
                         let newFunc = cs.memberMap.new as FunctionStatement;
                         if (newFunc && newFunc.func.parameters.length !== 0) {
                             addNodeClassWrongNewSignature(file, annotation.range.start.line, annotation.range.start.character);
@@ -52,11 +51,17 @@ export default class NodeClassUtil {
                             console.log(' wrong sig in ', file.pkgPath);
                         }
                     }
+                    if (nodeType === NodeClassType.task) {
+                        let executeFunction = cs.memberMap.execute as FunctionStatement;
+                        if (!executeFunction || executeFunction.func.parameters.length !== 1) {
+                            addNodeClassNoExtendNodeFound(file, nodeName, extendsName, annotation.range.start.line, annotation.range.start.character + 1);
+                        }
+                    }
+
                     if (isValid) {
                         //is valid
-                        let func = cs.memberMap.noderun as FunctionStatement;
                         let fields = this.getNodeFields(file, cs);
-                        let nodeClass = new NodeClass(nodeType, file, cs, func, nodeName, extendsName, annotation, this.fileMap, lazyAnnotation !== undefined, fields);
+                        let nodeClass = new NodeClass(nodeType, file, cs, nodeName, extendsName, annotation, this.fileMap, lazyAnnotation !== undefined, fields);
                         this.fileMap.nodeClasses.set(nodeClass.generatedNodeName, nodeClass);
                         let nodeClasses = this.fileMap.nodeClassesByPath.get(file.pathAbsolute);
                         if (!nodeClasses) {

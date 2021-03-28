@@ -93,7 +93,6 @@ export class NodeClass {
         public type: NodeClassType,
         public file: BrsFile,
         public classStatement: ClassStatement,
-        public func: FunctionStatement,
         public name: string,
         public extendsName: string,
         public annotation: AnnotationExpression,
@@ -110,7 +109,7 @@ export class NodeClass {
     public brsFile: BrsFile;
     public bsPath: string;
     public xmlPath: string;
-    public classMemberFilter = (m) => isClassMethodStatement(m) && (!m.accessModifier || m.accessModifier.kind === TokenKind.Public) && m.name.text !== 'nodeRun' && m.name.text !== 'new';
+    public classMemberFilter = (m) => isClassMethodStatement(m) && (!m.accessModifier || m.accessModifier.kind === TokenKind.Public) && m.name.text !== 'new';
 
     resetDiagnostics() {
         if (this.xmlFile) {
@@ -142,18 +141,20 @@ export class NodeClass {
 `;
     }
     private getNodeTaskBrsCode(nodeFile: NodeClass) {
-        let transpileState = new TranspileState(nodeFile.file);
-
         let text = `
   function init()
       m.top.functionName = "exec"
   end function
 
   function exec()
-    m.append(__${nodeFile.classStatement.getName(ParseMode.BrightScript)}_builder())
+    instance = __${nodeFile.classStatement.getName(ParseMode.BrightScript)}_builder()
+    instance.delete("top")
+    instance.delete("global")
+    top = m.top
+    m.append(instance)
     m.__isVMCreated = true
     m.new()
-
+    m.top = top
     m.top.output = m.execute(m.top.args)
   end function
     `;
@@ -202,9 +203,14 @@ export class NodeClass {
     private getLazyNodeBrsCode(nodeFile: NodeClass, members: (ClassFieldStatement | ClassMethodStatement)[]) {
         let text = this.makeFunction('_getVM', '', `
         if m.__isVMCreated = invalid
-            m.append(__${nodeFile.classStatement.getName(ParseMode.BrightScript)}_builder())
+            instance = __${nodeFile.classStatement.getName(ParseMode.BrightScript)}_builder()
+            instance.delete("top")
+            instance.delete("global")
+            top = m.top
+            m.append(instance)
             m.__isVMCreated = true
             m.new()
+            m.top = top
         end if
         return m
         `);
@@ -307,8 +313,14 @@ export class NodeClass {
             if (this.type === NodeClassType.node) {
                 if (!this.isLazy) {
                     initBody += `
-                    m.append(__${this.classStatement.getName(ParseMode.BrightScript)}_builder())
+                    instance = __${this.classStatement.getName(ParseMode.BrightScript)}_builder()
+                    instance.delete("top")
+                    instance.delete("global")
+                    top = m.top
+                    m.append(instance)
+                    m.__isVMCreated = true
                     m.new()
+                    m.top = top
                     `;
                 }
                 for (let field of this.nodeFields.filter((f) => f.observerAnnotation)) {
@@ -326,16 +338,17 @@ export class NodeClass {
                 `;
                 }
                 source += this.makeFunction('init', '', initBody) + otherText;
-                source += `function __m_setTopField(field, value)
-                    m.top[field] = value
-                    return value
-                    end function`;
                 if (hasDebounce) {
                     source = `import "pkg:/source/roku_modules/mc/Tasks.brs"
         ` + source;
                     source += this.getDebounceFunction(this.isLazy);
                 }
             }
+
+            source += `function __m_setTopField(field, value)
+            m.top[field] = value
+            return value
+            end function`;
 
             if (this.type === NodeClassType.task) {
                 source += this.getNodeTaskBrsCode(this);

@@ -447,9 +447,9 @@ export class MaestroPlugin implements CompilerPlugin {
                 if (annotation.name === 'inject') {
                     if (isNodeClass && (f.accessModifier || f.accessModifier.kind === TokenKind.Public)) {
                         if (args.length === 1) {
-                            wf.initialValue = new RawCodeStatement(`__m_setTopField(${f.name.text}, mioc_getInstance("${args[0].toString()}"))`, file, f.range);
+                            wf.initialValue = new RawCodeStatement(`__m_setTopField("${f.name.text}", mioc_getInstance("${args[0].toString()}"))`, file, f.range);
                         } else if (args.length === 2) {
-                            wf.initialValue = new RawCodeStatement(`__m_setTopField(${f.name.text}, mioc_getInstance("${args[0].toString()}", "${args[1].toString()}"))`, file, f.range);
+                            wf.initialValue = new RawCodeStatement(`__m_setTopField("${f.name.text}", mioc_getInstance("${args[0].toString()}", "${args[1].toString()}"))`, file, f.range);
                         }
                     } else {
                         if (args.length === 1) {
