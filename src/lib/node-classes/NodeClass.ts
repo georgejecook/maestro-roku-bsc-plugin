@@ -423,6 +423,7 @@ export class NodeClass {
 
     public replacePublicMFieldRefs(fileMap: ProjectFileMap) {
         let allTopFields = getAllFields(fileMap, this.classStatement, TokenKind.Public) as any;
+        allTopFields.id = true;
         delete (allTopFields.__classname);
         let logVisitor = createVisitor({
             DottedGetExpression: (de) => {
