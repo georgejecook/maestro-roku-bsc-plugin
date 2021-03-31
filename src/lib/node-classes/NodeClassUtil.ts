@@ -113,7 +113,7 @@ export default class NodeClassUtil {
             } else if (fieldType === 'mc.types.node') {
                 fieldType = 'node';
             } else if (fieldType === 'mc.types.array') {
-                fieldType = 'assocarray';
+                fieldType = 'array';
             }
             console.log('fieldType', fieldType);
         } else if (isLiteralExpression(field.initialValue)) {

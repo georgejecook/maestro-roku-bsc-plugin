@@ -364,7 +364,7 @@ export class MaestroPlugin implements CompilerPlugin {
                     if (isVariableExpression(ds.obj) && ds.obj?.name?.text === 'm') {
                         let lowerName = ds.name.text.toLowerCase();
                         if (!fieldMap[lowerName] && !this.skips[lowerName]) {
-                            if (!isNodeClass || (lowerName === 'top' || lowerName === 'global')) {
+                            if (!isNodeClass || (lowerName !== 'top' && lowerName !== 'global')) {
                                 addClassFieldsNotFoundOnSetOrGet(file, `${ds.obj.name.text}.${ds.name.text}`, cs.name.text, ds.range);
                             }
                         }
