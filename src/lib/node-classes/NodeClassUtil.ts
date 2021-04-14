@@ -115,7 +115,7 @@ export default class NodeClassUtil {
             } else if (fieldType === 'mc.types.array') {
                 fieldType = 'array';
             }
-            console.log('fieldType', fieldType);
+            // console.log('fieldType', fieldType);
         } else if (isLiteralExpression(field.initialValue)) {
             fieldType = field.initialValue.type.toTypeString();
         } else if (isAALiteralExpression(field.initialValue)) {
