@@ -52,8 +52,8 @@ export class NodeField {
 
     getCallbackStatement() {
         return `
-    function on_${this.name}()
-      m.${this.callback}(${this.numArgs === 1 ? 'm.top.' + this.name : ''})
+    function on_${this.name}(event)
+      m.${this.callback}(${this.numArgs === 1 ? 'event.getData()' : ''})
     end function
     `;
     }
@@ -69,9 +69,8 @@ export class NodeField {
 
     getLazyCallbackStatement() {
         return `
-    function on_${this.name}()
-    _getVM().${this.name} = m.top.${this.name}
-    _getVM().${this.callback}(${this.numArgs === 1 ? 'm.top.' + this.name : ''})
+    function on_${this.name}(event)
+    _getVM().${this.callback}(${this.numArgs === 1 ? 'event.getData()' : ''})
     end function
     `;
 
@@ -79,7 +78,6 @@ export class NodeField {
     getLazyDebouncedCallbackStatement() {
         return `
     function on_${this.name}()
-      _getVM().${this.name} = m.top.${this.name}
       addCallback("${this.callback}")
     end function
     `;
