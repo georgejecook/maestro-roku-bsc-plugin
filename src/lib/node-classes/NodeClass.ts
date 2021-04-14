@@ -346,8 +346,10 @@ export class NodeClass {
             }
 
             source += `function __m_setTopField(field, value)
-            m.top[field] = value
-            return value
+              if m.top.doesExist(field)
+                m.top[field] = value
+              end if
+              return value
             end function`;
 
             if (this.type === NodeClassType.task) {
