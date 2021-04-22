@@ -255,10 +255,6 @@ export class NodeClass {
                 text += member.getInterfaceText();
             }
         }
-        if (!this.getFieldInParents('data', program)) {
-            text += `\n    <field id="data" type="assocarray"/>\n`;
-        }
-
         for (let member of members.filter(this.classMemberFilter)) {
 
             if (!this.getFunctionInParents(member.name.text, program)) {
