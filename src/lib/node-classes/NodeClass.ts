@@ -12,6 +12,11 @@ import { getAllFields } from '../utils/Utils';
 const path = require('path');
 
 
+interface BoundClassField{
+    cs: ClassStatement;
+    f: ClassFieldStatement;
+}
+
 export enum NodeClassType {
     none = 0,
     node = 1,
@@ -19,7 +24,7 @@ export enum NodeClassType {
 }
 
 export class NodeField {
-    constructor(public file: BrsFile, public field: ClassFieldStatement, public fieldType: string, public observerAnnotation?: AnnotationExpression, public alwaysNotify?: boolean, public debounce?: boolean) {
+    constructor(public file: BrsFile, public classStatement: ClassStatement, public field: ClassFieldStatement, public fieldType: string, public observerAnnotation?: AnnotationExpression, public alwaysNotify?: boolean, public debounce?: boolean) {
         this.name = field.name.text;
         this.type = fieldType;
         this.value = expressionToString(this.field.initialValue);
@@ -370,7 +375,7 @@ export class NodeClass {
                 let fields = cs?.fields;
                 let methods = cs?.methods;
                 for (let member of [...fields, ...methods]) {
-                    if (!results.has(member.name.text.toLowerCase() && member)) {
+                    if (!results.has(member.name.text.toLowerCase())) {
                         results.set(member.name.text.toLowerCase(), member);
                     }
                 }
@@ -380,14 +385,14 @@ export class NodeClass {
     }
 
     private getClassFields(classStatement: ClassStatement, fileMap: ProjectFileMap) {
-        let results = new Map<string, ClassFieldStatement>();
+        let results = new Map<string, BoundClassField>();
         if (classStatement) {
             let classes = this.getClassHieararchy(classStatement.getName(ParseMode.BrighterScript), fileMap);
             for (let cs of classes) {
                 let fields = cs?.fields;
                 for (let member of [...fields]) {
-                    if (!results.has(member.name.text.toLowerCase() && member)) {
-                        results.set(member.name.text.toLowerCase(), member);
+                    if (!results.has(member.name.text.toLowerCase())) {
+                        results.set(member.name.text.toLowerCase(), { cs: cs, f: member });
                     }
                 }
             }
@@ -396,7 +401,7 @@ export class NodeClass {
     }
 
 
-    public getClassHieararchy(className: string, fileMap: ProjectFileMap) {
+    public getClassHieararchy(className: string, fileMap: ProjectFileMap): ClassStatement[] {
         let items = [];
         let parent = fileMap.allClasses.get(className);
         while (parent) {
@@ -415,7 +420,7 @@ export class NodeClass {
     }
 
     public validate() {
-        for (let field of this.nodeFields) {
+        for (let field of this.nodeFields.filter((f) => f.classStatement === this.classStatement)) {
             if (field.observerAnnotation) {
                 let observerArgs = field.observerAnnotation.getArguments();
                 let observerFunc = this.classStatement.methods.find((m) => m.name.text === observerArgs[0]);
@@ -465,7 +470,8 @@ export class NodeClass {
     getNodeFields(file: BrsFile, cs: ClassStatement, fileMap: ProjectFileMap) {
         let fields = this.type === NodeClassType.task ? [] : [...this.getClassFields(this.classStatement, fileMap).values()];
         let nodeFields = [];
-        for (let field of fields.filter((f) => (!f.accessModifier || f.accessModifier.kind === TokenKind.Public) && f.name.text.toLocaleLowerCase() !== '__classname')) {
+        for (let bf of fields.filter((bf) => (!bf.f.accessModifier || bf.f.accessModifier.kind === TokenKind.Public) && bf.f.name.text.toLocaleLowerCase() !== '__classname')) {
+            let field = bf.f;
             let fieldType = this.getFieldType(field);
             if (!fieldType) {
                 addNodeClassFieldNoFieldType(file, field.name.text, field.range.start.line, field.range.start.character);
@@ -475,7 +481,7 @@ export class NodeClass {
             let debounce = field.annotations?.find((a) => a.name.toLowerCase() === 'debounce') !== undefined;
             let observerAnnotation = field.annotations?.find((a) => a.name.toLowerCase() === 'observer');
             let alwaysNotify = field.annotations?.find((a) => a.name.toLowerCase() === 'alwaysnotify') !== undefined;
-            let f = new NodeField(file, field, fieldType, observerAnnotation, alwaysNotify, debounce);
+            let f = new NodeField(file, bf.cs, field, fieldType, observerAnnotation, alwaysNotify, debounce);
             let observerArgs = observerAnnotation?.getArguments() ?? [];
             if (observerArgs.length > 0) {
                 let observerFunc = cs.methods.find((m) => m.name.text === observerArgs[0]);
