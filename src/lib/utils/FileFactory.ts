@@ -9,28 +9,17 @@ export class FileFactory {
     ) {
     }
     public ignoredFilePaths = [];
-    private frameworkSourceFileNames = [
-        'MRuntime.brs'
-    ];
-
-    private frameworkCompNames = [
-    ];
+    private frameworkFiles = {
+        'Reflection.brs': 'source/roku_modules/maestro/reflection/Reflection.brs'
+    };
 
     public sourcePath = path.join(__dirname, '../framework');
-    private targetPath = 'source/maestro/';
-    private targetCompsPath = 'components/maestro';
 
     public addFrameworkFiles(program: Program) {
-        for (let fileName of this.frameworkSourceFileNames) {
+        for (let fileName in this.frameworkFiles) {
             let sourcePath = path.resolve(path.join(this.sourcePath, fileName));
             let fileContents = fs.readFileSync(sourcePath, 'utf8');
-            let destPath = path.join(this.targetPath, fileName);
-            this.addFile(program, destPath, fileContents);
-        }
-        for (let fileName of this.frameworkCompNames) {
-            let sourcePath = path.resolve(path.join(this.sourcePath, fileName));
-            let fileContents = fs.readFileSync(sourcePath, 'utf8');
-            let destPath = path.join(this.targetCompsPath, fileName);
+            let destPath = this.frameworkFiles[fileName];
             this.addFile(program, destPath, fileContents);
         }
     }
@@ -41,17 +30,6 @@ export class FileFactory {
         } catch (error) {
             console.error(`Error adding framework file: ${projectPath} : ${error.message}`);
         }
-    }
-
-    public isIgnoredFile(file: BrsFile | XmlFile): boolean {
-        let name = file.pkgPath.toLowerCase();
-        //TODO look at builder options to ascertain if file is ignored
-
-        let result = this.ignoredFilePaths.find((f) => {
-            return name === path.join(this.targetPath, `${f}.bs`).toLowerCase();
-        }
-        );
-        return result !== undefined;
     }
 
 }

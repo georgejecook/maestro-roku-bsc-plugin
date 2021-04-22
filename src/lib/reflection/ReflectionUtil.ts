@@ -15,7 +15,7 @@ export default class ReflectionUtil {
     }
 
     public updateRuntimeFile() {
-        let runtimeFile = this.builder.program.getFileByPkgPath<BrsFile>('source/maestro/MRuntime.brs');
+        let runtimeFile = this.builder.program.getFileByPkgPath<BrsFile>('source/roku_modules/maestro/reflection/Reflection.brs');
         if (runtimeFile) {
             runtimeFile.needsTranspiled = true;
             this.updateClassLookupFunction(runtimeFile);

@@ -1,8 +1,8 @@
-function MRuntime_getClass(name)
+function mr_getClass(name)
   name = name.replace(".", "_")
   if false
   end if
 end function
 
-function MRuntime_getAllXMLCompNames(name)
+function mr_getAllXMLCompNames(name)
 end function
