@@ -251,7 +251,7 @@ export class NodeClass {
   <interface>
     `;
         for (let member of nodeFile.nodeFields) {
-            if (!this.getFieldInParents(member.name.toLowerCase(), program)) {
+            if (!this.getFieldInParents(member.name, program)) {
                 text += member.getInterfaceText();
             }
         }
@@ -261,7 +261,7 @@ export class NodeClass {
 
         for (let member of members.filter(this.classMemberFilter)) {
 
-            if (!this.getFunctionInParents(member.name.text.toLowerCase(), program)) {
+            if (!this.getFunctionInParents(member.name.text, program)) {
                 text += `
                 <function name="${member.name.text}"/>`;
             }
@@ -469,7 +469,7 @@ export class NodeClass {
     getNodeFields(file: BrsFile, cs: ClassStatement, fileMap: ProjectFileMap) {
         let fields = this.type === NodeClassType.task ? [] : [...this.getClassFields(this.classStatement, fileMap).values()];
         let nodeFields = [];
-        for (let field of fields.filter((f) => !f.accessModifier || f.accessModifier.kind === TokenKind.Public)) {
+        for (let field of fields.filter((f) => (!f.accessModifier || f.accessModifier.kind === TokenKind.Public) && f.name.text.toLocaleLowerCase() !== '__classname')) {
             let fieldType = this.getFieldType(field);
             if (!fieldType) {
                 addNodeClassFieldNoFieldType(file, field.name.text, field.range.start.line, field.range.start.character);

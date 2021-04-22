@@ -227,12 +227,62 @@ let maestro = {
     }
 };
 
+let corco = {
+    'stagingFolderPath': 'build',
+    'rootDir': '/home/george/hope/miracle-channel/corco-roku/src',
+    'autoImportComponentScript': true,
+    'createPackage': false,
+    'diagnosticFilters': [
+        {
+            'src': '**/roku_modules/**/*.*'
+        },
+        {
+            'src': '**/Whitelist.xml',
+            'codes': [1067]
+        },
+        {
+            'src': '**/RALETrackerTask.*'
+        }
+    ],
+    'rooibos': {
+        'isRecordingCodeCoverage': false,
+        'testsFilePattern': null
+    },
+    'logLevel': 'error',
+    'retainStagingFolder': true,
+    'extends': 'bsconfig.json',
+    'files': [
+        'manifest',
+        'source/**/*.*',
+        'images/**/*.*',
+        'sounds/**/*.*',
+        'fonts/**/*.*',
+        'components/**/*.*',
+        'meta/**/*.*',
+        '!**/*.spec.bs'
+    ],
+    'plugins': [
+        '/home/george/hope/open-source/maestro/maestro-roku-bsc-plugin/dist/plugin.js',
+        '/home/george/hope/open-source/rooibos/bsc-plugin/dist/plugin.js'
+    ],
+    'rokuLog': {
+        'strip': false,
+        'insertPkgPath': true
+    },
+    'maestro': {
+        'excludeFilters': ['**/roku_modules/**/*', '**/rooibos/**/*'],
+        'buildForIDE': false
+    },
+    'sourceMap': true
+};
+
 
 let programBuilder = new ProgramBuilder();
 programBuilder.run(
     // swv
     // zapp
-    maestro
+    // maestro
+    corco
     // {
     // project: '/home/george/hope/open-source/maestro/swerve-app/bsconfig.json'
     // project: path.join(__dirname, '../', 'test-project', 'bsconfig.json')
