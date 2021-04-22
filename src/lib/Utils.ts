@@ -1,4 +1,5 @@
 import type { ClassMethodStatement, ClassStatement, Expression, FunctionStatement, LiteralExpression, Statement } from 'brighterscript';
+import { Program } from 'brighterscript';
 import { isAALiteralExpression, isArrayLiteralExpression, isCommentStatement, isIntegerType, isLiteralBoolean, isLiteralNumber, isLiteralString, isLongIntegerType, isUnaryExpression, BinaryExpression, Block, createIdentifier, createStringLiteral, createToken, isClassMethodStatement, isClassStatement, Lexer, ParseMode, Parser, TokenKind, Range, IfStatement } from 'brighterscript';
 
 import * as rokuDeploy from 'roku-deploy';

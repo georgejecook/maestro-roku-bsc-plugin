@@ -1,12 +1,10 @@
-import type { BrsFile, ProgramBuilder, FunctionStatement, ClassStatement, ClassFieldStatement } from 'brighterscript';
-import { isLiteralNumber, isUnaryExpression, isIntegerType, isLongIntegerType, isLiteralExpression, TokenKind, isClassMethodStatement, isAALiteralExpression, isArrayLiteralExpression } from 'brighterscript';
+import type { BrsFile, ProgramBuilder, FunctionStatement } from 'brighterscript';
 import type { ProjectFileMap } from '../files/ProjectFileMap';
 import type { File } from '../files/File';
-import { addNodeClassBadDeclaration, addNodeClassDuplicateName, addNodeClassFieldNoFieldType, addNodeClassNoExtendNodeFound, addNodeClassWrongNewSignature } from '../utils/Diagnostics';
+import { addNodeClassBadDeclaration, addNodeClassDuplicateName, addNodeClassNoExtendNodeFound, addNodeClassWrongNewSignature } from '../utils/Diagnostics';
 import type { FileFactory } from '../utils/FileFactory';
 
 import { NodeClass, NodeClassType, NodeField } from './NodeClass';
-import { TokenClass } from 'typescript';
 
 /*
 Crude brighterscript class processor
@@ -60,8 +58,7 @@ export default class NodeClassUtil {
 
                     if (isValid) {
                         //is valid
-                        let fields = this.getNodeFields(file, cs);
-                        let nodeClass = new NodeClass(nodeType, file, cs, nodeName, extendsName, annotation, this.fileMap, lazyAnnotation !== undefined, fields);
+                        let nodeClass = new NodeClass(nodeType, file, cs, nodeName, extendsName, annotation, this.fileMap, lazyAnnotation !== undefined);
                         this.fileMap.nodeClasses.set(nodeClass.generatedNodeName, nodeClass);
                         let nodeClasses = this.fileMap.nodeClassesByPath.get(file.pathAbsolute);
                         if (!nodeClasses) {
@@ -80,58 +77,6 @@ export default class NodeClassUtil {
         }
     }
 
-    public getNodeFields(file: BrsFile, cs: ClassStatement) {
-        let nodeFields = [];
-        for (let field of cs.fields.filter((f) => !f.accessModifier || f.accessModifier.kind === TokenKind.Public)) {
-            let fieldType = this.getFieldType(field);
-            if (!fieldType) {
-                addNodeClassFieldNoFieldType(file, field.name.text, field.range.start.line, field.range.start.character);
-                continue;
-            }
-
-            let debounce = field.annotations?.find((a) => a.name.toLowerCase() === 'debounce') !== undefined;
-            let observerAnnotation = field.annotations?.find((a) => a.name.toLowerCase() === 'observer');
-            let alwaysNotify = field.annotations?.find((a) => a.name.toLowerCase() === 'alwaysnotify') !== undefined;
-            let f = new NodeField(file, field, fieldType, observerAnnotation, alwaysNotify, debounce);
-            let observerArgs = observerAnnotation?.getArguments() ?? [];
-            if (observerArgs.length > 0) {
-                let observerFunc = cs.methods.find((m) => m.name.text === observerArgs[0]);
-                f.numArgs = observerFunc?.func?.parameters?.length;
-            }
-
-            nodeFields.push(f);
-        }
-
-        return nodeFields;
-    }
-    getFieldType(field: ClassFieldStatement) {
-        let fieldType;
-        if (field.type) {
-            fieldType = field.type.text.toLowerCase();
-            if (fieldType === 'mc.types.assocarray') {
-                fieldType = 'assocarray';
-            } else if (fieldType === 'mc.types.node') {
-                fieldType = 'node';
-            } else if (fieldType === 'mc.types.array') {
-                fieldType = 'array';
-            }
-            // console.log('fieldType', fieldType);
-        } else if (isLiteralExpression(field.initialValue)) {
-            fieldType = field.initialValue.type.toTypeString();
-        } else if (isAALiteralExpression(field.initialValue)) {
-            fieldType = 'assocarray';
-        } else if (isArrayLiteralExpression(field.initialValue)) {
-            fieldType = 'array';
-        } else if (isUnaryExpression(field.initialValue) && isLiteralNumber(field.initialValue.right)) {
-            if (isIntegerType(field.initialValue.right.type) || isLongIntegerType(field.initialValue.right.type)) {
-                fieldType = 'integer';
-            } else {
-                fieldType = 'float';
-            }
-        }
-        return fieldType === 'invalid' ? undefined : fieldType;
-
-    }
 
 }
 
