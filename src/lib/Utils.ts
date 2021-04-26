@@ -1,6 +1,5 @@
 import type { ClassMethodStatement, ClassStatement, Expression, FunctionStatement, LiteralExpression, Statement } from 'brighterscript';
-import { Program } from 'brighterscript';
-import { isAALiteralExpression, isArrayLiteralExpression, isCommentStatement, isIntegerType, isLiteralBoolean, isLiteralNumber, isLiteralString, isLongIntegerType, isUnaryExpression, BinaryExpression, Block, createIdentifier, createStringLiteral, createToken, isClassMethodStatement, isClassStatement, Lexer, ParseMode, Parser, TokenKind, Range, IfStatement } from 'brighterscript';
+import { ImportStatement, isAALiteralExpression, isArrayLiteralExpression, isCommentStatement, isIntegerType, isLiteralBoolean, isLiteralNumber, isLiteralString, isLongIntegerType, isUnaryExpression, BinaryExpression, Block, createIdentifier, createStringLiteral, createToken, isClassMethodStatement, isClassStatement, Lexer, ParseMode, Parser, TokenKind, Range, IfStatement } from 'brighterscript';
 
 import * as rokuDeploy from 'roku-deploy';
 
@@ -242,4 +241,10 @@ function numberExpressionToValue(expr: LiteralExpression, operator = '') {
     } else {
         return parseFloat(operator + expr.token.text);
     }
+}
+
+export function createImportStatement(pkgPath: string, range: Range) {
+    let importToken = createToken(TokenKind.Import, 'import', range);
+    let filePathToken = createToken(TokenKind.SourceFilePathLiteral, `"${pkgPath}"`, range);
+    return new ImportStatement(importToken, filePathToken);
 }
