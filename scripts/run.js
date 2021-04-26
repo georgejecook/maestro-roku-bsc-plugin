@@ -98,7 +98,8 @@ let zapp = {
         'buildForIDE': false,
         'excludeFilters': [
             '**/roku_modules/**/*',
-            '**/rooibos/**/*'
+            '**/rooibos/**/*',
+            '**/RALETrackerTask.xml'
         ],
         'buildTimeImports': {
             'IAuthProvider': [
@@ -309,7 +310,7 @@ let corco = {
         'insertPkgPath': true
     },
     'maestro': {
-        'excludeFilters': ['**/roku_modules/**/*', '**/rooibos/**/*'],
+        'excludeFilters': ['**/roku_modules/**/*', '**/rooibos/**/*', '**/RALETrackerTask.*'],
         'buildForIDE': false
     },
     'sourceMap': true
@@ -321,8 +322,8 @@ programBuilder.run(
     // swv
     // zapp
     // maestro
-    // corco
-    maestroList
+    corco
+    // maestroList
     // {
     // project: '/home/george/hope/open-source/maestro/swerve-app/bsconfig.json'
     // project: path.join(__dirname, '../', 'test-project', 'bsconfig.json')
