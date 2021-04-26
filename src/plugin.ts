@@ -245,7 +245,7 @@ export class MaestroPlugin implements CompilerPlugin {
 
     shouldParseFile(file: BscFile) {
         if (this.maestroConfig.excludeFilters) {
-            for (let filter of this.maestroConfig.excludeFilters) {
+            for (let filter of [...this.maestroConfig.excludeFilters, '**/components/maestro/generated/*']) {
                 if (minimatch(file.pathAbsolute, filter)) {
                     return false;
                 }
@@ -303,8 +303,18 @@ export class MaestroPlugin implements CompilerPlugin {
                 if (isXmlFile(entry.file)) {
                     let mFile = this.fileMap.allFiles.get(entry.file.pathAbsolute);
                     if (mFile.isValid) {
-                        // console.log('adding xml transpiled code for ', entry.file.pkgPath);
+                        //it's a binding file
                         this.bindingProcessor.generateCodeForXMLFile(mFile);
+                        // console.log('generating code for bindings ', entry.file.pkgPath);
+                        //it's a binding file
+                    } else if (mFile.bindings.length === 0 && this.shouldParseFile(entry.file)) {
+                        //check if we should add bindings to this anyhow)
+                        // console.log('getting ids for regular xml file ', entry.file.pkgPath);
+                        this.bindingProcessor.addNodeVarsMethodForRegularXMLFile(mFile);
+                        //check if we should add bindings to this anyhow)
+                    } else {
+                        // console.log('not passing file through binding processor', entry.file.pkgPath);
+
                     }
                 }
             }

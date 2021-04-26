@@ -1,10 +1,8 @@
-import type {
-    FunctionStatement,
+import type { FunctionStatement,
     IfStatement,
     BrsFile,
     XmlFile,
-    SourceObj
-} from 'brighterscript';
+    SourceObj } from 'brighterscript';
 import {
     ParseMode,
     Parser,
@@ -40,7 +38,7 @@ export class BindingProcessor {
             (file) => file.fileType === FileType.Xml
         )) {
             if (file.isValid) {
-                console.log('generating', file.fullPath);
+                // console.log('generating', file.fullPath);
                 this.generateCodeForXMLFile(file);
             }
         }
@@ -53,6 +51,8 @@ export class BindingProcessor {
         }
         if (file.associatedFile) {
             this.addFindNodeVarsMethodForFile(file);
+        } else {
+            console.log('no associated file for ', file.fullPath);
         }
 
         if (file.bindings.length > 0) {
@@ -81,6 +81,56 @@ export class BindingProcessor {
         };
         file.bscFile.parse(fileContents.source);
         file.bindings = this.processElements(file);
+    }
+
+    public addNodeVarsMethodForRegularXMLFile(file: File) {
+        if (!file || file.fileType !== FileType.Xml) {
+            throw new Error('was given a non-xml file');
+        }
+        if (file.associatedFile) {
+            file.resetBindings();
+
+            //we have to reparse the xml each time we do this..
+            let fileContents: SourceObj = {
+                pathAbsolute: file.fullPath,
+                source: file.bscFile.fileContents
+            };
+            file.bscFile.parse(fileContents.source);
+            this.processElementsForTagIds(file);
+            if (file.tagIds.size > 0) {
+                this.addFindNodeVarsMethodForFile(file);
+            }
+        }
+    }
+
+    public processElementsForTagIds(file: File) {
+        let xmlFile = file.bscFile as XmlFile;
+        file.componentTag = xmlFile.ast.component;
+        for (let sgNode of this.getAllChildren(file.componentTag)) {
+            let id = sgNode.getAttributeValue('id');
+            if (id) {
+                file.tagIds.add(id);
+            }
+        }
+        // console.log('got tagids', file.tagIds);
+    }
+
+    private addInitCreateNodeVarsCall(file: BrsFile) {
+        let initFunc = file.parser.references.functionStatements.find((f) => f.name.text.toLowerCase() === 'init');
+        if (initFunc) {
+            initFunc.func.body.statements.splice(0, 0, new RawCodeStatement(`
+  m_createNodeVars()
+    `));
+        }
+        if (!initFunc) {
+            console.log('init func was not present in ', file.pkgPath, ' adding init function');
+            let initFunc = makeASTFunction(`function init()
+  m_createNodeVars()
+end function`);
+            file.parser.references.functionStatements.push(initFunc);
+            file.parser.references.functionStatementLookup.set('init', initFunc);
+            file.parser.ast.statements.push(initFunc);
+        }
     }
 
     public getAllChildren(component: SGComponent) {
@@ -234,10 +284,6 @@ export class BindingProcessor {
                 ...new Set(bindings.filter((b) => !b.isTopBinding).map((b) => b.nodeId))
             ];
 
-            if (nodeIds.length > 0) {
-                ifStatement.thenBranch.statements.push(new RawCodeStatement('m_createNodeVars()'));
-            }
-
             for (let binding of bindings) {
                 ifStatement.thenBranch.statements.push(new RawCodeStatement(binding.getInitText(), file, binding.range));
 
@@ -264,9 +310,6 @@ export class BindingProcessor {
             let nodeIds = [
                 ...new Set(bindings.filter((b) => !b.isTopBinding).map((b) => b.nodeId))
             ];
-            if (nodeIds.length > 0) {
-                ifStatement.thenBranch.statements.push(new RawCodeStatement('m_createNodeVars()'));
-            }
 
             for (let binding of bindings) {
                 ifStatement.thenBranch.statements.push(new RawCodeStatement(binding.getStaticText(), file, binding.range));
@@ -281,21 +324,24 @@ export class BindingProcessor {
             Array.from(file.tagIds.values())
         );
 
-        //TODO convert to pure AST
         if (tagIds.length > 0) {
-            let funcText = 'function m_createNodeVars()';
-            funcText +=
-                '\n if m._isCreateNodeVarsCalled = true then return invalid else m._isCreateNodeVarsCalled = true';
-            funcText += '\n mv_findNodes([' + tagIds.map((id) => `"${id}"`).join(',');
-            funcText += '])\n';
-            funcText += '\nend function';
+            let funcText = `function m_createNodeVars();
+  for each id in [ ${tagIds.map((id) => `"${id}"`).join(',')}]
+    m[id] = m.top.findNode(id)
+  end for
+end function
+`;
 
             let createNodeVarsFunction = this.makeASTFunction(funcText);
+            let brsFile = file.associatedFile.bscFile as BrsFile;
             if (createNodeVarsFunction && file.associatedFile?.bscFile?.parser) {
-                (file.associatedFile.bscFile as BrsFile).parser.statements.push(createNodeVarsFunction);
+                brsFile.parser.statements.push(createNodeVarsFunction);
                 file.associatedFile.isASTChanged = true;
             }
-
+            this.addInitCreateNodeVarsCall(file.associatedFile.bscFile as BrsFile);
+        } else {
+            // console.log('file has no tags', file.fullPath);
         }
+
     }
 }
