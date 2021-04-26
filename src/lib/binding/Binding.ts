@@ -133,17 +133,14 @@ export default class Binding {
         switch (this.properties.type) {
             case BindingType.oneWaySource:
                 return this.getOneWaySourceText();
-                break;
             case BindingType.oneWayTarget:
                 return this.getOneWayTargetText();
-                break;
             case BindingType.twoWay:
                 if (this.isUsingGetterAndSetter) {
                     return this.getBinding.getOneWaySourceText() + '\n' + this.setBinding.getOneWayTargetText();
                 } else {
                     return this.getOneWaySourceText() + '\n' + this.getOneWayTargetText();
                 }
-                break;
             case BindingType.static:
             case BindingType.code:
             case BindingType.invalid:
@@ -160,7 +157,7 @@ export default class Binding {
     private getOneWayTargetText() {
         let funcText = this.properties.sendMode === BindingSendMode.field ? `"${this.observerField}"` : `vm.${this.observerField}`;
 
-        return `mc_Tasks_observeNodeField(m.${this.nodeId}, "${this.nodeField}", ${funcText}, "${this.properties.getModeText()}", ${this.properties.isFiringOnce ? 'true' : 'false'}, vm)`;
+        return `vm.observeNodeField(m.${this.nodeId}, "${this.nodeField}", ${funcText}, "${this.properties.getModeText()}", ${this.properties.isFiringOnce ? 'true' : 'false'})`;
 
     }
 
