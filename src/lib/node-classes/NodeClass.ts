@@ -316,7 +316,7 @@ export class NodeClass {
 
             let initBody = ``;
             let otherFunctionsText = ``;
-            let observerBody = `? "CALLED OBSERBVER" ; m.top.subType()\n`;
+            let observerBody = ``;
             let hasDebounce = false;
             if (this.type === NodeClassType.node) {
                 if (!this.isLazy) {
@@ -338,7 +338,7 @@ export class NodeClass {
                 }
 
                 for (let field of this.nodeFields.filter((f) => f.observerAnnotation)) {
-                    observerBody += field.getObserverStatementText() + `\n+? "WIRING UP ${field.name}\n`;
+                    observerBody += field.getObserverStatementText() + `\n`;
                     hasDebounce = hasDebounce || field.debounce;
                     if (this.isLazy) {
                         otherFunctionsText += field.debounce ? field.getLazyDebouncedCallbackStatement() : field.getLazyCallbackStatement();
