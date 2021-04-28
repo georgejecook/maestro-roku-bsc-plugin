@@ -98,7 +98,8 @@ export class NodeClass {
         public extendsName: string,
         public annotation: AnnotationExpression,
         public fileMap: ProjectFileMap,
-        public isLazy: boolean
+        public isLazy: boolean,
+        public observersWaitInit: boolean
     ) {
         this.generatedNodeName = this.name.replace(/[^a-zA-Z0-9]/g, '_');
         this.bsPath = path.join('components', 'maestro', 'generated', `${this.generatedNodeName}.bs`);
@@ -203,19 +204,27 @@ export class NodeClass {
     }
 
     private getLazyNodeBrsCode(nodeFile: NodeClass, members: (ClassFieldStatement | ClassMethodStatement)[]) {
-        let text = this.makeFunction('_getVM', '', `
+        let body = `
         if m.__isVMCreated = invalid
-            instance = __${nodeFile.classStatement.getName(ParseMode.BrightScript)}_builder()
-            instance.delete("top")
-            instance.delete("global")
-            top = m.top
-            m.append(instance)
-            m.__isVMCreated = true
-            m.new()
-            m.top = top
-        end if
+        instance = __${nodeFile.classStatement.getName(ParseMode.BrightScript)}_builder()
+        instance.delete("top")
+        instance.delete("global")
+        top = m.top
+        m.append(instance)
+        m.__isVMCreated = true
+        m.new()
+        m.top = top
+        `;
+        if (this.observersWaitInit) {
+            body += `m.isWiringObserversOnInit = true\n`;
+        } else {
+            body += `m_wireUpObservers()\n`;
+        }
+
+        body += `  end if
         return m
-        `);
+        `;
+        let text = this.makeFunction('_getVM', '', body);
 
         for (let member of members.filter(this.classMemberFilter)) {
             let params = (member as ClassMethodStatement).func.parameters;
@@ -306,7 +315,8 @@ export class NodeClass {
             let source = `import "pkg:/${this.file.pkgPath}"\n`;
 
             let initBody = ``;
-            let otherText = '';
+            let otherFunctionsText = ``;
+            let observerBody = `? "CALLED OBSERBVER" ; m.top.subType()\n`;
             let hasDebounce = false;
             if (this.type === NodeClassType.node) {
                 if (!this.isLazy) {
@@ -320,23 +330,31 @@ export class NodeClass {
                     m.new()
                     m.top = top
                     `;
-                }
-                for (let field of this.nodeFields.filter((f) => f.observerAnnotation)) {
-                    initBody += field.getObserverStatementText() + '\n';
-                    hasDebounce = hasDebounce || field.debounce;
-                    if (this.isLazy) {
-                        otherText += field.debounce ? field.getLazyDebouncedCallbackStatement() : field.getLazyCallbackStatement();
+                    if (this.observersWaitInit) {
+                        initBody += `m.isWiringObserversOnInit = true\n`;
                     } else {
-                        otherText += field.debounce ? field.getDebouncedCallbackStatement() : field.getCallbackStatement();
+                        initBody += `m_wireUpObservers()\n`;
                     }
                 }
-                if (hasDebounce) {
+
+                for (let field of this.nodeFields.filter((f) => f.observerAnnotation)) {
+                    observerBody += field.getObserverStatementText() + `\n+? "WIRING UP ${field.name}\n`;
+                    hasDebounce = hasDebounce || field.debounce;
+                    if (this.isLazy) {
+                        otherFunctionsText += field.debounce ? field.getLazyDebouncedCallbackStatement() : field.getLazyCallbackStatement();
+                    } else {
+                        otherFunctionsText += field.debounce ? field.getDebouncedCallbackStatement() : field.getCallbackStatement();
+                    }
+                }
+                if (hasDebounce || this.observersWaitInit) {
                     initBody += `
                 m.pendingCallbacks = {}
                 `;
                 }
-                source += this.makeFunction('init', '', initBody) + otherText;
-                if (hasDebounce) {
+                source += this.makeFunction('init', '', initBody);
+                source += otherFunctionsText;
+                source += this.makeFunction('m_wireUpObservers', '', observerBody);
+                if (hasDebounce || this.observersWaitInit) {
                     source = `import "pkg:/source/roku_modules/mc/Tasks.brs"
         ` + source;
                     source += this.getDebounceFunction(this.isLazy);

@@ -26,9 +26,11 @@ export default class NodeClassUtil {
 
         for (let cs of file.parser.references.classStatements) {
             let annotation = cs.annotations?.find((a) => a.name.toLowerCase() === 'task' || a.name.toLowerCase() === 'node');
-            let lazyAnnotation = cs.annotations?.find((a) => a.name.toLowerCase() === 'lazy');
             let nodeType = NodeClassType.none;
             if (annotation) {
+                let lazyAnnotation = cs.annotations?.find((a) => a.name.toLowerCase() === 'lazy');
+                let waitInitAnnotation = cs.annotations?.find((a) => a.name.toLowerCase() === 'observerswaitinitialize');
+
                 nodeType = annotation.name.toLowerCase() === 'task' ? NodeClassType.task : NodeClassType.node;
                 let args = annotation.getArguments();
                 let nodeName = args.length === 2 ? (args[0] as string)?.trim() : undefined;
@@ -58,7 +60,7 @@ export default class NodeClassUtil {
 
                     if (isValid) {
                         //is valid
-                        let nodeClass = new NodeClass(nodeType, file, cs, nodeName, extendsName, annotation, this.fileMap, lazyAnnotation !== undefined);
+                        let nodeClass = new NodeClass(nodeType, file, cs, nodeName, extendsName, annotation, this.fileMap, lazyAnnotation !== undefined, waitInitAnnotation !== undefined);
                         this.fileMap.nodeClasses.set(nodeClass.generatedNodeName, nodeClass);
                         let nodeClasses = this.fileMap.nodeClassesByPath.get(file.pathAbsolute);
                         if (!nodeClasses) {
