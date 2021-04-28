@@ -316,13 +316,57 @@ let corco = {
     'sourceMap': true
 };
 
+let maestroSample = {
+    'stagingFolderPath': 'build',
+    'rootDir': '/home/george/hope/open-source/maestro/maestro-roku/sample/src',
+    'files': [
+        'manifest',
+        'source/**/*.*',
+        'images/**/*.*',
+        'sounds/**/*.*',
+        'sounds/*.*',
+        'fonts/**/*.*',
+        'meta/**/*.*',
+        'components/**/*.*'
+    ],
+    'autoImportComponentScript': true,
+    'createPackage': false,
+    'diagnosticFilters': [
+        {
+            'src': '**/roku_modules/**/*.*'
+        },
+        {
+            'src': '**/RALETrackerTask.*'
+        }
+    ],
+    'plugins': [
+        '/home/george/hope/open-source/maestro/maestro-roku-bsc-plugin/dist/plugin.js',
+        '/home/george/hope/open-source/rooibos/bsc-plugin/dist/plugin.js'
+    ],
+    'maestro': {
+        'excludeFilters': ['**/roku_modules/**/*', '**/rooibos/**/*'],
+        'buildForIDE': false
+    },
+    'rooibos': {
+        'isRecordingCodeCoverage': false,
+        'testsFilePattern': null
+    },
+    'rokuLog': {
+        'strip': false,
+        'insertPkgPath': true,
+        'removeComments': true
+    },
+    'logLevel': 'error',
+    'retainStagingFolder': true
+};
 
 let programBuilder = new ProgramBuilder();
 programBuilder.run(
     // swv
     // zapp
     // maestro
-    corco
+    // corco
+    maestroSample
     // maestroList
     // {
     // project: '/home/george/hope/open-source/maestro/swerve-app/bsconfig.json'
