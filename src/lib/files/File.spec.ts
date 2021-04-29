@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import type { XmlFile } from 'brighterscript';
 import { BrsFile, Program } from 'brighterscript';
 import { expect } from 'chai';

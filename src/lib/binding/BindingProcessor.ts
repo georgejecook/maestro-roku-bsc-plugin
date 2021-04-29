@@ -193,6 +193,7 @@ end function`);
                 }
             }
         } catch (e) {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
             addXmlBindingErrorValidatingBindings(file, e.message);
             errorCount++;
         }

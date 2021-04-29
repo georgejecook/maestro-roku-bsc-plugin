@@ -557,6 +557,7 @@ export class MaestroPlugin implements CompilerPlugin {
                                     if (numArgs < minArgs || numArgs > maxArgs) {
                                         // eslint-disable-next-line @typescript-eslint/dot-notation
                                         file['diagnostics'].push({
+                                            // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
                                             ...wrongMethodArgs(`${name}`, numArgs, minArgs, maxArgs),
                                             range: ce.range,
                                             file: file

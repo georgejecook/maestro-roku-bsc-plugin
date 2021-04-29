@@ -112,6 +112,7 @@ export class NodeClass {
     public bsPath: string;
     public xmlPath: string;
     public nodeFields: NodeField[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     public classMemberFilter = (m) => isClassMethodStatement(m) && (!m.accessModifier || m.accessModifier.kind === TokenKind.Public) && m.name.text !== 'new';
 
     resetDiagnostics() {
@@ -514,7 +515,7 @@ export class NodeClass {
         return nodeFields;
     }
 
-    getFieldType(field: ClassFieldStatement) {
+    getFieldType(field: ClassFieldStatement): string | undefined {
         let fieldType;
         if (field.type) {
             fieldType = field.type.text.toLowerCase();

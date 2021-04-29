@@ -266,6 +266,7 @@ export function addImport(file: BrsFile, pkgPath: string) {
 
         // eslint-disable-next-line @typescript-eslint/dot-notation
         let dg = file.program['dependencyGraph'];
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         file.attachDependencyGraph(dg);
     }
 

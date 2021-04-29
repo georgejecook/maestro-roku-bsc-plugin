@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-confusing-void-expression */
 import type { BrsFile, BsDiagnostic } from 'brighterscript';
 import { DiagnosticSeverity, Program, ProgramBuilder, util } from 'brighterscript';
