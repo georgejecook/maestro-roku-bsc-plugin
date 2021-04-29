@@ -1,7 +1,9 @@
-import type { ClassMethodStatement, ClassStatement, Expression, FunctionStatement, LiteralExpression, Statement } from 'brighterscript';
-import { ImportStatement, isAALiteralExpression, isArrayLiteralExpression, isCommentStatement, isIntegerType, isLiteralBoolean, isLiteralNumber, isLiteralString, isLongIntegerType, isUnaryExpression, BinaryExpression, Block, createIdentifier, createStringLiteral, createToken, isClassMethodStatement, isClassStatement, Lexer, ParseMode, Parser, TokenKind, Range, IfStatement } from 'brighterscript';
+import type { BrsFile, ClassMethodStatement, ClassStatement, Expression, FunctionStatement, LiteralExpression, Statement } from 'brighterscript';
+
+import { Position, isImportStatement, ImportStatement, isAALiteralExpression, isArrayLiteralExpression, isCommentStatement, isIntegerType, isLiteralBoolean, isLiteralNumber, isLiteralString, isLongIntegerType, isUnaryExpression, BinaryExpression, Block, createIdentifier, createStringLiteral, createToken, isClassMethodStatement, isClassStatement, Lexer, ParseMode, Parser, TokenKind, Range, IfStatement } from 'brighterscript';
 
 import * as rokuDeploy from 'roku-deploy';
+import { createRange } from './utils/Utils';
 
 export function spliceString(str: string, index: number, count: number, add: string): string {
     // We cannot pass negative indexes directly to the 2nd slicing operation.
@@ -247,4 +249,25 @@ export function createImportStatement(pkgPath: string, range: Range) {
     let importToken = createToken(TokenKind.Import, 'import', range);
     let filePathToken = createToken(TokenKind.SourceFilePathLiteral, `"${pkgPath}"`, range);
     return new ImportStatement(importToken, filePathToken);
+}
+
+export function addImport(file: BrsFile, pkgPath: string) {
+    let existingImports = file.parser.ast.statements.find((el) => isImportStatement(el) && el.filePath === pkgPath);
+    if (!existingImports) {
+        let importStatement = createImportStatement(pkgPath, createRange(Position.create(1, 1)));
+        file.parser.ast.statements = [importStatement, ...file.parser.ast.statements];
+        file.parser.invalidateReferences();
+        file.ownScriptImports.push({
+            pkgPath: pkgPath,
+            text: `import "${pkgPath}"`,
+            sourceFile: file
+        });
+        //re-attach the dependency graph which tells the xml file this has changed
+
+        // eslint-disable-next-line @typescript-eslint/dot-notation
+        let dg = file.program['dependencyGraph'];
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+        file.attachDependencyGraph(dg);
+    }
+
 }

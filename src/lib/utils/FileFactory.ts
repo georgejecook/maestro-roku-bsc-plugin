@@ -20,6 +20,7 @@ export class FileFactory {
             let sourcePath = path.resolve(path.join(this.sourcePath, fileName));
             let fileContents = fs.readFileSync(sourcePath, 'utf8');
             let destPath = this.frameworkFiles[fileName];
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
             this.addFile(program, destPath, fileContents);
         }
     }

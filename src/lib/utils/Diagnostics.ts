@@ -15,7 +15,9 @@ function addErrorDiagnostic(
     endCol = 99999
 ) {
     endLine = endLine === -1 ? startLine : endLine;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     let targetFile = isBrsFile(file) || isXmlFile(file) ? file : file.bscFile;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     targetFile.diagnostics.push(createDiagnostic(targetFile, code, message, startLine, startCol, endLine, endCol, DiagnosticSeverity.Error));
 }
 function addErrorDiagnosticForBinding(

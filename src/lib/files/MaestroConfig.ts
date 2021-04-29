@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import type { BsConfig, FileResolver } from 'brighterscript';
 import * as fs from 'fs-extra';
 import * as path from 'path';
@@ -15,6 +16,7 @@ export interface MaestroConfig {
     insertXmlBindingsEarly?: boolean;
     excludeFilters?: string[];
     buildForIDE?: boolean; // turns on optimizations for IDE builds
+    addFrameworkFiles?: boolean;
 }
 
 let docsLink = `\nPlease read the docs for usage details https://github.com/georgejecook/maestro/blob/master/docs/index.md#maestro-cli`;

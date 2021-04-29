@@ -123,6 +123,7 @@ export class XMLTag {
             if (this.isTopTag) {
                 (xmlElement.getAttribute('value') as any).value.text = '';
             } else {
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
                 xmlElement.setAttribute(b.nodeField.toLowerCase(), undefined);
             }
         }

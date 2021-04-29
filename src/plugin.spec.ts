@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-confusing-void-expression */
 import type { BrsFile, BsDiagnostic } from 'brighterscript';
 import { DiagnosticSeverity, Program, ProgramBuilder, util } from 'brighterscript';
@@ -35,9 +36,12 @@ describe('MaestroPlugin', () => {
         builder.options = util.normalizeAndResolveConfig(options);
         builder.program = new Program(builder.options);
         program = builder.program;
-        builder.plugins = new PluginInterface([plugin], undefined);
-        program.plugins = new PluginInterface([plugin], undefined);
+        builder.plugins = new PluginInterface([plugin], program.logger);
+        program.plugins = new PluginInterface([plugin], program.logger);
         program.createSourceScope(); //ensure source scope is created
+        plugin.maestroConfig = {
+            addFrameworkFiles: false
+        };
         plugin.beforeProgramCreate(builder);
         program.addOrReplaceFile('manifest', ``);
 
@@ -53,6 +57,7 @@ describe('MaestroPlugin', () => {
 
 
         it('gives error diagnostics when field bindings do not match class', async () => {
+            plugin.isFrameworkAdded = true;
             plugin.afterProgramCreate(program);
             program.addOrReplaceFile('source/comp.bs', `
             class myVM
@@ -279,12 +284,13 @@ describe('MaestroPlugin', () => {
             let diagnostics = program.getDiagnostics();
             expect(diagnostics).to.be.empty;
             let a = getContents('components/comp.brs');
-            let b = trimLeading(`function __myVM_builder()
+            let b = trimLeading(`'import "components/comp.bs"
+            function __myVM_builder()
             instance = {}
             instance.new = sub()
             m.riversJson = invalid
             m.entry = invalid
-            m.__className = "myVM"
+            m.__classname = "myVM"
             end sub
             return instance
             end function
@@ -295,14 +301,21 @@ describe('MaestroPlugin', () => {
             end function
 
             function m_createNodeVars()
-            if m._isCreateNodeVarsCalled = true then
-            return invalid
-            else
-            m._isCreateNodeVarsCalled = true
-            end if
-            mv_findNodes([
+            for each id in [
             "poster"
-            ])
+            ]
+            m[id] = m.top.findNode(id)
+            end for
+            end function
+
+            function init()
+            m_createNodeVars()
+            end function
+
+            function m_createVM()
+            m.vm = myVM()
+            m.vm.initialize()
+            mx.initializeBindings()
             end function
 
             function m_initBindings()
@@ -319,7 +332,6 @@ describe('MaestroPlugin', () => {
             function m_initStaticBindings()
             if m.vm <> invalid then
             vm = m.vm
-            m_createNodeVars()
             m.poster.style = mc_getPath(vm,"riversJson.styles")
             m.poster.entry = vm.entry
             end if
@@ -445,6 +457,7 @@ describe('MaestroPlugin', () => {
         });
         it('can turnoff default default ignored folders ', async () => {
             plugin.maestroConfig = {
+                addFrameworkFiles: false,
                 excludeFilters: []
             };
             plugin.importProcessor.config = plugin.maestroConfig;
@@ -479,6 +492,7 @@ describe('MaestroPlugin', () => {
         });
         it('does not manipulate files in specified folders ', async () => {
             plugin.maestroConfig = {
+                addFrameworkFiles: false,
                 excludeFilters: ['**/ignored/**/*.*']
             };
             plugin.importProcessor.config = plugin.maestroConfig;
@@ -521,11 +535,10 @@ describe('MaestroPlugin', () => {
                 @node("Comp", "Group")
                 class Comp
 
-                    @field("string")
-                    public title
-                    public content
+                    public title = ""
+                    public content = ""
 
-                    function new(globalNode, top)
+                    function new()
                     end function
                end class
             `);
@@ -537,8 +550,8 @@ describe('MaestroPlugin', () => {
             let b = trimLeading(`<?xml version="1.0" encoding="UTF-8" ?>
             <component name="Comp" extends="Group">
             <interface>
-            <field id="data" type="assocarray" />
             <field id="title" type="string" />
+            <field id="content" type="string" />
             </interface>
             <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
             <children />
@@ -550,7 +563,25 @@ describe('MaestroPlugin', () => {
             b = trimLeading(`'import "pkg:/source/comp.bs"
 
             function init()
-            m.vm = Comp(m.global, m.top)
+            instance = __Comp_builder()
+            instance.delete("top")
+            instance.delete("global")
+            top = m.top
+            m.append(instance)
+            m.__isVMCreated = true
+            m.new()
+            m.top = top
+            m_wireUpObservers()
+            end function
+
+            function m_wireUpObservers()
+            end function
+
+            function __m_setTopField(field, value)
+            if m.top.doesExist(field) then
+            m.top[field] = value
+            end if
+            return value
             end function`);
             expect(a).to.equal(b);
 
@@ -562,11 +593,10 @@ describe('MaestroPlugin', () => {
                 @node("Comp", "Group")
                 class Comp
 
-                    @field("string")
-                    public title
-                    public content
+                    public title = ""
+                    public content = ""
 
-                    function new(globalNode, top)
+                    function new()
                     end function
 
                     public function someFunction()
@@ -582,8 +612,8 @@ describe('MaestroPlugin', () => {
             let b = trimLeading(`<?xml version="1.0" encoding="UTF-8" ?>
             <component name="Comp" extends="Group">
             <interface>
-            <field id="data" type="assocarray" />
             <field id="title" type="string" />
+            <field id="content" type="string" />
             <function name="someFunction" />
             </interface>
             <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
@@ -596,11 +626,29 @@ describe('MaestroPlugin', () => {
             b = trimLeading(`'import "pkg:/source/comp.bs"
 
             function init()
-            m.vm = Comp(m.global, m.top)
+            instance = __Comp_builder()
+            instance.delete("top")
+            instance.delete("global")
+            top = m.top
+            m.append(instance)
+            m.__isVMCreated = true
+            m.new()
+            m.top = top
+            m_wireUpObservers()
+            end function
+
+            function m_wireUpObservers()
+            end function
+
+            function __m_setTopField(field, value)
+            if m.top.doesExist(field) then
+            m.top[field] = value
+            end if
+            return value
             end function
 
             function someFunction(dummy = invalid)
-            return m.vm.someFunction()
+            return m.someFunction()
             end function`);
             expect(a).to.equal(b);
 
@@ -613,11 +661,10 @@ describe('MaestroPlugin', () => {
                 class Comp
 
                     @observer("onTitleChange")
-                    @field("string")
-                    public title
-                    public content
+                    public title = ""
+                    public content = ""
 
-                    function new(globalNode, top)
+                    function new()
                     end function
 
                     private function onTitleChange(value)
@@ -633,8 +680,8 @@ describe('MaestroPlugin', () => {
             let b = trimLeading(`<?xml version="1.0" encoding="UTF-8" ?>
             <component name="Comp" extends="Group">
             <interface>
-            <field id="data" type="assocarray" />
             <field id="title" type="string" />
+            <field id="content" type="string" />
             </interface>
             <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
             <children />
@@ -646,13 +693,30 @@ describe('MaestroPlugin', () => {
             b = trimLeading(`'import "pkg:/source/comp.bs"
 
             function init()
-            m.vm = Comp(m.global, m.top)
+            instance = __Comp_builder()
+            instance.delete("top")
+            instance.delete("global")
+            top = m.top
+            m.append(instance)
+            m.__isVMCreated = true
+            m.new()
+            m.top = top
+            m_wireUpObservers()
+            end function
+
+            function on_title(event)
+            m.onTitleChange(event.getData())
+            end function
+
+            function m_wireUpObservers()
             m.top.observeField("title", "on_title")
             end function
 
-            function on_title()
-            m.vm.title = m.top.title
-            m.vm.onTitleChange(m.vm.title)
+            function __m_setTopField(field, value)
+            if m.top.doesExist(field) then
+            m.top[field] = value
+            end if
+            return value
             end function`);
             expect(a).to.equal(b);
 
@@ -664,11 +728,10 @@ describe('MaestroPlugin', () => {
                 class Comp
 
                     @observer("onTitleChange")
-                    @field("string")
-                    public title
-                    public content
+                    public title = ""
+                    public content = ""
 
-                    function new(globalNode, top)
+                    function new()
                     end function
                 end class
             `);
@@ -684,11 +747,10 @@ describe('MaestroPlugin', () => {
                 class Comp
 
                     @observer("onTitleChange")
-                    @field("string")
-                    public title
-                    public content
+                    public title = ""
+                    public content = ""
 
-                    function new(globalNode, top)
+                    function new()
                     end function
 
                     private function onTitleChange(too, manyParams)
@@ -708,9 +770,8 @@ describe('MaestroPlugin', () => {
                 class Comp
 
                     @observer("onTitleChange")
-                    @field("string")
-                    public title
-                    public content
+                    public title = ""
+                    public content = ""
 
                     function new()
                     end function
@@ -728,9 +789,8 @@ describe('MaestroPlugin', () => {
                 class Comp
 
                     @observer("onTitleChange")
-                    @field("string")
-                    public title
-                    public content
+                    public title = ""
+                    public content = ""
 
                 end class
             `);
@@ -748,11 +808,10 @@ describe('MaestroPlugin', () => {
                 @node("Comp", "Group")
                 class Comp
 
-                    @field("string")
-                    public title
-                    public content
+                    public title = ""
+                    public content = ""
 
-                    function new(globalNode, top)
+                    function new()
                     end function
                end class
             `);
@@ -803,30 +862,30 @@ describe('MaestroPlugin', () => {
             a = getContents('source/comp.brs');
             b = trimLeading(`function __Comp_builder()
             instance = {}
-            instance.new = function(globalNode, top)
-                m.title = invalid
-                m.content = invalid
-                m.__className = "Comp"
+            instance.new = function()
+            m.title = ""
+            m.content = ""
+            m.__classname = "Comp"
             end function
             return instance
-        end function
-        function Comp(globalNode, top)
+            end function
+            function Comp()
             instance = __Comp_builder()
-            instance.new(globalNode, top)
+            instance.new()
             return instance
-        end function`);
+            end function`);
             expect(a).to.equal(b);
 
         });
 
         it('does not add __classname if in parent class', async () => {
             plugin.afterProgramCreate(program);
-            program.addOrReplaceFile('source/main.bs', `
+            program.addOrReplaceFile('source/myClass.bs', `
                 class ClassA
                     public title
                 end class
                 class ClassB extends ClassA
-                    public title
+                    public title2
                 end class
             `);
             await builder.transpile();
@@ -836,10 +895,35 @@ describe('MaestroPlugin', () => {
             expect(cs.body.length === 3);
             expect(cs.fields.length === 2);
             expect(cs.memberMap['__className'].name.text === '__className');
-            let a = getContents('source/main.brs');
-            let b = trimLeading(``);
+            let a = getContents('source/myClass.brs');
+            let b = trimLeading(`function __ClassA_builder()
+            instance = {}
+            instance.new = sub()
+            m.title = invalid
+            m.__classname = "ClassA"
+            end sub
+            return instance
+            end function
+            function ClassA()
+            instance = __ClassA_builder()
+            instance.new()
+            return instance
+            end function
+            function __ClassB_builder()
+            instance = __ClassA_builder()
+            instance.super0_new = instance.new
+            instance.new = sub()
+            m.super0_new()
+            m.title2 = invalid
+            end sub
+            return instance
+            end function
+            function ClassB()
+            instance = __ClassB_builder()
+            instance.new()
+            return instance
+            end function`);
             expect(a).to.equal(b);
-
         });
 
         describe('extra validation', () => {
@@ -993,7 +1077,7 @@ describe('MaestroPlugin', () => {
                 m.fieldA = invalid
                 m.fieldB = invalid
                 m.fieldC = invalid
-                m.__className = "VM"
+                m.__classname = "VM"
                 end sub
                 instance.doStuff = function()
                 m.setField("fieldA", "val1")
@@ -1052,7 +1136,7 @@ describe('MaestroPlugin', () => {
                 m.fieldA = invalid
                 m.fieldB = invalid
                 m.fieldC = invalid
-                m.__className = "VM"
+                m.__classname = "VM"
                 end sub
                 instance.doStuff = function()
                 end function
@@ -1068,7 +1152,6 @@ describe('MaestroPlugin', () => {
                 instance.super0_new = instance.new
                 instance.new = sub()
                 m.super0_new()
-                m.__className = "ChildVM"
                 end sub
                 instance.doStuff = function()
                 m.setField("fieldA", "val1")
@@ -1120,7 +1203,7 @@ describe('MaestroPlugin', () => {
                 instance.new = sub()
                 m.fieldA = mioc_getInstance("EntitleMents")
                 m.fieldB = mioc_getClassInstance("mc.collections.FieldMapper")
-                m.__className = "VM"
+                m.__classname = "VM"
                 end sub
                 return instance
                 end function
@@ -1132,7 +1215,7 @@ describe('MaestroPlugin', () => {
                 function __mc_collections_FieldMapper_builder()
                 instance = {}
                 instance.new = sub()
-                m.__className = "mc.collections.FieldMapper"
+                m.__classname = "mc.collections.FieldMapper"
                 end sub
                 return instance
                 end function
@@ -1169,7 +1252,7 @@ describe('MaestroPlugin', () => {
                 m.fieldA = mioc_getInstance("Entitlements")
                 m.fieldB = mioc_createClassInstance("ChildVM")
                 m.fieldC = mioc_createClassInstance("ChildVM")
-                m.__className = "VM"
+                m.__classname = "VM"
                 end sub
                 return instance
                 end function
@@ -1183,7 +1266,6 @@ describe('MaestroPlugin', () => {
                 instance.super0_new = instance.new
                 instance.new = sub()
                 m.super0_new()
-                m.__className = "ChildVM"
                 end sub
                 return instance
                 end function

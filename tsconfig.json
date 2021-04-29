@@ -8,7 +8,7 @@
     "strictNullChecks": false,
     "forceConsistentCasingInFileNames": true,
     "preserveConstEnums": true,
-    "allowJs": true,
+    "allowJs": false,
     "target": "ES2017",
     "downlevelIteration": true
   },
