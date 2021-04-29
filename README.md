@@ -1,23 +1,16 @@
 <p align="center">
-  <img src="images/logo.png" alt="Plugin for using maestro with vscode ide" width="200" height="200"/>
+  <img src="images/logo.png" alt="Brighterscript compiler plugin for maestro framework" width="200" height="200"/>
 </p>
 <h3 align="center">
-VSCode ide plugin for [maestro](https://github.com/georgejecook/maestro) projects
+Brighterscript compiler plugin for  [maestro](https://github.com/georgejecook/maestro) projects
 </h3>
 
-[![Build Status](https://travis-ci.org/georgejecook/maestro-vsc-extension-plugin.svg?branch=master)](https://travis-ci.org/georgejecook/maestro-vsc-extension-plugin)
-[![codecov](https://codecov.io/gh/georgejecook/maestro-vsc-extension-plugin/branch/master/graph/badge.svg)](https://codecov.io/gh/georgejecook/maestro-vsc-extension-plugin)
-[![GitHub](https://img.shields.io/github/release/georgejecook/maestro-vsc-extension-plugin.svg?style=flat-square)](https://github.com/georgejecook/maestro-vsc-extension-plugin/releases) 
-[![NPM](https://nodei.co/npmmaestro-vsc-extension-plugin.png)](https://npmjs.org/packagemaestro-vsc-extension-plugin)
-
-## Links
- - [maestro](https://github.com/georgejecook/maestro)
- - [Issue tracker](https://github.com/georgejecook/maestro-vsc-extension-plugin/issues)
- - [CHANGELOG](CHANGELOG.md) 
+[![build](https://img.shields.io/github/workflow/status/georgejecook/maestro-roku-bsc-plugin/build.svg?logo=github)](https://github.com/georgejecook/maestro-roku-bsc-plugin/actions?query=workflow%3Abuild)
+[![GitHub](https://img.shields.io/github/release/georgejecook/maestro-roku-bsc-plugin.svg?style=flat-square)](https://github.com/georgejecook/maestro-roku-bsc-plugin/releases)
+[![NPM](https://nodei.co/npm/maestro-roku-bsc-plugin.png)](https://npmjs.org/package/maestro-roku-bsc-plugin)
 
 # About
 
-This repo contains the source for `maestro-vsc-extension-plugin`, which is used by the - [maestro framework](https://github.com/georgejecook/maestro). 
 
 Use this plugin with vscode to use advanced features of maestro such as:
 
@@ -27,4 +20,4 @@ Use this plugin with vscode to use advanced features of maestro such as:
 
 ## Get help
 
-Read how to use these features and the maestro framework [here](https://github.com/georgejecook/maestro: 
+Read how to use these features and the maestro framework [here](https://github.com/georgejecook/maestro-roku:
