@@ -1,16 +1,14 @@
-<p align="center">
-  <img src="images/logo.png" alt="Brighterscript compiler plugin for maestro framework" width="200" height="200"/>
-</p>
-<h3 align="center">
-Brighterscript compiler plugin for  [maestro](https://github.com/georgejecook/maestro) projects
-</h3>
+
+# Brighterscript compiler plugin for [maestro-roku](https://github.com/georgejecook/maestro-roku) framework
+
 
 [![build](https://img.shields.io/github/workflow/status/georgejecook/maestro-roku-bsc-plugin/build.svg?logo=github)](https://github.com/georgejecook/maestro-roku-bsc-plugin/actions?query=workflow%3Abuild)
 [![GitHub](https://img.shields.io/github/release/georgejecook/maestro-roku-bsc-plugin.svg?style=flat-square)](https://github.com/georgejecook/maestro-roku-bsc-plugin/releases)
-[![NPM](https://nodei.co/npm/maestro-roku-bsc-plugin.png)](https://npmjs.org/package/maestro-roku-bsc-plugin)
+[![NPM Version](https://badge.fury.io/js/maestro-roku-bsc-plugin.svg?style=flat)](https://npmjs.org/package/maestro-roku-bsc-plugin)
 
-# About
+Brighterscript compiler plugin for projects
 
+## About
 
 Use this plugin with vscode to use advanced features of maestro such as:
 
@@ -22,4 +20,4 @@ Use this plugin with vscode to use advanced features of maestro such as:
 
 ## Get help
 
-Read how to use these features and the maestro framework [here](https://github.com/georgejecook/maestro-roku:
+Read how to use these features and the maestro framework [here](https://github.com/georgejecook/maestro-roku)
