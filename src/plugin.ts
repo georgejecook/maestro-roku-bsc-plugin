@@ -101,12 +101,9 @@ export class MaestroPlugin implements CompilerPlugin {
             this.maestroConfig = (builder.options as any).maestro || {};
 
             //ignore roku modules by default
-            if (this.maestroConfig.excludeFilters === undefined) {
-                this.maestroConfig.excludeFilters = ['**/roku_modules/**/*'];
-            }
-            if (this.maestroConfig.buildForIDE === undefined) {
-                this.maestroConfig.buildForIDE = false;
-            }
+            this.maestroConfig.excludeFilters = this.maestroConfig.excludeFilters || ['**/roku_modules/**/*'];
+            this.maestroConfig.buildForIDE = this.maestroConfig.buildForIDE || false;
+            this.maestroConfig.addFrameworkFiles = this.maestroConfig.addFrameworkFiles || true;
 
             this.importProcessor = new ImportProcessor(this.maestroConfig);
             this.nodeClassUtil = new NodeClassUtil(this.fileMap, builder, this.fileFactory);

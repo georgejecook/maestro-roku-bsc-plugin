@@ -15,6 +15,7 @@ export interface MaestroConfig {
     insertXmlBindingsEarly?: boolean;
     excludeFilters?: string[];
     buildForIDE?: boolean; // turns on optimizations for IDE builds
+    addFrameworkFiles?: boolean;
 }
 
 let docsLink = `\nPlease read the docs for usage details https://github.com/georgejecook/maestro/blob/master/docs/index.md#maestro-cli`;
