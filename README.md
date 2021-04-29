@@ -17,6 +17,8 @@ Use this plugin with vscode to use advanced features of maestro such as:
  - XML binding support
  - Reflection
  - Dynamic imports
+ - Node classes
+ - Extra validation
 
 ## Get help
 
