@@ -348,7 +348,7 @@ end function
         let fs = this.getFunctionInParents(file, 'initialize');
         if (!fs) {
             console.log('no initialize function, adding one');
-            let func = makeASTFunction(`function createVM()
+            let func = makeASTFunction(`function m_createVM()
             m.vm = new ${file.vmClassName}()
             m.vm.initialize()
             mx.initializeBindings()
