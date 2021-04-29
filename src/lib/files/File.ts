@@ -50,6 +50,9 @@ export class File {
     get parentXmlFile(): XmlFile | undefined {
         return this.fileMap.allXMLComponentFiles.get(this.parentComponentName)?.bscFile as XmlFile;
     }
+    get parentFile(): File | undefined {
+        return this.fileMap.allXMLComponentFiles.get(this.parentComponentName);
+    }
 
     get fileType(): FileType {
         switch (path.extname(this.bscFile.pathAbsolute).toLowerCase()) {

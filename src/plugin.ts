@@ -95,8 +95,8 @@ export class MaestroPlugin implements CompilerPlugin {
     beforeProgramCreate(builder: ProgramBuilder): void {
         if (!this.fileMap) {
             this.fileMap = new ProjectFileMap();
-            this.bindingProcessor = new BindingProcessor(this.fileMap);
             this.fileFactory = new FileFactory(this.builder);
+            this.bindingProcessor = new BindingProcessor(this.fileMap, this.fileFactory);
             this.reflectionUtil = new ReflectionUtil(this.fileMap, builder);
             this.maestroConfig = (builder.options as any).maestro || {};
 
@@ -189,7 +189,7 @@ export class MaestroPlugin implements CompilerPlugin {
             this.bindingProcessor.validateBindings(file);
             if (this.maestroConfig.insertXmlBindingsEarly && file.isValid) {
                 // console.log('adding xml transpiled code for ', file.bscFile.pkgPath);
-                this.bindingProcessor.generateCodeForXMLFile(file);
+                this.bindingProcessor.generateCodeForXMLFile(file, this.builder.program);
             }
         }
 
@@ -200,6 +200,23 @@ export class MaestroPlugin implements CompilerPlugin {
             }
         }
         this.dirtyCompFilePaths.clear();
+
+        // TODO talk to bron about this - we can't generate files in beforeTranspile; but if files get added here, empty, they never show up later
+        // if (!this.maestroConfig.buildForIDE && !this.maestroConfig.insertXmlBindingsEarly) {
+        //     console.log('injecting binding code into files with vms...');
+
+        //     for (let file of [...this.fileMap.allXMLComponentFiles.values()]) {
+        //         if (file.isValid) {
+        //             //it's a binding file
+        //             if (!file.associatedFile) {
+        //                 const bsFilePath = file.fullPath.replace('.xml', '.bs');
+        //                 console.log('no associated file for ', file.fullPath, 'generating one at ', bsFilePath);
+        //                 let bsFile = this.fileFactory.addFile(program, bsFilePath, ``);
+        //                 bsFile.parser.invalidateReferences();
+        //             }
+        //         }
+        //     }
+        // }
     }
 
     afterProgramValidate(program: Program) {
@@ -304,7 +321,7 @@ export class MaestroPlugin implements CompilerPlugin {
                     let mFile = this.fileMap.allFiles.get(entry.file.pathAbsolute);
                     if (mFile.isValid) {
                         //it's a binding file
-                        this.bindingProcessor.generateCodeForXMLFile(mFile);
+                        this.bindingProcessor.generateCodeForXMLFile(mFile, program);
                         // console.log('generating code for bindings ', entry.file.pkgPath);
                         //it's a binding file
                     } else if (mFile.bindings.length === 0 && this.shouldParseFile(entry.file)) {

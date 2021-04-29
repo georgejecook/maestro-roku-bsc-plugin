@@ -2,7 +2,8 @@ import type { FunctionStatement,
     IfStatement,
     BrsFile,
     XmlFile,
-    SourceObj } from 'brighterscript';
+    SourceObj,
+    Program } from 'brighterscript';
 import {
     ParseMode,
     Parser,
@@ -20,40 +21,36 @@ import {
     addXmlBindingParentHasDuplicateField,
     addXmlBindingVMClassNotFound
 } from '../utils/Diagnostics';
-import { makeASTFunction } from '../utils/Utils';
+import { createRange, makeASTFunction } from '../utils/Utils';
 import type Binding from './Binding';
 import { BindingType } from './BindingType';
 import { XMLTag } from './XMLTag';
 import { RawCodeStatement } from '../utils/RawCodeStatement';
 import type { SGComponent, SGNode, SGTag } from 'brighterscript/dist/parser/SGTypes';
+import { addImport, createImportStatement } from '../Utils';
+import type { FileFactory } from '../utils/FileFactory';
+
+// eslint-disable-next-line
+const path = require('path');
 
 export class BindingProcessor {
-    constructor(fileMap: ProjectFileMap) {
-        this.fileMap = fileMap;
-    }
-    public fileMap: ProjectFileMap;
-
-    public generateCodeForBindings() {
-        for (let file of [...this.fileMap.allFiles.values()].filter(
-            (file) => file.fileType === FileType.Xml
-        )) {
-            if (file.isValid) {
-                // console.log('generating', file.fullPath);
-                this.generateCodeForXMLFile(file);
-            }
-        }
+    constructor(public fileMap: ProjectFileMap, public fileFactory: FileFactory) {
     }
 
-    public generateCodeForXMLFile(file: File) {
+    public generateCodeForXMLFile(file: File, program: Program) {
         if (!file || (file.fileType !== FileType.Xml)
         ) {
             throw new Error('was given a non-xml file');
         }
-        if (file.associatedFile) {
-            this.addFindNodeVarsMethodForFile(file);
-        } else {
-            console.log('no associated file for ', file.fullPath);
+        if (!file.associatedFile) {
+            const bsFilePath = file.fullPath.replace('.xml', 'm.bs');
+            console.log('no associated file for ', file.fullPath, 'generating one at ', bsFilePath);
+            let bsFile = this.fileFactory.addFile(program, bsFilePath, ``);
+            bsFile.parser.invalidateReferences();
         }
+        (file.bscFile as XmlFile).parser.invalidateReferences();
+        this.addFindNodeVarsMethodForFile(file);
+        this.addVMConstructor(file);
 
         if (file.bindings.length > 0) {
             if (file.associatedFile) {
@@ -62,6 +59,7 @@ export class BindingProcessor {
                 addXmlBindingNoCodeBehind(file);
             }
         }
+        (file.associatedFile.bscFile as BrsFile).parser.invalidateReferences();
     }
 
     /**
@@ -201,9 +199,9 @@ end function`);
 
         if (file.bindings.length > 0) {
 
-            if (!file.associatedFile) {
-                addXmlBindingNoCodeBehind(file);
-            }
+            // if (!file.associatedFile) {
+            //     addXmlBindingNoCodeBehind(file);
+            // }
 
             if (!file.vmClassName) {
                 if (errorCount === 0) {
@@ -344,4 +342,42 @@ end function
         }
 
     }
+
+    private addVMConstructor(file: File) {
+
+        let fs = this.getFunctionInParents(file, 'initialize');
+        if (!fs) {
+            console.log('no initialize function, adding one');
+            let func = makeASTFunction(`function createVM()
+            m.vm = new ${file.vmClassName}()
+            m.vm.initialize()
+            mx.initializeBindings()
+
+          end function`);
+
+            if (func) {
+                let vmFile = this.fileMap.getFileForClass(file.vmClassName);
+                addImport(file.associatedFile.bscFile as BrsFile, vmFile.bscFile.pkgPath);
+                (file.associatedFile.bscFile as BrsFile).parser.statements.push(func);
+                file.associatedFile.isASTChanged = true;
+            }
+            return func;
+        }
+
+    }
+
+    private getFunctionInParents(file: File, name: string) {
+        let fs;
+        while (file) {
+
+            fs = (file.associatedFile?.bscFile as BrsFile).parser.references.functionStatementLookup.get('createVM');
+            if (fs) {
+                return fs;
+            }
+            file = file.parentFile;
+        }
+        return undefined;
+    }
+
+
 }
