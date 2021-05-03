@@ -45,6 +45,7 @@ import { RawCodeStatement } from './lib/utils/RawCodeStatement';
 import { addClassFieldsNotFoundOnSetOrGet, addIOCNoTypeSupplied, addIOCWrongArgs, IOCClassNotInScope, unknownClassMethod, unknownType, wrongMethodArgs } from './lib/utils/Diagnostics';
 import { getAllAnnotations, getAllFields, getAllMethods, makeASTFunction } from './lib/utils/Utils';
 import { getSGMembersLookup } from './SGApi';
+import { DependencyGraph } from 'brighterscript/dist/DependencyGraph';
 
 type Writeable<T> = { -readonly [P in keyof T]: T[P] };
 interface FunctionInfo {
@@ -197,23 +198,6 @@ export class MaestroPlugin implements CompilerPlugin {
             }
         }
         this.dirtyCompFilePaths.clear();
-
-        // TODO talk to bron about this - we can't generate files in beforeTranspile; but if files get added here, empty, they never show up later
-        // if (!this.maestroConfig.buildForIDE && !this.maestroConfig.insertXmlBindingsEarly) {
-        //     console.log('injecting binding code into files with vms...');
-
-        //     for (let file of [...this.fileMap.allXMLComponentFiles.values()]) {
-        //         if (file.isValid) {
-        //             //it's a binding file
-        //             if (!file.associatedFile) {
-        //                 const bsFilePath = file.fullPath.replace('.xml', '.bs');
-        //                 console.log('no associated file for ', file.fullPath, 'generating one at ', bsFilePath);
-        //                 let bsFile = this.fileFactory.addFile(program, bsFilePath, ``);
-        //                 bsFile.parser.invalidateReferences();
-        //             }
-        //         }
-        //     }
-        // }
     }
 
     afterProgramValidate(program: Program) {
@@ -316,9 +300,10 @@ export class MaestroPlugin implements CompilerPlugin {
             for (let entry of entries) {
                 if (isXmlFile(entry.file)) {
                     let mFile = this.fileMap.allFiles.get(entry.file.pathAbsolute);
+                    // eslint-disable-next-line @typescript-eslint/dot-notation
                     if (mFile.isValid) {
                         //it's a binding file
-                        this.bindingProcessor.generateCodeForXMLFile(mFile, program);
+                        this.bindingProcessor.generateCodeForXMLFile(mFile, program, entry);
                         // console.log('generating code for bindings ', entry.file.pkgPath);
                         //it's a binding file
                     } else if (mFile.bindings.length === 0 && this.shouldParseFile(entry.file)) {
