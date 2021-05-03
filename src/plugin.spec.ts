@@ -315,7 +315,7 @@ describe('MaestroPlugin', () => {
             function m_createVM()
             m.vm = myVM()
             m.vm.initialize()
-            mx.initializeBindings()
+            mx_initializeBindings()
             end function
 
             function m_initBindings()
