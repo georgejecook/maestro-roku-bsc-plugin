@@ -93,18 +93,32 @@ export class MaestroPlugin implements CompilerPlugin {
         'count': true
     };
 
+    private getConfig(config: any) {
+        //ignore roku modules by default
+        config = config?.maestro || {
+            buildTimeImports: {}
+        };
+        config.excludeFilters = config.excludeFilters || ['**/roku_modules/**/*'];
+        config.buildForIDE = config.buildForIDE || false;
+        config.addFrameworkFiles = config.addFrameworkFiles || true;
+        config.mvvm = config.mvvm || {};
+
+        config.mvvm.insertXmlBindingsEarly = config.mvvm.insertXmlBindingsEarly === undefined ? false : config.mvvm.insertXmlBindingsEarly;
+        config.mvvm.createCodeBehindFilesWhenNeeded = config.mvvm.createCodeBehindFilesWhenNeeded === undefined ? true : config.mvvm.createCodeBehindFilesWhenNeeded;
+        config.mvvm.insertCreateVMMethod = config.mvvm.insertCreateVMMethod === undefined ? true : config.mvvm.insertCreateVMMethod;
+        config.mvvm.callCreateVMMethodInInit = config.mvvm.callCreateVMMethodInInit === undefined ? true : config.mvvm.callCreateVMMethodInInit;
+        config.mvvm.callCreateNodeVarsInInit = config.mvvm.callCreateNodeVarsInInit === undefined ? true : config.mvvm.callCreateNodeVarsInInit;
+
+        return config;
+    }
+
     beforeProgramCreate(builder: ProgramBuilder): void {
         if (!this.fileMap) {
             this.fileMap = new ProjectFileMap();
             this.fileFactory = new FileFactory(this.builder);
-            this.bindingProcessor = new BindingProcessor(this.fileMap, this.fileFactory);
+            this.maestroConfig = this.getConfig(builder.options as any);
+            this.bindingProcessor = new BindingProcessor(this.fileMap, this.fileFactory, this.maestroConfig);
             this.reflectionUtil = new ReflectionUtil(this.fileMap, builder);
-            this.maestroConfig = (builder.options as any).maestro || {};
-
-            //ignore roku modules by default
-            this.maestroConfig.excludeFilters = this.maestroConfig.excludeFilters || ['**/roku_modules/**/*'];
-            this.maestroConfig.buildForIDE = this.maestroConfig.buildForIDE || false;
-            this.maestroConfig.addFrameworkFiles = this.maestroConfig.addFrameworkFiles || true;
 
             this.importProcessor = new ImportProcessor(this.maestroConfig);
             this.nodeClassUtil = new NodeClassUtil(this.fileMap, builder, this.fileFactory);
@@ -185,7 +199,7 @@ export class MaestroPlugin implements CompilerPlugin {
             file.bscFile = this.builder.program.getFileByPathAbsolute(filePath);
             file.resetDiagnostics();
             this.bindingProcessor.validateBindings(file);
-            if (this.maestroConfig.insertXmlBindingsEarly && file.isValid) {
+            if (this.maestroConfig.mvvm.insertXmlBindingsEarly && file.isValid) {
                 // console.log('adding xml transpiled code for ', file.bscFile.pkgPath);
                 this.bindingProcessor.generateCodeForXMLFile(file, this.builder.program);
             }
@@ -294,7 +308,7 @@ export class MaestroPlugin implements CompilerPlugin {
     }
 
     beforeProgramTranspile(program: Program, entries: TranspileObj[]) {
-        if (!this.maestroConfig.insertXmlBindingsEarly) {
+        if (!this.maestroConfig.mvvm.insertXmlBindingsEarly) {
             console.log('injecting binding code into files with vms...');
 
             for (let entry of entries) {

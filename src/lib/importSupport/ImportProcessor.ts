@@ -11,11 +11,8 @@ import { addBuildTimeErrorImportMissingKey, addBuildTimeErrorImportMissingPkg } 
  * Manages build imports
  */
 export default class ImportProcessor {
-    constructor(config: MaestroConfig) {
-        this.config = config || {};
+    constructor(public config: MaestroConfig) {
     }
-
-    public config: MaestroConfig;
 
     private getImportStatements(file: BrsFile, buildKey: string, previousImport: ImportStatement, program: Program) {
         let imports = [];

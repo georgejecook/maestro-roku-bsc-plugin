@@ -33,9 +33,10 @@ import type { DependencyGraph } from 'brighterscript/dist/DependencyGraph';
 import * as fsExtra from 'fs-extra';
 import { BrsTranspileState } from 'brighterscript/dist/parser/BrsTranspileState';
 import { SourceNode } from 'source-map';
+import type { MaestroConfig } from '../files/MaestroConfig';
 
 export class BindingProcessor {
-    constructor(public fileMap: ProjectFileMap, public fileFactory: FileFactory) {
+    constructor(public fileMap: ProjectFileMap, public fileFactory: FileFactory, public config: MaestroConfig) {
     }
 
     public generateCodeForXMLFile(file: File, program: Program, entry?: TranspileObj) {
@@ -44,28 +45,39 @@ export class BindingProcessor {
             throw new Error('was given a non-xml file');
         }
         if (!file.associatedFile && file.vmClassName) {
-            // console.log('no associated file for ', file.fullPath, 'generating one at ', bsFilePath);
-            // let bsFile = this.fileFactory.addFile(program, bsFilePath, ``);
-            // bsFile.parser.invalidateReferences();
-            if (entry) {
+            if (this.config.mvvm.createCodeBehindFilesWhenNeeded) {
 
-                let vmFile = this.fileMap.getFileForClass(file.vmClassName);
-                let xmlFile = file.bscFile as XmlFile;
-                // eslint-disable-next-line @typescript-eslint/dot-notation
-                let dg = program['dependencyGraph'] as DependencyGraph;
-                dg.addDependency(xmlFile.dependencyGraphKey, vmFile.bscFile.dependencyGraphKey);
-                xmlFile.ast.component.scripts.push(this.createSGScript(xmlFile.pkgPath.replace('.xml', '.brs')));
-                fsExtra.outputFileSync(entry.outputPath.replace('.xml', '.brs'), this.getCodeBehindText(file, vmFile.bscFile as BrsFile));
-            } else {
-                console.error('cannot generated codebehind file transpile without entry');
+                if (entry) {
+                    let vmFile = this.fileMap.getFileForClass(file.vmClassName);
+                    if (vmFile) {
+
+                        let xmlFile = file.bscFile as XmlFile;
+                        // eslint-disable-next-line @typescript-eslint/dot-notation
+                        let dg = program['dependencyGraph'] as DependencyGraph;
+                        dg.addDependency(xmlFile.dependencyGraphKey, vmFile.bscFile.dependencyGraphKey);
+                        xmlFile.ast.component.scripts.push(this.createSGScript(xmlFile.pkgPath.replace('.xml', '.brs')));
+                        fsExtra.outputFileSync(entry.outputPath.replace('.xml', '.brs'), this.getCodeBehindText(file, vmFile.bscFile as BrsFile));
+                    } else {
+                        console.error('missing vm file ' + file.vmClassName);
+                    }
+
+                } else {
+                    console.error('cannot generated codebehind file transpile without entry');
+                }
             }
         } else {
             (file.bscFile as XmlFile).parser.invalidateReferences();
             this.addFindNodeVarsMethodForFile(file);
-            this.addVMConstructor(file);
+            if (this.config.mvvm.callCreateNodeVarsInInit) {
+                this.addInitCreateNodeVarsCall(file.associatedFile.bscFile as BrsFile);
+            }
+            if (this.config.mvvm.insertCreateVMMethod) {
+                this.addVMConstructor(file);
+            }
             if (file.bindings.length > 0) {
                 this.addBindingMethodsForFile(file);
             }
+
             (file.associatedFile.bscFile as BrsFile).parser.invalidateReferences();
         }
 
@@ -153,7 +165,11 @@ end function\n`;
             this.processElementsForTagIds(file);
             if (file.tagIds.size > 0) {
                 this.addFindNodeVarsMethodForFile(file);
+                if (this.config.mvvm.callCreateNodeVarsInInit) {
+                    this.addInitCreateNodeVarsCall(file.associatedFile.bscFile as BrsFile);
+                }
             }
+
         }
     }
 
@@ -176,7 +192,7 @@ end function\n`;
   m_createNodeVars()
     `));
         }
-        if (!initFunc) {
+        if (!initFunc && this.config.mvvm.callCreateNodeVarsInInit) {
             console.log('init func was not present in ', file.pkgPath, ' adding init function');
             let initFunc = makeASTFunction(`function init()
   m_createNodeVars()
@@ -381,7 +397,6 @@ end function`);
             brsFile.parser.statements.push(createNodeVarsFunction);
             file.associatedFile.isASTChanged = true;
         }
-        this.addInitCreateNodeVarsCall(file.associatedFile.bscFile as BrsFile);
     }
 
     private getNodeVarMethodText(file: File) {
@@ -397,24 +412,27 @@ end function`);
 end function
 `;
         } else {
-            return '';
+            return `
+  function m_createNodeVars()
+  end function
+          `;
         }
     }
 
     private addVMConstructor(file: File) {
+        console.log('addVM ', file.fullPath, file.bscFile === undefined);
+        console.log('no initialize function, adding one');
+        let func = makeASTFunction(this.getVMInitializeText(file));
 
-        let fs = this.getFunctionInParents(file, 'initialize');
-        if (!fs) {
-            console.log('no initialize function, adding one');
-            let func = makeASTFunction(this.getVMInitializeText(file));
-
-            if (func) {
-                let vmFile = this.fileMap.getFileForClass(file.vmClassName);
+        if (func) {
+            let vmFile = this.fileMap.getFileForClass(file.vmClassName);
+            if (vmFile) {
                 addImport(file.associatedFile.bscFile as BrsFile, vmFile.bscFile.pkgPath);
                 (file.associatedFile.bscFile as BrsFile).parser.statements.push(func);
                 file.associatedFile.isASTChanged = true;
+            } else {
+                console.error(`file for vm class ${file.vmClassName} was not found!`);
             }
-            return func;
         }
     }
 

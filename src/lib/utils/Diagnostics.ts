@@ -92,7 +92,7 @@ export function addXmlBindingErrorValidatingBindings(file: File, message: string
 }
 
 export function addBuildTimeErrorImportMissingKey(file: BrsFile | XmlFile, buildKey: string, line = 0, col = 0) {
-    file.addDiagnostics([createDiagnostic(file, 1006, `xml file imports a build time import key that was not defined in your config:file that cannot be found ${buildKey}`, line, col)]);
+    file.addDiagnostics([createDiagnostic(file, 1006, `xml file imports a build time import key that was not defined in your config:file that cannot be found ${buildKey}`, line, col, line, col, DiagnosticSeverity.Warning)]);
 }
 
 export function addBuildTimeErrorImportMissingPkg(file: BrsFile | XmlFile, pkg: string, buildKey: string, line = 0, col = 0) {
