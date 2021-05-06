@@ -4,7 +4,7 @@ const path = require('path');
 
 let zapp = {
     'rootDir': '/home/george/hope/applicaster/4/zapp-roku-app/src',
-    'stagingFolderPath': '/home/george/hope/applicaster/4/zapp-roku-app/build',
+    'stagingFolderPath': 'build',
     'retainStagingFolder': true,
     'createPackage': false,
     'autoImportComponentScript': true,
@@ -103,7 +103,7 @@ let zapp = {
         ],
         'buildTimeImports': {
             'IAuthProvider': [
-                'pkg:/source/zapp_oauth_plugin/ZappOauthPlugin.bs'
+                'pkg:/source/zapp_oauth_plugin/ZappOAuthPlugin.bs'
             ],
             'IEntitlementsProvider': [
                 'pkg:/source/simple_entitlements_roku/SimpleEntitlementsPlugin.bs'
@@ -111,6 +111,131 @@ let zapp = {
             'IBookmarksProvider': [],
             'IPlayerAnalytics': [],
             'IAnalytics': []
+        }
+    },
+    'rokuLog': {
+        'strip': false,
+        'insertPkgPath': true,
+        'removeComments': true
+    },
+    'sourceMap': true
+};
+let z41 = {
+    'rootDir': '/home/george/hope/applicaster/4-1/zapp-roku-app/src',
+    'stagingFolderPath': 'build',
+    'retainStagingFolder': true,
+    'createPackage': false,
+    'autoImportComponentScript': true,
+    'files': [
+        'manifest',
+        'source/**/*.*',
+        'components/**/*.*',
+        'images/**/*.*',
+        {
+            'src': '../external/plugins-src/**/*.*',
+            'dest': ''
+        },
+        {
+            'src': '../external/plugins-core-src/**/*.*',
+            'dest': ''
+        },
+        {
+            'src': '../external/private-emmys-src/**/*.*',
+            'dest': ''
+        },
+        {
+            'src': '../external/private-oc-src/**/*.*',
+            'dest': ''
+        },
+        {
+            'src': '!../external/plugins-src/**/*.spec.bs',
+            'dest': ''
+        },
+        {
+            'src': '!../external/plugins-core-src/**/*.spec.*',
+            'dest': ''
+        },
+        {
+            'src': '!../external/private-emmys-src/**/*.spec.*',
+            'dest': ''
+        },
+        {
+            'src': '!../external/private-oc-src/**/*.spec.*',
+            'dest': ''
+        },
+        '!**/*.spec.bs'
+    ],
+    'diagnosticFilters': [
+        {
+            'src': '**/roku_modules/**/*.*',
+            'codes': [
+                1107,
+                1009,
+                1001,
+                1067
+            ]
+        },
+        {
+            'src': '**/Whitelist.xml',
+            'codes': [
+                1067
+            ]
+        },
+        {
+            'src': 'components/maestro/generated/**/*.*',
+            'codes': [
+                1001
+            ]
+        },
+        1013,
+        {
+            'src': '../external/plugins-src/components/YouboraAnalytics/*.*'
+        },
+        {
+            'src': '../external/plugins-src/components/segment_analytics/*.*'
+        },
+        {
+            'src': '../external/plugins-src/source/segment_analytics/SegmentAnalytics.brs'
+        },
+        {
+            'src': '../external/plugins-src/source/segment_analytics/SegmentAnalyticsConnector.brs'
+        },
+        {
+            'src': '**/RALETrackerTask.*'
+        }
+    ],
+    'plugins': [
+        '/home/george/hope/open-source/maestro/maestro-roku-bsc-plugin/dist/plugin.js',
+        '/home/george/hope/open-source/rooibos/bsc-plugin/dist/plugin.js'
+    ],
+    'rooibos': {
+        'isRecordingCodeCoverage': false,
+        'testsFilePattern': null
+    },
+    'maestro': {
+        'buildForIDE': false,
+        'excludeFilters': [
+            '**/roku_modules/**/*',
+            '**/rooibos/**/*',
+            '**/RALETrackerTask.xml'
+        ],
+        'buildTimeImports': {
+            'IAuthProvider': [
+                'pkg:/source/zapp_oauth_plugin/ZappOAuthPlugin.bs'
+            ],
+            'IEntitlementsProvider': [
+                'pkg:/source/simple_entitlements_roku/SimpleEntitlementsPlugin.bs'
+            ],
+            'IBookmarksProvider': [],
+            'IPlayerAnalytics': [],
+            'IAnalytics': []
+        },
+        'mvvm': {
+            'insertXmlBindingsEarly': false,
+            'createCodeBehindFilesWhenNeeded': false,
+            'insertCreateVMMethod': false,
+            'callCreateVMMethodInInit': false,
+            'callCreateNodeVarsInInit': false
         }
     },
     'rokuLog': {
@@ -181,51 +306,100 @@ const ProgramBuilder = require('brighterscript').ProgramBuilder;
 //maestro
 let maestro = {
     'rootDir': '/home/george/hope/open-source/maestro/maestro-roku/src',
+    'stagingFolderPath': 'build',
+    'retainStagingFolder': true,
+    'createPackage': false,
+    'autoImportComponentScript': true,
     'files': [
         'manifest',
         'source/**/*.*',
-        'components/**/*.*'
-    ],
-    'autoImportComponentScript': true,
-    'createPackage': false,
-    'stagingFolderPath': 'build',
-    'diagnosticFilters': [
+        'components/**/*.*',
+        'images/**/*.*',
         {
-            'src': '**/roku_modules/**/*.*'
+            'src': '../external/plugins-src/**/*.*',
+            'dest': ''
         },
         {
-            'src': '**/WhiteList.xml',
+            'src': '../external/plugins-core-src/**/*.*',
+            'dest': ''
+        },
+        {
+            'src': '../external/private-emmys-src/**/*.*',
+            'dest': ''
+        },
+        {
+            'src': '../external/private-oc-src/**/*.*',
+            'dest': ''
+        }
+    ],
+    'diagnosticFilters': [
+        {
+            'src': '**/roku_modules/**/*.*',
+            'codes': [
+                1107,
+                1009,
+                1001,
+                1067
+            ]
+        },
+        {
+            'src': '**/Whitelist.xml',
             'codes': [
                 1067
             ]
         },
-        1120
+        {
+            'src': 'components/maestro/generated/**/*.*',
+            'codes': [
+                1001
+            ]
+        },
+        1013,
+        {
+            'src': '../external/plugins-src/components/YouboraAnalytics/*.*'
+        },
+        {
+            'src': '../external/plugins-src/components/segment_analytics/*.*'
+        },
+        {
+            'src': '../external/plugins-src/source/segment_analytics/SegmentAnalytics.brs'
+        },
+        {
+            'src': '../external/plugins-src/source/segment_analytics/SegmentAnalyticsConnector.brs'
+        },
+        {
+            'src': '**/RALETrackerTask.*'
+        }
     ],
-    'emitDefinitions': true,
     'plugins': [
         '/home/george/hope/open-source/maestro/maestro-roku-bsc-plugin/dist/plugin.js',
         '/home/george/hope/open-source/rooibos/bsc-plugin/dist/plugin.js'
     ],
     'rooibos': {
         'isRecordingCodeCoverage': false,
-        'testsFilePattern': null,
-        'tags': [
-            '!integration',
-            '!deprecated',
-            '!fixme'
+        'testsFilePattern': null
+    },
+    'maestro': {
+        'buildForIDE': true,
+        'excludeFilters': [
+            '**/roku_modules/**/*',
+            '**/rooibos/**/*'
         ],
-        'showOnlyFailures': true,
-        'catchCrashes': true,
-        'lineWidth': 70
+        'buildTimeImports': {
+            'IAuthProvider': [],
+            'IEntitlementsProvider': [],
+            'IBookmarksProvider': [],
+            'IPlayerAnalytics': [],
+            'IAnalytics': [],
+            'IBootstrapPlugin': []
+        }
     },
     'rokuLog': {
         'strip': false,
-        'insertPkgPath': true
+        'insertPkgPath': true,
+        'removeComments': true
     },
-    'sourceMap': true,
-    'maestro': {
-        buildNodeClasses: false
-    }
+    'sourceMap': true
 };
 //maestro list
 let maestroList = {
@@ -364,8 +538,9 @@ let programBuilder = new ProgramBuilder();
 programBuilder.run(
     // swv
     // zapp
-    // maestro
-    corco
+    maestro
+    // corco
+    // z41
     // maestroSample
     // maestroList
     // {
