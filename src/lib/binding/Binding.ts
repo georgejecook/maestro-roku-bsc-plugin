@@ -164,15 +164,28 @@ export default class Binding {
     public getStaticText(): string {
         let text = '';
         if (this.properties.type === BindingType.code) {
-            text += `m.${this.nodeId}.${this.nodeField} = ${this.rawValueText}`;
+            if (this.nodeField === 'fields') {
+                text += `m.${this.nodeId}.setFields(${this.rawValueText})`;
+            } else {
+                text += `m.${this.nodeId}.${this.nodeField} = ${this.rawValueText}`;
+            }
         } else if (this.properties.type === BindingType.static) {
             const valueText = this.fullFieldPath.split('.').length > 1
                 ? `mc_getPath(vm,"${this.fullFieldPath}")` : `vm.${this.observerField}`;
-            if (this.properties.transformFunction) {
-                text += `m.${this.nodeId}.${this.nodeField} = ${this.properties.transformFunction}(${valueText})`;
+            if (this.nodeField === 'fields') {
+                if (this.properties.transformFunction) {
+                    text += `m.${this.nodeId}.setFields(${this.properties.transformFunction}(${valueText}))`;
+                } else {
+                    text += `m.${this.nodeId}.setFields(${valueText})`;
+                }
             } else {
-                text += `m.${this.nodeId}.${this.nodeField} = ${valueText}`;
+                if (this.properties.transformFunction) {
+                    text += `m.${this.nodeId}.${this.nodeField} = ${this.properties.transformFunction}(${valueText})`;
+                } else {
+                    text += `m.${this.nodeId}.${this.nodeField} = ${valueText}`;
+                }
             }
+
         }
         return text;
     }
