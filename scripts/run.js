@@ -485,7 +485,10 @@ let corco = {
     },
     'maestro': {
         'excludeFilters': ['**/roku_modules/**/*', '**/rooibos/**/*', '**/RALETrackerTask.*'],
-        'buildForIDE': false
+        'nodeClasses': {
+            'buildForIDE': false,
+            'generateTestUtils': true
+        }
     },
     'sourceMap': true
 };
@@ -538,8 +541,8 @@ let programBuilder = new ProgramBuilder();
 programBuilder.run(
     // swv
     // zapp
-    maestro
-    // corco
+    // maestro
+    corco
     // z41
     // maestroSample
     // maestroList

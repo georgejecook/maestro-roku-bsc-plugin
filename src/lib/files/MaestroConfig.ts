@@ -14,7 +14,6 @@ export interface MaestroConfig {
     logLevel?: MaestroLogLevel;
     buildTimeImports?: any;
     excludeFilters?: string[];
-    buildForIDE?: boolean; // turns on optimizations for IDE builds
     addFrameworkFiles?: boolean;
     mvvm?: {
         insertXmlBindingsEarly?: boolean;
@@ -22,6 +21,10 @@ export interface MaestroConfig {
         insertCreateVMMethod?: boolean;
         callCreateVMMethodInInit?: boolean;
         callCreateNodeVarsInInit: boolean;
+    };
+    nodeClasses?: {
+        generateTestUtils: boolean; //creates builders for node classes
+        buildForIDE?: boolean; // turns on optimizations for IDE builds
     };
 }
 
