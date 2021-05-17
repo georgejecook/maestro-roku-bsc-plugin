@@ -1,4 +1,5 @@
-import type { BrsFile, ProgramBuilder, FunctionStatement } from 'brighterscript';
+import type { BrsFile, ProgramBuilder, FunctionStatement, Program } from 'brighterscript';
+import { ParseMode } from 'brighterscript';
 import type { ProjectFileMap } from '../files/ProjectFileMap';
 import type { File } from '../files/File';
 import { addNodeClassBadDeclaration, addNodeClassDuplicateName, addNodeClassNoExtendNodeFound, addNodeClassWrongNewSignature } from '../utils/Diagnostics';
@@ -79,6 +80,31 @@ export default class NodeClassUtil {
         }
     }
 
+    generateTestCode(program: Program) {
+        let codeText = `
+  namespace tests.nodeClassUtils
+    function createNodeClass(name, nodeTop = {}, nodeGlobal = {})
+      if false
+        ? "maestro nodeclass test-utils"`;
+        for (let nc of [...this.fileMap.nodeClasses.values()]) {
+            codeText += `\n      else if name = "${nc.classStatement.getName(ParseMode.BrightScript)}"
+        'bs:disable-next-line
+        instance = __${nc.name.replace('.', '_')}_builder()
+`;
+        }
+        codeText += `
+      end if
+      if instance <> invalid
+        instance.top = nodeTop
+        instance.global = nodeGlobal
+        instance.new()
+      end if
+    return instance
+  end function
+end namespace`;
 
+        let brsFile = this.fileFactory.addFile(program, `source/roku_modules/maestro/tests/TestUtils.bs`, codeText);
+        brsFile.parser.invalidateReferences();
+    }
 }
 

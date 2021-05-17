@@ -99,8 +99,11 @@ export class MaestroPlugin implements CompilerPlugin {
             buildTimeImports: {}
         };
         config.excludeFilters = config.excludeFilters || ['**/roku_modules/**/*'];
-        config.buildForIDE = config.buildForIDE || false;
         config.addFrameworkFiles = config.addFrameworkFiles || true;
+        config.nodeClasses = config.nodeClasses || {};
+        config.nodeClasses.buildForIDE = config.buildForIDE; //legacy support
+        config.nodeClasses.buildForIDE = config.nodeClasses.buildForIDE === undefined ? false : config.nodeClasses.buildForIDE;
+
         config.mvvm = config.mvvm || {};
 
         config.mvvm.insertXmlBindingsEarly = config.mvvm.insertXmlBindingsEarly === undefined ? false : config.mvvm.insertXmlBindingsEarly;
@@ -153,9 +156,12 @@ export class MaestroPlugin implements CompilerPlugin {
             this.reflectionUtil.addFile(file);
             if (this.shouldParseFile(file)) {
                 this.nodeClassUtil.addFile(file, mFile);
-                if (this.maestroConfig.buildForIDE) {
+                if (this.maestroConfig.nodeClasses.buildForIDE) {
                     for (let nc of [...mFile.nodeClasses.values()]) {
-                        nc.generateCode(this.fileFactory, this.builder.program, this.fileMap, this.maestroConfig.buildForIDE);
+                        nc.generateCode(this.fileFactory, this.builder.program, this.fileMap, this.maestroConfig.nodeClasses.buildForIDE);
+                    }
+                    if (this.maestroConfig.nodeClasses.generateTestUtils) {
+                        this.nodeClassUtil.generateTestCode(this.builder.program);
                     }
                 }
                 if (mFile.nodeClasses.size > 0) {
@@ -205,10 +211,13 @@ export class MaestroPlugin implements CompilerPlugin {
             }
         }
 
-        if (!this.maestroConfig.buildForIDE) {
+        if (!this.maestroConfig.nodeClasses.buildForIDE) {
             console.log('building all comp files...');
             for (let nc of [...this.fileMap.nodeClasses.values()]) {
                 nc.generateCode(this.fileFactory, this.builder.program, this.fileMap, false);
+            }
+            if (this.maestroConfig.nodeClasses.generateTestUtils) {
+                this.nodeClassUtil.generateTestCode(this.builder.program);
             }
         }
         this.dirtyCompFilePaths.clear();
