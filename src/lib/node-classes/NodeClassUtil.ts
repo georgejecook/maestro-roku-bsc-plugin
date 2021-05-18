@@ -82,28 +82,35 @@ export default class NodeClassUtil {
 
     generateTestCode(program: Program) {
         let codeText = `
-  namespace tests.nodeClassUtils
-    function createNodeClass(name, nodeTop = {}, nodeGlobal = {})
-      if false
-        ? "maestro nodeclass test-utils"`;
+        function tests_maestro_nodeClassUtils_createNodeClass(clazz, nodeTop = {}, nodeGlobal = {})
+  instance = invalid
+  name = mc_getFunctionName(clazz)
+  if name = invalid
+    return invalid
+  end if
+
+  name = lcase(name)
+
+  if false
+    ? "maestro nodeclass test-utils"`;
         for (let nc of [...this.fileMap.nodeClasses.values()]) {
-            codeText += `\n      else if name = "${nc.classStatement.getName(ParseMode.BrightScript)}"
-        'bs:disable-next-line
-        instance = __${nc.name.replace('.', '_')}_builder()
+            codeText += `\n    else if name = "${nc.classStatement.getName(ParseMode.BrightScript).toLowerCase()}"
+    'bs:disable-next-line
+    instance = __${nc.classStatement.getName(ParseMode.BrightScript)}_builder()
 `;
         }
         codeText += `
-      end if
-      if instance <> invalid
-        instance.top = nodeTop
-        instance.global = nodeGlobal
-        instance.new()
-      end if
-    return instance
-  end function
-end namespace`;
+  end if
+  if instance <> invalid
+    instance.top = nodeTop
+    instance.global = nodeGlobal
+    instance.new()
+  end if
+  return instance
+end function
+`;
 
-        let brsFile = this.fileFactory.addFile(program, `source/roku_modules/maestro/tests/TestUtils.bs`, codeText);
+        let brsFile = this.fileFactory.addFile(program, `source/roku_modules/maestro/tests/TestUtils.brs`, codeText);
         brsFile.parser.invalidateReferences();
     }
 }
