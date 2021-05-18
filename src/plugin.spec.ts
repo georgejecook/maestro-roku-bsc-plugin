@@ -27,7 +27,9 @@ describe('MaestroPlugin', () => {
         plugin = new MaestroPlugin();
         options = {
             rootDir: _rootDir,
-            stagingFolderPath: _stagingFolderPath
+            stagingFolderPath: _stagingFolderPath,
+            mvvm: {},
+            nodeClasses: {}
         };
         fsExtra.ensureDirSync(_stagingFolderPath);
         fsExtra.ensureDirSync(_rootDir);
@@ -40,7 +42,9 @@ describe('MaestroPlugin', () => {
         program.plugins = new PluginInterface([plugin], program.logger);
         program.createSourceScope(); //ensure source scope is created
         plugin.maestroConfig = {
-            addFrameworkFiles: false
+            addFrameworkFiles: false,
+            mvvm: {},
+            nodeClasses: {}
         };
         plugin.beforeProgramCreate(builder);
         program.addOrReplaceFile('manifest', ``);
@@ -458,7 +462,9 @@ describe('MaestroPlugin', () => {
         it('can turnoff default default ignored folders ', async () => {
             plugin.maestroConfig = {
                 addFrameworkFiles: false,
-                excludeFilters: []
+                excludeFilters: [],
+                mvvm: {},
+                nodeClasses: {}
             };
             plugin.importProcessor.config = plugin.maestroConfig;
 
@@ -493,7 +499,9 @@ describe('MaestroPlugin', () => {
         it('does not manipulate files in specified folders ', async () => {
             plugin.maestroConfig = {
                 addFrameworkFiles: false,
-                excludeFilters: ['**/ignored/**/*.*']
+                excludeFilters: ['**/ignored/**/*.*'],
+                mvvm: {},
+                nodeClasses: {}
             };
             plugin.importProcessor.config = plugin.maestroConfig;
 
@@ -563,6 +571,8 @@ describe('MaestroPlugin', () => {
             b = trimLeading(`'import "pkg:/source/comp.bs"
 
             function init()
+            m.top.title = ""
+            m.top.content = ""
             instance = __Comp_builder()
             instance.delete("top")
             instance.delete("global")
@@ -626,6 +636,8 @@ describe('MaestroPlugin', () => {
             b = trimLeading(`'import "pkg:/source/comp.bs"
 
             function init()
+            m.top.title = ""
+            m.top.content = ""
             instance = __Comp_builder()
             instance.delete("top")
             instance.delete("global")
@@ -693,6 +705,8 @@ describe('MaestroPlugin', () => {
             b = trimLeading(`'import "pkg:/source/comp.bs"
 
             function init()
+            m.top.title = ""
+            m.top.content = ""
             instance = __Comp_builder()
             instance.delete("top")
             instance.delete("global")

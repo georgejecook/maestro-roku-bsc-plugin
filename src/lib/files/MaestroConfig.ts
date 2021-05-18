@@ -20,10 +20,10 @@ export interface MaestroConfig {
         createCodeBehindFilesWhenNeeded?: boolean;
         insertCreateVMMethod?: boolean;
         callCreateVMMethodInInit?: boolean;
-        callCreateNodeVarsInInit: boolean;
+        callCreateNodeVarsInInit?: boolean;
     };
     nodeClasses?: {
-        generateTestUtils: boolean; //creates builders for node classes
+        generateTestUtils?: boolean; //creates builders for node classes
         buildForIDE?: boolean; // turns on optimizations for IDE builds
     };
 }
