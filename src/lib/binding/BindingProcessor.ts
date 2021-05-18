@@ -89,7 +89,7 @@ export class BindingProcessor {
 end function\n`;
         text += this.getNodeVarMethodText(file) + `\n`;
         text += `\nfunction m_createVM()
-        m.vm = ${file.vmClassName.replace('.', '_')}()
+        m.vm = ${file.vmClassName.replace(/\./gim, '_')}()
         m.vm.initialize()
         mx_initializeBindings()
 
