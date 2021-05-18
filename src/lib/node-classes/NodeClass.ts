@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-confusing-void-expression */
 import type { AnnotationExpression, BrsFile, ClassFieldStatement, ClassMethodStatement, ClassStatement, FunctionParameterExpression, Program, ProgramBuilder, XmlFile } from 'brighterscript';
 import { TokenKind, isClassMethodStatement, ParseMode, createVisitor, isVariableExpression, WalkMode, FunctionStatement, isAALiteralExpression, isArrayLiteralExpression, isIntegerType, isLiteralExpression, isLiteralNumber, isLongIntegerType, isUnaryExpression } from 'brighterscript';
 import { TranspileState } from 'brighterscript/dist/parser/TranspileState';
@@ -45,9 +46,6 @@ export class NodeField {
     getInterfaceText() {
         let text = `
     <field id="${this.name}" type="${this.type}" `;
-        if (this.value) {
-            text += ` value="${this.value}" `;
-        }
         if (this.alwaysNotify) {
             text += ` alwaysNotify="${this.alwaysNotify}" `;
         }
@@ -199,9 +197,8 @@ export class NodeClass {
             if (typeof defaultValue === 'string') {
                 defaultValue = `"${defaultValue}"`;
             }
-            return p.name.text + ' = ' + (defaultValue ? defaultValue : 'invalid');
+            return p.name.text + ' = ' + (defaultValue !== undefined ? defaultValue : 'invalid');
         }).join(',')}`;
-
     }
 
     private getLazyNodeBrsCode(nodeFile: NodeClass, members: (ClassFieldStatement | ClassMethodStatement)[]) {
@@ -322,6 +319,9 @@ export class NodeClass {
             let observerBody = ``;
             let hasDebounce = false;
             if (this.type === NodeClassType.node) {
+                for (let member of this.nodeFields) {
+                    initBody += `m.top.${member.name} = ${member.value}\n`;
+                }
                 if (!this.isLazy) {
                     initBody += `
                     instance = __${this.classStatement.getName(ParseMode.BrightScript)}_builder()

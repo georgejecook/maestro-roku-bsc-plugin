@@ -170,16 +170,16 @@ function driveLetterToLower(fullPath: string) {
 
 
 // eslint-disable-next-line @typescript-eslint/consistent-indexed-object-style
-export function expressionToString(expr: Expression): string | undefined {
+export function expressionToString(expr: Expression): string {
     if (!expr) {
-        return undefined;
+        return 'invalid';
     }
     if (isUnaryExpression(expr) && isLiteralNumber(expr.right)) {
         return numberExpressionToValue(expr.right, expr.operator.text).toString();
     }
     if (isLiteralString(expr)) {
         //remove leading and trailing quotes
-        return expr.token.text.replace(/^"/, '').replace(/"$/, '');
+        return `"${expr.token.text.replace(/^"/, '').replace(/"$/, '')}"`;
     }
     if (isLiteralNumber(expr)) {
         return numberExpressionToValue(expr).toString();
@@ -194,14 +194,16 @@ export function expressionToString(expr: Expression): string | undefined {
             .map(e => expressionToString(e))}]`;
     }
     if (isAALiteralExpression(expr)) {
-        return `{${expr.elements.reduce((acc, e) => {
+        let text = `{${expr.elements.reduce((acc, e) => {
             if (!isCommentStatement(e)) {
-                acc[e.keyToken.text] = expressionToString(e.value);
+                const sep = acc === '' ? '' : ', ';
+                acc += `${sep}${e.keyToken.text}: ${expressionToString(e.value)}`;
             }
             return acc;
         }, '')}}`;
+        return text;
     }
-    return undefined;
+    return 'invalid';
 }
 export function expressionToValue(expr: Expression): any | undefined {
     if (!expr) {
