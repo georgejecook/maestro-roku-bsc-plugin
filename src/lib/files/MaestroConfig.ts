@@ -15,6 +15,7 @@ export interface MaestroConfig {
     buildTimeImports?: any;
     excludeFilters?: string[];
     addFrameworkFiles?: boolean;
+    stripParamTypes?: boolean;
     mvvm?: {
         insertXmlBindingsEarly?: boolean;
         createCodeBehindFilesWhenNeeded?: boolean;
