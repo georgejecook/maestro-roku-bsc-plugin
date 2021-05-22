@@ -1,5 +1,5 @@
 
-# Brighterscript compiler plugin for [maestro-roku](https://github.com/georgejecook/maestro-roku) framework
+# Bsc Plugin plugin for [maestro-roku](https://github.com/georgejecook/maestro-roku) framework
 
 
 [![build](https://img.shields.io/github/workflow/status/georgejecook/maestro-roku-bsc-plugin/build.svg?logo=github)](https://github.com/georgejecook/maestro-roku-bsc-plugin/actions?query=workflow%3Abuild)
