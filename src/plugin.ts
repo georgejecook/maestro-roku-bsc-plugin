@@ -100,6 +100,7 @@ export class MaestroPlugin implements CompilerPlugin {
         };
         config.excludeFilters = config.excludeFilters || ['**/roku_modules/**/*'];
         config.addFrameworkFiles = config.addFrameworkFiles || true;
+        config.stripParamTypes = config.stripParamTypes || true;
         config.nodeClasses = config.nodeClasses || {};
         config.nodeClasses.buildForIDE = config.buildForIDE; //legacy support
         config.nodeClasses.buildForIDE = config.nodeClasses.buildForIDE === undefined ? false : config.nodeClasses.buildForIDE;
@@ -310,10 +311,24 @@ export class MaestroPlugin implements CompilerPlugin {
                 }
                 this.injectIOCCode(cs, entry.file);
             }
+            if (this.maestroConfig.stripParamTypes) {
+                //fix all as declarations
+                for (let fs of entry.file.parser.references.functionStatements) {
+                    for (let param of fs.func.parameters) {
+                        param.asToken = null;
+                    }
+                }
+                for (let fs of entry.file.parser.references.functionExpressions) {
+                    for (let param of fs.parameters) {
+                        param.asToken = null;
+                    }
+                }
+            }
         }
         for (let nc of this.fileMap.nodeClasses.values()) {
             nc.replacePublicMFieldRefs(this.fileMap);
         }
+
     }
 
     beforeProgramTranspile(program: Program, entries: TranspileObj[]) {
