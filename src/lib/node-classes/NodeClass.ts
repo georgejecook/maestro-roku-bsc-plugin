@@ -489,7 +489,13 @@ export class NodeClass {
         this.classStatement.walk(logVisitor, { walkMode: WalkMode.visitAllRecursive });
     }
     getNodeFields(file: BrsFile, cs: ClassStatement, fileMap: ProjectFileMap) {
-        let fields = this.type === NodeClassType.task ? [] : [...this.getClassFields(this.classStatement, fileMap).values()];
+        let fields: BoundClassField[] = [];
+        let members = new Map<string, ClassFieldStatement | ClassMethodStatement>();
+        if (this.type !== NodeClassType.task) {
+            members = this.getClassMembers(this.classStatement, fileMap);
+            fields = [...this.getClassFields(this.classStatement, fileMap).values()];
+        }
+
         let nodeFields = [];
         for (let bf of fields.filter((bf) => (!bf.f.accessModifier || bf.f.accessModifier.kind === TokenKind.Public) && bf.f.name.text.toLocaleLowerCase() !== '__classname')) {
             let field = bf.f;
@@ -505,8 +511,10 @@ export class NodeClass {
             let f = new NodeField(file, bf.cs, field, fieldType, observerAnnotation, alwaysNotify, debounce);
             let observerArgs = observerAnnotation?.getArguments() ?? [];
             if (observerArgs.length > 0) {
-                let observerFunc = cs.methods.find((m) => m.name.text === observerArgs[0]);
-                f.numArgs = observerFunc?.func?.parameters?.length;
+                let observerFunc = members.get((observerArgs[0] as string).toLowerCase());
+                if (isClassMethodStatement(observerFunc)) {
+                    f.numArgs = observerFunc?.func?.parameters?.length;
+                }
             }
 
             nodeFields.push(f);
