@@ -101,6 +101,7 @@ export class MaestroPlugin implements CompilerPlugin {
         config.excludeFilters = config.excludeFilters || ['**/roku_modules/**/*'];
         config.addFrameworkFiles = config.addFrameworkFiles || true;
         config.stripParamTypes = config.stripParamTypes || true;
+        config.applyStrictToAllClasses = config.applyStrictToAllClasses || true;
         config.nodeClasses = config.nodeClasses || {};
         config.nodeClasses.buildForIDE = config.buildForIDE; //legacy support
         config.nodeClasses.buildForIDE = config.nodeClasses.buildForIDE === undefined ? false : config.nodeClasses.buildForIDE;
@@ -399,7 +400,7 @@ export class MaestroPlugin implements CompilerPlugin {
 
         for (let cs of (file.bscFile as BrsFile).parser.references.classStatements) {
             // eslint-disable-next-line @typescript-eslint/dot-notation
-            if (!getAllAnnotations(this.fileMap, cs)['strict']) {
+            if (!this.maestroConfig.applyStrictToAllClasses && !getAllAnnotations(this.fileMap, cs)['strict']) {
                 continue;
             }
             // eslint-disable-next-line @typescript-eslint/dot-notation
