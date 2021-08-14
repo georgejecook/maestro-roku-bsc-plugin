@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/no-confusing-void-expression */
 import type { AnnotationExpression, BrsFile, ClassFieldStatement, ClassMethodStatement, ClassStatement, FunctionParameterExpression, Program, ProgramBuilder, XmlFile } from 'brighterscript';
-import { TokenKind, isClassMethodStatement, ParseMode, createVisitor, isVariableExpression, WalkMode, FunctionStatement, isAALiteralExpression, isArrayLiteralExpression, isIntegerType, isLiteralExpression, isLiteralNumber, isLongIntegerType, isUnaryExpression } from 'brighterscript';
+import { isCallExpression, isNewExpression, TokenKind, isClassMethodStatement, ParseMode, createVisitor, isVariableExpression, WalkMode, FunctionStatement, isAALiteralExpression, isArrayLiteralExpression, isIntegerType, isLiteralExpression, isLiteralNumber, isLongIntegerType, isUnaryExpression } from 'brighterscript';
 import { TranspileState } from 'brighterscript/dist/parser/TranspileState';
 import type { ProjectFileMap } from '../files/ProjectFileMap';
 import { expressionToString, expressionToValue } from '../Utils';
-import { addNodeClassCallbackNotDefined, addNodeClassCallbackNotFound, addNodeClassCallbackWrongParams, addNodeClassFieldNoFieldType, addNodeClassNoExtendNodeFound } from '../utils/Diagnostics';
+import { addNodeClassCallbackNotDefined, addNodeClassCallbackNotFound, addNodeClassCallbackWrongParams, addNodeClassFieldNoFieldType, addNodeClassNoExtendNodeFound, addNodeClassUnknownClassType } from '../utils/Diagnostics';
 import type { FileFactory } from '../utils/FileFactory';
 import { RawCodeStatement } from '../utils/RawCodeStatement';
 import { getAllFields } from '../utils/Utils';
@@ -25,9 +25,10 @@ export enum NodeClassType {
 }
 
 export class NodeField {
-    constructor(public file: BrsFile, public classStatement: ClassStatement, public field: ClassFieldStatement, public fieldType: string, public observerAnnotation?: AnnotationExpression, public alwaysNotify?: boolean, public debounce?: boolean) {
+    constructor(public file: BrsFile, public classStatement: ClassStatement, public field: ClassFieldStatement, public fieldType: string, public observerAnnotation?: AnnotationExpression, public alwaysNotify?: boolean, public debounce?: boolean, public isPossibleClassType = false) {
         this.name = field.name.text;
-        this.type = fieldType;
+        this.type = isPossibleClassType ? 'assocarray' : fieldType;
+        this.classType = isPossibleClassType ? fieldType : '';
         this.value = expressionToString(this.field.initialValue);
         this.callback = observerAnnotation?.getArguments()[0] as string;
     }
@@ -36,6 +37,7 @@ export class NodeField {
     public name: string;
     public callback: string;
     public value: string;
+    public classType: string;
     public numArgs: number;
 
     getObserverStatementText() {
@@ -112,6 +114,31 @@ export class NodeClass {
     public nodeFields: NodeField[] = [];
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     public classMemberFilter = (m) => isClassMethodStatement(m) && (!m.accessModifier || m.accessModifier.kind === TokenKind.Public) && m.name.text !== 'new';
+
+    private knownFieldTypes = {
+        'integer': true,
+        'longinteger': true,
+        'float': true,
+        'string': true,
+        'boolean': true,
+        'vector2d': true,
+        'color': true,
+        'time': true,
+        'uri': true,
+        'node': true,
+        'floatarray': true,
+        'intarray': true,
+        'boolarray': true,
+        'stringarray': true,
+        'vector2darray': true,
+        'colorarray': true,
+        'timearray': true,
+        'nodearray': true,
+        'assocarray': true,
+        'array': true,
+        'rect2d': true
+    };
+
 
     resetDiagnostics() {
         if (this.xmlFile) {
@@ -391,7 +418,7 @@ export class NodeClass {
     private getClassMembers(classStatement: ClassStatement, fileMap: ProjectFileMap) {
         let results = new Map<string, ClassFieldStatement | ClassMethodStatement>();
         if (classStatement) {
-            let classes = this.getClassHieararchy(classStatement.getName(ParseMode.BrighterScript), fileMap);
+            let classes = this.getClassHierarchy(classStatement.getName(ParseMode.BrighterScript), fileMap);
             for (let cs of classes) {
                 let fields = cs?.fields;
                 let methods = cs?.methods;
@@ -408,7 +435,7 @@ export class NodeClass {
     private getClassFields(classStatement: ClassStatement, fileMap: ProjectFileMap) {
         let results = new Map<string, BoundClassField>();
         if (classStatement) {
-            let classes = this.getClassHieararchy(classStatement.getName(ParseMode.BrighterScript), fileMap);
+            let classes = this.getClassHierarchy(classStatement.getName(ParseMode.BrighterScript), fileMap);
             for (let cs of classes) {
                 let fields = cs?.fields;
                 for (let member of [...fields]) {
@@ -422,7 +449,7 @@ export class NodeClass {
     }
 
 
-    public getClassHieararchy(className: string, fileMap: ProjectFileMap): ClassStatement[] {
+    public getClassHierarchy(className: string, fileMap: ProjectFileMap): ClassStatement[] {
         let items = [];
         let parent = fileMap.allClasses.get(className);
         while (parent) {
@@ -453,6 +480,10 @@ export class NodeClass {
                 } else if (field.numArgs > 1) {
                     addNodeClassCallbackWrongParams(this.file, field.name, observerArgs[0] as string, this.classStatement.getName(ParseMode.BrighterScript), field.observerAnnotation.range.start.line, field.observerAnnotation.range.start.character);
                 }
+            }
+            if (field.isPossibleClassType && !this.fileMap.allClassNames.has(field.fieldType)) {
+                addNodeClassUnknownClassType(this.file, field.name, field.classType, this.classStatement.getName(ParseMode.BrighterScript), field.field.range.start.line, field.field.range.start.character);
+
             }
         }
 
@@ -508,7 +539,7 @@ export class NodeClass {
             let debounce = field.annotations?.find((a) => a.name.toLowerCase() === 'debounce') !== undefined;
             let observerAnnotation = field.annotations?.find((a) => a.name.toLowerCase() === 'observer');
             let alwaysNotify = field.annotations?.find((a) => a.name.toLowerCase() === 'alwaysnotify') !== undefined;
-            let f = new NodeField(file, bf.cs, field, fieldType, observerAnnotation, alwaysNotify, debounce);
+            let f = new NodeField(file, bf.cs, field, fieldType, observerAnnotation, alwaysNotify, debounce, !this.knownFieldTypes[fieldType.toLowerCase()]);
             let observerArgs = observerAnnotation?.getArguments() ?? [];
             if (observerArgs.length > 0) {
                 let observerFunc = members.get((observerArgs[0] as string).toLowerCase());
@@ -524,7 +555,7 @@ export class NodeClass {
     }
 
     getFieldType(field: ClassFieldStatement): string | undefined {
-        let fieldType;
+        let fieldType: string;
         if (field.type) {
             fieldType = field.type.text.toLowerCase();
             if (fieldType === 'mc.types.assocarray') {
@@ -533,6 +564,9 @@ export class NodeClass {
                 fieldType = 'node';
             } else if (fieldType === 'mc.types.array') {
                 fieldType = 'array';
+            } else if (!this.knownFieldTypes[fieldType]) {
+                // keep original case
+                fieldType = field.type.text;
             }
             // console.log('fieldType', fieldType);
         } else if (isLiteralExpression(field.initialValue)) {
@@ -547,6 +581,8 @@ export class NodeClass {
             } else {
                 fieldType = 'float';
             }
+        } else if (isNewExpression(field.initialValue)) {
+            fieldType = 'assocarray';
         }
         return fieldType === 'invalid' ? undefined : fieldType;
 

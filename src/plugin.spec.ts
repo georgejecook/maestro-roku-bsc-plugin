@@ -735,6 +735,108 @@ describe('MaestroPlugin', () => {
             expect(a).to.equal(b);
 
         });
+
+        it('manages inferred and specific field types', async () => {
+            plugin.afterProgramCreate(program);
+            program.addOrReplaceFile('source/comp.bs', `
+                class TestClass
+                end class
+                @node("Comp", "Group")
+                class Comp
+
+                public clazzTyped as TestClass
+                    public s = "string"
+                    public num = 2
+                    public numFloat = 2.5
+                    public arr = [1,2,3]
+                    public aa = {id:"1"}
+                    public clazz = new TestClass()
+                    public sTyped as string
+                    public numTyped as integer
+                    public numFloatTyped as float
+                    public arrTyped as mc.types.array
+                    public aaTyped as mc.types.assocarray
+
+                    function new()
+                    end function
+
+                    private function onTitleChange(value)
+                    end function
+
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error && !d.message.includes('mc.types.'))).to.be.empty;
+
+            let a = getContents('components/maestro/generated/Comp.xml');
+            let b = trimLeading(`<?xml version="1.0" encoding="UTF-8" ?>
+            <component name="Comp" extends="Group">
+            <interface>
+            <field id="clazzTyped" type="assocarray" />
+            <field id="s" type="string" />
+            <field id="num" type="integer" />
+            <field id="numFloat" type="float" />
+            <field id="arr" type="array" />
+            <field id="aa" type="assocarray" />
+            <field id="clazz" type="assocarray" />
+            <field id="sTyped" type="string" />
+            <field id="numTyped" type="integer" />
+            <field id="numFloatTyped" type="float" />
+            <field id="arrTyped" type="array" />
+            <field id="aaTyped" type="assocarray" />
+            </interface>
+            <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
+            <children />
+            </component>
+            `);
+            expect(a).to.equal(b);
+
+            a = getContents('components/maestro/generated/Comp.brs');
+            b = trimLeading(`'import "pkg:/source/comp.bs"
+
+            function init()
+            m.top.clazzTyped = invalid
+            m.top.s = "string"
+            m.top.num = 2
+            m.top.numFloat = 2.5
+            m.top.arr = [
+            1,
+            2,
+            3
+            ]
+            m.top.aa = {
+            id: "1"
+            }
+            m.top.clazz = invalid
+            m.top.sTyped = invalid
+            m.top.numTyped = invalid
+            m.top.numFloatTyped = invalid
+            m.top.arrTyped = invalid
+            m.top.aaTyped = invalid
+            instance = __Comp_builder()
+            instance.delete("top")
+            instance.delete("global")
+            top = m.top
+            m.append(instance)
+            m.__isVMCreated = true
+            m.new()
+            m.top = top
+            m_wireUpObservers()
+            end function
+
+            function m_wireUpObservers()
+            end function
+
+            function __m_setTopField(field, value)
+            if m.top.doesExist(field) then
+            m.top[field] = value
+            end if
+            return value
+            end function`);
+            expect(a).to.equal(b);
+
+        });
         it('gives diagnostics for missing observer function params', async () => {
             plugin.afterProgramCreate(program);
             program.addOrReplaceFile('source/comp.bs', `

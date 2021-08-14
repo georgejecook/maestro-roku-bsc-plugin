@@ -542,6 +542,10 @@ let maestroSample = {
 let nba = {
     'rootDir': '/home/george/hope/nba/nba-roku/src',
     'stagingFolderPath': 'build',
+    'plugins': [
+        '/home/george/hope/open-source/maestro/maestro-roku-bsc-plugin/dist/plugin.js',
+        '/home/george/hope/open-source/rooibos/bsc-plugin/dist/plugin.js'
+    ],
     'files': [
         'manifest',
         'source/**/*.*',
@@ -550,7 +554,8 @@ let nba = {
         'sounds/*.*',
         'fonts/**/*.*',
         'meta/**/*.*',
-        'components/**/*.*'
+        'components/**/*.*',
+        { 'src': '../src-dev/source/**/*.*', 'dest': 'source' }
     ],
     'autoImportComponentScript': true,
     'createPackage': false,
@@ -564,14 +569,19 @@ let nba = {
         {
             'src': '**/*spec.bs',
             'codes': ['LINT3011']
+        },
+        {
+            'src': '**/bitmovinAnalytics/**/*.*'
+        },
+        {
+            'src': '**/bitmovinPlayer/**/*.*'
+        },
+        {
+            'src': '**/mediakind/**/*.*'
         }
     ],
-    'plugins': [
-        '/home/george/hope/open-source/maestro/maestro-roku-bsc-plugin/dist/plugin.js',
-        '/home/george/hope/open-source/rooibos/bsc-plugin/dist/plugin.js'
-    ],
     'maestro': {
-        'excludeFilters': ['**/roku_modules/**/*', '**/rooibos/**/*'],
+        'excludeFilters': ['**/roku_modules/**/*', '**/rooibos-roku/**/*'],
         'buildForIDE': true
     },
     'rooibos': {
@@ -597,10 +607,10 @@ programBuilder.run(
     // zapp
     // maestro
     // corco
-    // nba
+    nba
     // z41
     // maestroSample
-    maestroList
+    // maestroList
     // {
     // project: '/home/george/hope/open-source/maestro/swerve-app/bsconfig.json'
     // project: path.join(__dirname, '../', 'test-project', 'bsconfig.json')
