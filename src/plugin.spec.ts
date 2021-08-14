@@ -773,7 +773,7 @@ describe('MaestroPlugin', () => {
             let b = trimLeading(`<?xml version="1.0" encoding="UTF-8" ?>
             <component name="Comp" extends="Group">
             <interface>
-            <field id="clazzTyped" type="TestClass" />
+            <field id="clazzTyped" type="assocarray" />
             <field id="s" type="string" />
             <field id="num" type="integer" />
             <field id="numFloat" type="float" />
