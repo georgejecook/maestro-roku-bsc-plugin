@@ -294,3 +294,9 @@ export function wrongMethodArgs(name: string, numArgs: number, minArgs: number, 
     code: `MSTO${1049}`,
     severity: DiagnosticSeverity.Error };
 }
+
+export function addNodeClassUnknownClassType(file: BrsFile, name: string, fieldName: string, className: string, line = 0, col = 0) {
+    file.addDiagnostics([createDiagnostic(file, 1050, `Node class field "${name}" is of unknown type ${fieldName}, in class ${className}`, line, col)]);
+
+}
+
