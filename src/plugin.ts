@@ -14,7 +14,9 @@ import { isVariableExpression,
     isXmlFile,
     VariableExpression,
     isDottedGetExpression,
-    DottedSetStatement } from 'brighterscript';
+    DottedSetStatement,
+    isVoidType,
+    isDynamicType } from 'brighterscript';
 import type { BrsFile,
     BscFile,
     ClassStatement,
@@ -46,6 +48,8 @@ import { addClassFieldsNotFoundOnSetOrGet, addIOCNoTypeSupplied, addIOCWrongArgs
 import { getAllAnnotations, getAllFields, getAllMethods, makeASTFunction } from './lib/utils/Utils';
 import { getSGMembersLookup } from './SGApi';
 import { DependencyGraph } from 'brighterscript/dist/DependencyGraph';
+import { debug } from 'node:console';
+import { DynamicType } from 'brighterscript/dist/types/DynamicType';
 
 type Writeable<T> = { -readonly [P in keyof T]: T[P] };
 interface FunctionInfo {
@@ -302,7 +306,7 @@ export class MaestroPlugin implements CompilerPlugin {
                         constructor.func.body.statements.push(s);
                     } else {
                         //have to create a constructor, with same args as parent..
-                        console.log('TBD: create a constructor to inject for ', cs.name.text);
+                        // console.log('TBD: create a constructor to inject for ', cs.name.text);
                     }
                 }
                 let allClassAnnotations = getAllAnnotations(this.fileMap, cs);
@@ -313,13 +317,10 @@ export class MaestroPlugin implements CompilerPlugin {
                 this.injectIOCCode(cs, entry.file);
             }
             if (this.maestroConfig.stripParamTypes) {
-                //fix all as declarations
-                for (let fs of entry.file.parser.references.functionStatements) {
-                    for (let param of fs.func.parameters) {
-                        param.asToken = null;
-                    }
-                }
                 for (let fs of entry.file.parser.references.functionExpressions) {
+                    if (fs.returnType && !isVoidType(fs.returnType) && !isDynamicType(fs.returnType)) {
+                        fs.returnType = new DynamicType();
+                    }
                     for (let param of fs.parameters) {
                         param.asToken = null;
                     }
