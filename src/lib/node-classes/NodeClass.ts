@@ -333,12 +333,14 @@ export class NodeClass {
 
     generateCode(fileFactory: FileFactory, program: Program, fileMap: ProjectFileMap, isIDEBuild: boolean) {
         let members = this.type === NodeClassType.task ? [] : [...this.getClassMembers(this.classStatement, fileMap).values()];
-
         if (!isIDEBuild) {
             console.log('Generating node class', this.name, 'isIDEBuild?', isIDEBuild
             );
         }
         if (!isIDEBuild) {
+            //update node fields, in case of them being present in base classes
+            this.nodeFields = this.getNodeFields(this.file, this.classStatement, fileMap);
+
             let source = `import "pkg:/${this.file.pkgPath}"\n`;
 
             let initBody = ``;
@@ -514,9 +516,7 @@ export class NodeClass {
                     }
                 }
             }
-
-        }
-        );
+        });
         this.classStatement.walk(logVisitor, { walkMode: WalkMode.visitAllRecursive });
     }
     getNodeFields(file: BrsFile, cs: ClassStatement, fileMap: ProjectFileMap) {
