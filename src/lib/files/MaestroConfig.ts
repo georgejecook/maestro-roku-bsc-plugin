@@ -28,6 +28,10 @@ export interface MaestroConfig {
         generateTestUtils?: boolean; //creates builders for node classes
         buildForIDE?: boolean; // turns on optimizations for IDE builds
     };
+    reflection?: {
+        generateReflectionFunctions?: boolean; //if true will generate the functions required to lookup classes by name
+        excludeFilters?: string[]; // will exclude certain files from reflection
+    };
 }
 
 let docsLink = `\nPlease read the docs for usage details https://github.com/georgejecook/maestro/blob/master/docs/index.md#maestro-cli`;
