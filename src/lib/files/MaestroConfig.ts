@@ -16,6 +16,7 @@ export interface MaestroConfig {
     excludeFilters?: string[];
     addFrameworkFiles?: boolean;
     stripParamTypes?: boolean;
+    paramStripExceptions?: string;
     applyStrictToAllClasses?: boolean;
     mvvm?: {
         insertXmlBindingsEarly?: boolean;
@@ -27,6 +28,10 @@ export interface MaestroConfig {
     nodeClasses?: {
         generateTestUtils?: boolean; //creates builders for node classes
         buildForIDE?: boolean; // turns on optimizations for IDE builds
+    };
+    reflection?: {
+        generateReflectionFunctions?: boolean; //if true will generate the functions required to lookup classes by name
+        excludeFilters?: string[]; // will exclude certain files from reflection
     };
 }
 

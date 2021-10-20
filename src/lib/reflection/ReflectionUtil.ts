@@ -1,8 +1,11 @@
-import type { BrsFile, ProgramBuilder, FunctionStatement } from 'brighterscript';
+import type { BrsFile, ProgramBuilder, FunctionStatement, BscFile } from 'brighterscript';
+import type { MaestroConfig } from '../files/MaestroConfig';
 
 import type { ProjectFileMap } from '../files/ProjectFileMap';
 
 import { RawCodeStatement } from '../utils/RawCodeStatement';
+
+import * as minimatch from 'minimatch';
 
 /*
 Crude brighterscript class processor
@@ -10,7 +13,8 @@ Crude brighterscript class processor
 export default class ReflectionUtil {
     constructor(
         public fileMap: ProjectFileMap,
-        public builder: ProgramBuilder
+        public builder: ProgramBuilder,
+        public maestroConfig: MaestroConfig
     ) {
     }
 
@@ -26,14 +30,22 @@ export default class ReflectionUtil {
 
     public updateClassLookupFunction(file: BrsFile) {
         let func = file.ast.statements[0] as FunctionStatement;
-
+        let that = this;
         if (func?.func?.body?.statements.length > 0) {
-            let classNames = this.fileMap.classNames.map((n) => n.replace(/\./g, '_'));
+            let classNames = this.fileMap.classNames.filter((n: string) => {
+                let file = this.fileMap.getFileForClass(n);
+                if (!file) {
+                    console.log('MISSING FILE for class:', n);
+                    return false;
+                } else {
+                    return that.shouldParseReflectionFile(file.bscFile);
+                }
+            }).map((n) => n.replace(/\./g, '_'));
             let codeText = `if false
-        ? "maestro reflection"`;
+            ? "maestro reflection"`;
             for (let name of classNames) {
                 codeText += `\n else if name = "${name}"
-          return ${name}`;
+                    return ${name}`;
             }
             codeText += '\n end if';
             func.func.body.statements[1] = new RawCodeStatement(codeText);
@@ -61,5 +73,17 @@ export default class ReflectionUtil {
             this.fileMap.addClass(cs, mFile);
         }
     }
+
+    public shouldParseReflectionFile(file: BscFile) {
+        if (this.maestroConfig.reflection.excludeFilters) {
+            for (let filter of [...this.maestroConfig.reflection.excludeFilters, '**/components/maestro/generated/*']) {
+                if (minimatch(file.pathAbsolute, filter)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
 }
 

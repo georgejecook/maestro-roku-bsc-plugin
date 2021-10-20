@@ -105,6 +105,7 @@ export class MaestroPlugin implements CompilerPlugin {
         config.excludeFilters = config.excludeFilters || ['**/roku_modules/**/*'];
         config.addFrameworkFiles = config.addFrameworkFiles || true;
         config.stripParamTypes = config.stripParamTypes || true;
+        config.paramStripExceptions = config.paramStripExceptions || ['onKeyEvent'];
         config.applyStrictToAllClasses = config.applyStrictToAllClasses || true;
         config.nodeClasses = config.nodeClasses || {};
         config.nodeClasses.buildForIDE = config.buildForIDE; //legacy support
@@ -118,6 +119,9 @@ export class MaestroPlugin implements CompilerPlugin {
         config.mvvm.callCreateVMMethodInInit = config.mvvm.callCreateVMMethodInInit === undefined ? true : config.mvvm.callCreateVMMethodInInit;
         config.mvvm.callCreateNodeVarsInInit = config.mvvm.callCreateNodeVarsInInit === undefined ? true : config.mvvm.callCreateNodeVarsInInit;
 
+        config.reflection = config.refelection || {};
+        config.reflection.generateReflectionFunctions = config.reflection.generateReflectionFunctions === undefined ? false : config.reflection.generateReflectionFunctions;
+        config.reflection.excludeFilters = config.reflection.excludeFilters === undefined ? ['**/roku_modules/**/*', '**/*.spec.bs'] : config.reflection.excludeFilters;
         return config;
     }
 
@@ -127,7 +131,7 @@ export class MaestroPlugin implements CompilerPlugin {
             this.fileFactory = new FileFactory(this.builder);
             this.maestroConfig = this.getConfig(builder.options as any);
             this.bindingProcessor = new BindingProcessor(this.fileMap, this.fileFactory, this.maestroConfig);
-            this.reflectionUtil = new ReflectionUtil(this.fileMap, builder);
+            this.reflectionUtil = new ReflectionUtil(this.fileMap, builder, this.maestroConfig);
 
             this.importProcessor = new ImportProcessor(this.maestroConfig);
             this.nodeClassUtil = new NodeClassUtil(this.fileMap, builder, this.fileFactory);
@@ -318,7 +322,7 @@ export class MaestroPlugin implements CompilerPlugin {
             }
             if (this.maestroConfig.stripParamTypes) {
                 for (let fs of entry.file.parser.references.functionExpressions) {
-                    if (fs.returnType && !isVoidType(fs.returnType) && !isDynamicType(fs.returnType)) {
+                    if (fs.returnType && !isVoidType(fs.returnType) && !isDynamicType(fs.returnType) && !this.maestroConfig.paramStripExceptions.includes(fs.functionStatement.name.text)) {
                         fs.returnType = new DynamicType();
                     }
                     for (let param of fs.parameters) {
