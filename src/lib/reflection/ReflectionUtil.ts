@@ -77,14 +77,11 @@ export default class ReflectionUtil {
     public shouldParseReflectionFile(file: BscFile) {
         if (this.maestroConfig.reflection.excludeFilters) {
             for (let filter of [...this.maestroConfig.reflection.excludeFilters, '**/components/maestro/generated/*']) {
-                console.log('matching ', file.pathAbsolute, 'against', filter);
                 if (minimatch(file.pathAbsolute, filter)) {
-                    // console.log('IT MATCHED - EXCLUDING');
                     return false;
                 }
             }
         }
-        // console.log('INCLUDING');
         return true;
     }
 
