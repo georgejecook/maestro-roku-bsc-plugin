@@ -16,6 +16,7 @@ export interface MaestroConfig {
     excludeFilters?: string[];
     addFrameworkFiles?: boolean;
     stripParamTypes?: boolean;
+    paramStripExceptions?: string;
     applyStrictToAllClasses?: boolean;
     mvvm?: {
         insertXmlBindingsEarly?: boolean;

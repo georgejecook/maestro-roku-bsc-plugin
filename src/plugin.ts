@@ -105,6 +105,7 @@ export class MaestroPlugin implements CompilerPlugin {
         config.excludeFilters = config.excludeFilters || ['**/roku_modules/**/*'];
         config.addFrameworkFiles = config.addFrameworkFiles || true;
         config.stripParamTypes = config.stripParamTypes || true;
+        config.paramStripExceptions = config.paramStripExceptions || ['onKeyEvent'];
         config.applyStrictToAllClasses = config.applyStrictToAllClasses || true;
         config.nodeClasses = config.nodeClasses || {};
         config.nodeClasses.buildForIDE = config.buildForIDE; //legacy support
@@ -321,7 +322,7 @@ export class MaestroPlugin implements CompilerPlugin {
             }
             if (this.maestroConfig.stripParamTypes) {
                 for (let fs of entry.file.parser.references.functionExpressions) {
-                    if (fs.returnType && !isVoidType(fs.returnType) && !isDynamicType(fs.returnType)) {
+                    if (fs.returnType && !isVoidType(fs.returnType) && !isDynamicType(fs.returnType) && !this.maestroConfig.paramStripExceptions.includes(fs.functionStatement.name.text)) {
                         fs.returnType = new DynamicType();
                     }
                     for (let param of fs.parameters) {
