@@ -333,10 +333,10 @@ export class NodeClass {
 
     generateCode(fileFactory: FileFactory, program: Program, fileMap: ProjectFileMap, isIDEBuild: boolean) {
         let members = this.type === NodeClassType.task ? [] : [...this.getClassMembers(this.classStatement, fileMap).values()];
-        if (!isIDEBuild) {
-            console.log('Generating node class', this.name, 'isIDEBuild?', isIDEBuild
-            );
-        }
+        // if (!isIDEBuild) {
+        //     console.log('Generating node class', this.name, 'isIDEBuild?', isIDEBuild
+        //     );
+        // }
         if (!isIDEBuild) {
             //update node fields, in case of them being present in base classes
             this.nodeFields = this.getNodeFields(this.file, this.classStatement, fileMap);
