@@ -211,6 +211,7 @@ export class MaestroPlugin implements CompilerPlugin {
     beforeProgramValidate(program: Program) {
         // console.log('MAESTRO bpv-----');
         for (let filePath of [...this.dirtyCompFilePaths.values()]) {
+            console.time('Validate bindings');
             let file = this.fileMap.allFiles.get(filePath);
             file.bscFile = this.builder.program.getFileByPathAbsolute(filePath);
             file.resetDiagnostics();
@@ -219,21 +220,24 @@ export class MaestroPlugin implements CompilerPlugin {
                 // console.log('adding xml transpiled code for ', file.bscFile.pkgPath);
                 this.bindingProcessor.generateCodeForXMLFile(file, this.builder.program);
             }
+            console.timeEnd('Validate bindings');
         }
 
         if (!this.maestroConfig.nodeClasses.buildForIDE) {
-            console.log('building all comp files...');
+            console.time('Build node classes');
             for (let nc of [...this.fileMap.nodeClasses.values()]) {
                 nc.generateCode(this.fileFactory, this.builder.program, this.fileMap, false);
             }
             if (this.maestroConfig.nodeClasses.generateTestUtils) {
                 this.nodeClassUtil.generateTestCode(this.builder.program);
             }
+            console.timeEnd('Build node classes');
         }
         this.dirtyCompFilePaths.clear();
     }
 
     afterProgramValidate(program: Program) {
+        console.time('Do additional validations');
         for (let f of Object.values(this.builder.program.files)) {
             if (f.pkgPath.startsWith('components/maestro/generated')) {
                 (f as any).diagnostics = [];
@@ -251,14 +255,16 @@ export class MaestroPlugin implements CompilerPlugin {
                 this.doExtraValidations(f);
             }
         }
-
+        console.timeEnd('Do additional validations');
         this.mFilesToValidate.clear();
+        console.time('Validate node classes');
         for (let filePath of [...this.dirtyNodeClassPaths.values()]) {
             for (let nc of this.fileMap.nodeClassesByPath.get(filePath)) {
                 nc.validate();
                 nc.validateBaseComponent(this.builder, this.fileMap);
             }
         }
+        console.timeEnd('Validate node classes');
         this.dirtyNodeClassPaths.clear();
     }
 
@@ -339,7 +345,7 @@ export class MaestroPlugin implements CompilerPlugin {
 
     beforeProgramTranspile(program: Program, entries: TranspileObj[]) {
         if (!this.maestroConfig.mvvm.insertXmlBindingsEarly) {
-            console.log('injecting binding code into files with vms...');
+            console.time('Inject bindings into xml files');
 
             for (let entry of entries) {
                 if (isXmlFile(entry.file)) {
@@ -361,11 +367,14 @@ export class MaestroPlugin implements CompilerPlugin {
                     }
                 }
             }
+            console.timeEnd('Inject bindings into xml files');
         }
     }
 
     beforePublish(builder: ProgramBuilder, files: FileObj[]) {
+        console.time('Update reflection runtime file');
         this.reflectionUtil.updateRuntimeFile();
+        console.timeEnd('Update reflection runtime file');
     }
 
     public updateFieldSets(cs: ClassStatement) {
