@@ -328,8 +328,11 @@ export class MaestroPlugin implements CompilerPlugin {
             }
             if (this.maestroConfig.stripParamTypes) {
                 for (let fs of entry.file.parser.references.functionExpressions) {
-                    if (fs.returnType && !isVoidType(fs.returnType) && !isDynamicType(fs.returnType) && !this.maestroConfig.paramStripExceptions.includes(fs.functionStatement.name.text)) {
-                        fs.returnType = new DynamicType();
+                    if (fs.returnType && !isVoidType(fs.returnType) && !isDynamicType(fs.returnType)) {
+                        const name = fs.functionStatement?.name?.text || fs.parentFunction?.functionStatement?.name?.text;
+                        if (!this.maestroConfig.paramStripExceptions.includes(name)) {
+                            fs.returnType = new DynamicType();
+                        }
                     }
                     for (let param of fs.parameters) {
                         param.asToken = null;
