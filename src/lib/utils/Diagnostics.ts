@@ -1,7 +1,7 @@
 import type { BrsFile, BscFile, XmlFile } from 'brighterscript';
-import { isBrsFile, isXmlFile, DiagnosticSeverity, Range } from 'brighterscript';
+import { isBrsFile, isXmlFile, DiagnosticSeverity } from 'brighterscript';
 import type Binding from '../binding/Binding';
-
+import { Range } from 'vscode-languageserver';
 
 import type { File } from '../files/File';
 
@@ -165,6 +165,8 @@ export function addXmlBindingNoVMClassDefined(file: File) {
 }
 
 export function addXmlBindingVMClassNotFound(file: File) {
+    //FIXME  - bron why do I get these issues with range?
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     addErrorDiagnostic(file, 1022, `The VMClass specified "${file.vmClassName}" was not found.`, file.componentTag.range.start.line, file.componentTag.range.start.character);
 }
 
@@ -289,7 +291,7 @@ export function unknownClassField(name: string, scopeName: string) {
 
 export function wrongMethodArgs(name: string, numArgs: number, minArgs: number, maxArgs?: number) {
     return { message: maxArgs
-        ? `Invoking '${name}' with wrong number of args. Received ${numArgs} instead of expceted ${minArgs} to ${maxArgs}'`
+        ? `Invoking '${name}' with wrong number of args. Received ${numArgs} instead of expected ${minArgs} to ${maxArgs}'`
         : `Invoking '${name}' with wrong number of args. Received ${numArgs} instead of expected ${minArgs}'`,
     code: `MSTO${1049}`,
     severity: DiagnosticSeverity.Error };

@@ -44,13 +44,13 @@ export class XMLTag {
         const bindings = [];
 
         for (const attribute of xmlElement.attributes) {
-            let key = attribute.key.text;
+            let key = attribute.key;
             if (key.toLowerCase() !== 'id') {
-                let value = attribute.value.text;
+                let value = attribute.value;
                 let matches = staticRegex.exec(value);
                 matches = matches || regex.exec(value);
                 const colRegex = new RegExp('^((?: *|\\t*)' + attribute + '(?: *|\\t*)=(?: *|\\t*)*(?:"|\'))', 'gim');
-                let col = attribute.value.range.start.character;
+                let col = attribute.range.start.character;
                 const bindingText = matches && matches.length > 2 ? matches[2] : null;
                 const bindingStartType = matches && matches.length > 1 ? matches[1] : null;
                 const bindingEndType = matches && matches.length > 3 ? matches[3] : null;
@@ -59,7 +59,9 @@ export class XMLTag {
 
                 if (bindingText) {
                     if (mode === BindingType.invalid && bindingStartType) {
-                        addXMLTagErrorCouldMissingEndBrackets(this.file, value, attribute.value.range);
+                        // FIXME - check with Bron
+                        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+                        addXMLTagErrorCouldMissingEndBrackets(this.file, value, attribute.range);
                         continue;
                     }
                     const binding = new Binding(this.file);
@@ -112,6 +114,8 @@ export class XMLTag {
                     const startRegex = new RegExp('^\\{([\\(\\{\\[])', 'i');
 
                     if (startRegex.test(value)) {
+                        //FIXME check with bron
+                        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
                         addXMLTagErrorCouldMissingEndBrackets(this.file, value, attribute.range);
                     }
 
@@ -124,7 +128,7 @@ export class XMLTag {
                 (xmlElement.getAttribute('value') as any).value.text = '';
             } else {
                 // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-                xmlElement.setAttribute(b.nodeField.toLowerCase(), undefined);
+                xmlElement.setAttributeValue(b.nodeField.toLowerCase(), undefined);
             }
         }
         this.hasBindings = bindings.length > 0;
@@ -160,6 +164,8 @@ export class XMLTag {
             if (transformFunction.trim()) {
                 binding.properties.transformFunction = transformFunction;
             } else {
+                //FIXME - check with bron
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
                 addXMLTagErrorCouldNotParseBindingTransformFunctionForField(this.file, partText, tagText, range);
             }
         } else if (partText.toLowerCase().trim() === 'eager') {

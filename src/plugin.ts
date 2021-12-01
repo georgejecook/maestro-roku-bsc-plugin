@@ -29,7 +29,17 @@ import type { BrsFile,
     CallableContainerMap,
     FunctionStatement,
     Statement,
-    ClassMethodStatement } from 'brighterscript';
+    ClassMethodStatement,
+    BeforeProgramCreateEvent,
+    AfterProgramCreateEvent,
+    AfterFileParseEvent,
+    AfterFileValidateEvent,
+    BeforeProgramValidateEvent,
+    AfterProgramValidateEvent,
+    BeforeProgramTranspileEvent,
+    BeforePublishEvent,
+    BeforeFileTranspileEvent,
+    AfterScopeValidateEvent } from 'brighterscript';
 
 import { ProjectFileMap } from './lib/files/ProjectFileMap';
 import type { MaestroConfig } from './lib/files/MaestroConfig';
@@ -125,34 +135,35 @@ export class MaestroPlugin implements CompilerPlugin {
         return config;
     }
 
-    beforeProgramCreate(builder: ProgramBuilder): void {
+    beforeProgramCreate(event: BeforeProgramCreateEvent): void {
         if (!this.fileMap) {
             this.fileMap = new ProjectFileMap();
             this.fileFactory = new FileFactory(this.builder);
-            this.maestroConfig = this.getConfig(builder.options as any);
+            this.maestroConfig = this.getConfig(event.builder.options as any);
             this.bindingProcessor = new BindingProcessor(this.fileMap, this.fileFactory, this.maestroConfig);
-            this.reflectionUtil = new ReflectionUtil(this.fileMap, builder, this.maestroConfig);
+            this.reflectionUtil = new ReflectionUtil(this.fileMap, event.builder, this.maestroConfig);
 
             this.importProcessor = new ImportProcessor(this.maestroConfig);
-            this.nodeClassUtil = new NodeClassUtil(this.fileMap, builder, this.fileFactory);
-            this.builder = builder;
+            this.nodeClassUtil = new NodeClassUtil(this.fileMap, event.builder, this.fileFactory);
+            this.builder = event.builder;
         }
     }
 
-    afterProgramCreate(program: Program): void {
+    afterProgramCreate(event: AfterProgramCreateEvent): void {
         // console.log('MAESTRO apc-----');
         if (!this.isFrameworkAdded) {
-            this.fileFactory.addFrameworkFiles(program);
+            this.fileFactory.addFrameworkFiles(event.program);
             this.isFrameworkAdded = true;
         }
     }
 
-    afterFileParse(file: (BrsFile | XmlFile)): void {
-        // console.log('MAESTRO afp-----', file.pathAbsolute);
-        let mFile = this.fileMap.allFiles.get(file.pathAbsolute);
+    afterFileParse(event: AfterFileParseEvent): void {
+        // console.log('MAESTRO afp-----', file.srcPath);
+        let mFile = this.fileMap.allFiles.get(event.file.srcPath);
         if (!mFile) {
-            mFile = this.fileMap.createFile(file);
+            mFile = this.fileMap.createFile(event.file);
         }
+        const file = event.file;
         mFile.bscFile = file;
 
         if (file.pkgPath.startsWith('components/maestro/generated')) {
@@ -175,7 +186,7 @@ export class MaestroPlugin implements CompilerPlugin {
                     }
                 }
                 if (mFile.nodeClasses.size > 0) {
-                    this.dirtyNodeClassPaths.add(file.pathAbsolute);
+                    this.dirtyNodeClassPaths.add(file.srcPath);
                 }
                 this.mFilesToValidate.set(file.pkgPath, file);
             } else {
@@ -186,8 +197,9 @@ export class MaestroPlugin implements CompilerPlugin {
         }
     }
 
-    afterFileValidate(file: BscFile) {
-        // console.log('MAESTRO afv-----', file.pathAbsolute);
+    afterFileValidate(event: AfterFileValidateEvent) {
+        // console.log('MAESTRO afv-----', file.srcPath);
+        const file = event.file;
         if (!this.shouldParseFile(file)) {
             return;
         }
@@ -197,10 +209,10 @@ export class MaestroPlugin implements CompilerPlugin {
             return;
         }
         // console.log('MAESTRO running stf.....');
-        let compFile = this.fileMap.allFiles.get(file.pathAbsolute);
+        let compFile = this.fileMap.allFiles.get(file.srcPath);
         if (compFile?.fileType === FileType.Xml && compFile?.vmClassName) {
             this.bindingProcessor.parseBindings(compFile);
-            this.dirtyCompFilePaths.add(file.pathAbsolute);
+            this.dirtyCompFilePaths.add(file.srcPath);
         } else {
             for (let compFile of this.getCompFilesThatHaveFileInScope(file)) {
                 this.dirtyCompFilePaths.add(compFile.fullPath);
@@ -208,12 +220,12 @@ export class MaestroPlugin implements CompilerPlugin {
         }
     }
 
-    beforeProgramValidate(program: Program) {
+    beforeProgramValidate(event: BeforeProgramValidateEvent) {
         // console.log('MAESTRO bpv-----');
         for (let filePath of [...this.dirtyCompFilePaths.values()]) {
             console.time('Validate bindings');
             let file = this.fileMap.allFiles.get(filePath);
-            file.bscFile = this.builder.program.getFileByPathAbsolute(filePath);
+            file.bscFile = this.builder.program.getFile(filePath);
             file.resetDiagnostics();
             this.bindingProcessor.validateBindings(file);
             if (this.maestroConfig.mvvm.insertXmlBindingsEarly && file.isValid) {
@@ -236,9 +248,9 @@ export class MaestroPlugin implements CompilerPlugin {
         this.dirtyCompFilePaths.clear();
     }
 
-    afterProgramValidate(program: Program) {
+    afterProgramValidate(event: AfterProgramValidateEvent) {
         console.time('Do additional validations');
-        for (let f of Object.values(this.builder.program.files)) {
+        for (let f of this.builder.program.getFiles()) {
             if (f.pkgPath.startsWith('components/maestro/generated')) {
                 (f as any).diagnostics = [];
                 if (isXmlFile(f)) {
@@ -249,7 +261,7 @@ export class MaestroPlugin implements CompilerPlugin {
             }
         }
         for (let f of [...this.mFilesToValidate.values()]) {
-            let mFile = this.fileMap.allFiles.get(f.pathAbsolute);
+            let mFile = this.fileMap.allFiles.get(f.srcPath);
             if (mFile) {
                 this.checkMReferences(mFile);
                 this.doExtraValidations(f);
@@ -283,7 +295,7 @@ export class MaestroPlugin implements CompilerPlugin {
     shouldParseFile(file: BscFile) {
         if (this.maestroConfig.excludeFilters) {
             for (let filter of [...this.maestroConfig.excludeFilters, '**/components/maestro/generated/*']) {
-                if (minimatch(file.pathAbsolute, filter)) {
+                if (minimatch(file.srcPath, filter)) {
                     return false;
                 }
             }
@@ -291,9 +303,10 @@ export class MaestroPlugin implements CompilerPlugin {
         return true;
     }
 
-    beforeFileTranspile (entry: TranspileObj) {
-        if (isBrsFile(entry.file) && this.shouldParseFile(entry.file)) {
-            let classes = entry.file.parser.references.classStatements;
+    beforeFileTranspile (event: BeforeFileTranspileEvent) {
+        const file = event.file;
+        if (isBrsFile(file) && this.shouldParseFile(file)) {
+            let classes = file.parser.references.classStatements;
             for (let cs of classes) {
                 let fieldMap = getAllFields(this.fileMap, cs);
                 let id = createToken(TokenKind.Identifier, '__classname', cs.range);
@@ -309,7 +322,7 @@ export class MaestroPlugin implements CompilerPlugin {
                     cs.memberMap.__className = classNameStatement;
                 } else {
                     //this is more complicated, have to add this to the constructor
-                    let s = new RawCodeStatement(`m.__className = "${cs.getName(ParseMode.BrighterScript)}"`, entry.file, cs.range);
+                    let s = new RawCodeStatement(`m.__className = "${cs.getName(ParseMode.BrighterScript)}"`, file, cs.range);
 
                     let constructor = cs.memberMap.new as ClassMethodStatement;
                     if (constructor) {
@@ -324,10 +337,10 @@ export class MaestroPlugin implements CompilerPlugin {
                 if (allClassAnnotations['usesetfield']) {
                     this.updateFieldSets(cs);
                 }
-                this.injectIOCCode(cs, entry.file);
+                this.injectIOCCode(cs, file);
             }
             if (this.maestroConfig.stripParamTypes) {
-                for (let fs of entry.file.parser.references.functionExpressions) {
+                for (let fs of file.parser.references.functionExpressions) {
                     if (fs.returnType && !isVoidType(fs.returnType) && !isDynamicType(fs.returnType)) {
                         const name = fs.functionStatement?.name?.text || fs.parentFunction?.functionStatement?.name?.text;
                         if (!this.maestroConfig.paramStripExceptions.includes(name)) {
@@ -346,13 +359,15 @@ export class MaestroPlugin implements CompilerPlugin {
 
     }
 
-    beforeProgramTranspile(program: Program, entries: TranspileObj[]) {
+    beforeProgramTranspile(event: BeforeProgramTranspileEvent) {
         if (!this.maestroConfig.mvvm.insertXmlBindingsEarly) {
             console.time('Inject bindings into xml files');
 
+            const entries = event.entries;
+            const program = event.program;
             for (let entry of entries) {
                 if (isXmlFile(entry.file)) {
-                    let mFile = this.fileMap.allFiles.get(entry.file.pathAbsolute);
+                    let mFile = this.fileMap.allFiles.get(entry.file.srcPath);
                     // eslint-disable-next-line @typescript-eslint/dot-notation
                     if (mFile.isValid) {
                         //it's a binding file
@@ -374,7 +389,7 @@ export class MaestroPlugin implements CompilerPlugin {
         }
     }
 
-    beforePublish(builder: ProgramBuilder, files: FileObj[]) {
+    beforePublish(event: BeforePublishEvent) {
         console.time('Update reflection runtime file');
         this.reflectionUtil.updateRuntimeFile();
         console.timeEnd('Update reflection runtime file');
@@ -437,7 +452,7 @@ export class MaestroPlugin implements CompilerPlugin {
                 },
                 DottedGetExpression: (ds) => {
                     if (isVariableExpression(ds.obj) && ds?.obj?.name.text === 'm') {
-                        //TODO - make this not get dotted get's in function calls
+                        //TODO - make this not get dotted gets in function calls
                         let lowerName = ds.name.text.toLowerCase();
                         if (!fieldMap[lowerName] && !funcMap[lowerName] && !this.skips[lowerName]) {
                             if (!isNodeClass || (lowerName !== 'top' && lowerName !== 'global')) {
@@ -454,9 +469,9 @@ export class MaestroPlugin implements CompilerPlugin {
     }
 
 
-    afterScopeValidate(scope: Scope, files: BscFile[], callables: CallableContainerMap) {
+    afterScopeValidate(event: AfterScopeValidateEvent) {
         //validate the ioc calls
-        let classMap = scope.getClassMap();
+        let classMap = event.scope.getClassMap();
         for (let mapItem of [...classMap.values()]) {
             let cs = mapItem.item;
             let file = mapItem.file;

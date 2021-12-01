@@ -29,6 +29,8 @@ export default class ImportProcessor {
                 // addBuildTimeErrorImportNoImports(file, buildKey, previousImport.range.start.line);
             }
         } else {
+            //FIXME - check with bron
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
             addBuildTimeErrorImportMissingKey(file, buildKey, previousImport.range.start.line);
         }
         return imports;

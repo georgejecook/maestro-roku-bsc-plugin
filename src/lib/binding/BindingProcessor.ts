@@ -6,7 +6,7 @@ import type { FunctionStatement,
     Program,
     TranspileObj } from 'brighterscript';
 
-import { createSGAttribute, util, Lexer, Parser, ParseMode } from 'brighterscript';
+import { isSGInterfaceField, createSGAttribute, util, Lexer, Parser, ParseMode } from 'brighterscript';
 
 import type { File } from '../files/File';
 import { FileType } from '../files/FileType';
@@ -55,7 +55,8 @@ export class BindingProcessor {
                         // eslint-disable-next-line @typescript-eslint/dot-notation
                         let dg = program['dependencyGraph'] as DependencyGraph;
                         dg.addDependency(xmlFile.dependencyGraphKey, vmFile.bscFile.dependencyGraphKey);
-                        xmlFile.ast.component.scripts.push(this.createSGScript(xmlFile.pkgPath.replace('.xml', '.brs')));
+                        // eslint-disable-next-line @typescript-eslint/dot-notation
+                        xmlFile.ast.component['scripts' as any].push(this.createSGScript(xmlFile.pkgPath.replace('.xml', '.brs')));
                         fsExtra.outputFileSync(entry.outputPath.replace('.xml', '.brs'), this.getCodeBehindText(file, vmFile.bscFile as BrsFile));
                     } else {
                         console.error('missing vm file ' + file.vmClassName);
@@ -123,11 +124,13 @@ end function\n`;
         }
     }
 
+    // constructor(startTagOpen: SGToken, startTagName: SGToken, attributes?: SGAttribute[], startTagClose?: SGToken, childNodes?: SGTag[], endTagOpen?: SGToken, endTagName?: SGToken, endTagClose?: SGToken);
     private createSGScript(uri: string) {
         return new SGScript(
+            { text: '<' },
             { text: 'script' },
-            [createSGAttribute('uri', `pkg:/${uri}`)],
-            { text: '' }
+            [createSGAttribute('uri', `pkg:/${uri}`)]
+            // { text: '' }
         );
     }
     /**
@@ -142,7 +145,7 @@ end function\n`;
 
         //we have to reparse the xml each time we do this..
         let fileContents: SourceObj = {
-            pathAbsolute: file.fullPath,
+            srcPath: file.fullPath,
             source: file.bscFile.fileContents
         };
         file.bscFile.parse(fileContents.source);
@@ -158,7 +161,7 @@ end function\n`;
 
             //we have to reparse the xml each time we do this..
             let fileContents: SourceObj = {
-                pathAbsolute: file.fullPath,
+                srcPath: file.fullPath,
                 source: file.bscFile.fileContents
             };
             file.bscFile.parse(fileContents.source);
@@ -209,11 +212,11 @@ end function`);
         return result;
     }
 
-    public getNodeChildren(node: SGNode, results: SGTag[] = []) {
+    public getNodeChildren(node: SGTag, results: SGTag[] = []) {
         if (node) {
             results.push(node);
-            if (node.children) {
-                for (let child of node.children) {
+            if (node.childNodes) {
+                for (let child of node.childNodes) {
                     this.getNodeChildren(child, results);
                 }
             }
@@ -226,7 +229,7 @@ end function`);
         const allTags = this.getAllChildren(file.componentTag).map((c) => new XMLTag(c, file, false)
         );
 
-        let interfaceFields = file.componentTag.api.fields.map((c) => new XMLTag(c, file, true)
+        let interfaceFields = file.componentTag.interfaceMembers.filter((f) => isSGInterfaceField(f)).map((c) => new XMLTag(c, file, true)
         );
         allTags.push(...interfaceFields);
 

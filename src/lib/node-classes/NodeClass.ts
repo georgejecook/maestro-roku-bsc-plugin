@@ -313,7 +313,7 @@ export class NodeClass {
     private getFieldInParents(name: string, program: Program) {
         let comp = program.getComponent(this.extendsName.toLowerCase());
         while (comp) {
-            if (comp.file.parser.ast.component.api.getField(name)) {
+            if (comp.file.parser.ast.component.getInterfaceField(name)) {
                 return true;
             }
             comp = program.getComponent(comp.file.parser?.references?.extends?.text?.toLowerCase());
@@ -323,7 +323,7 @@ export class NodeClass {
     private getFunctionInParents(name: string, program: Program) {
         let comp = program.getComponent(this.extendsName.toLowerCase());
         while (comp) {
-            if (comp.file.parser.ast.component.api.getFunction(name)) {
+            if (comp.file.parser.ast.component.getInterfaceFunction(name)) {
                 return true;
             }
             comp = program.getComponent(comp.file.parser?.references?.extends?.text?.toLowerCase());

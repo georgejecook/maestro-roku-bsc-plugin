@@ -149,7 +149,7 @@ export class ProjectFileMap {
     public addBscFiles(files: Record<string, BrsFile | XmlFile>) {
         for (let filePath in files) {
             let bscFile = files[filePath];
-            let file = this.allFiles.get(bscFile.pathAbsolute);
+            let file = this.allFiles.get(bscFile.srcPath);
             if (file) {
                 file.bscFile = bscFile;
             }

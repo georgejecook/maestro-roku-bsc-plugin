@@ -1,5 +1,5 @@
-import type { Range } from 'brighterscript';
 import { TokenKind, isClassFieldStatement, isClassMethodStatement, Parser } from 'brighterscript';
+import type { Range } from 'vscode-languageserver';
 import type { File } from '../files/File';
 import { addXmlBindingUsingFunctionAsField, addXmlBindingVMFieldNotFound, addXmlBindingVMFieldRequired, addXmlBindingVMFunctionNotFound, addXmlBindingVMFunctionWrongArgCount } from '../utils/Diagnostics';
 

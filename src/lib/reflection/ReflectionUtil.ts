@@ -19,7 +19,7 @@ export default class ReflectionUtil {
     }
 
     public updateRuntimeFile() {
-        let runtimeFile = this.builder.program.getFileByPkgPath<BrsFile>('source/roku_modules/maestro/reflection/Reflection.brs');
+        let runtimeFile = this.builder.program.getFile<BrsFile>('source/roku_modules/maestro/reflection/Reflection.brs');
         if (runtimeFile) {
             runtimeFile.needsTranspiled = true;
             this.updateClassLookupFunction(runtimeFile);
@@ -67,7 +67,7 @@ export default class ReflectionUtil {
     }
 
     public addFile(file: BrsFile) {
-        let mFile = this.fileMap.allFiles.get(file.pathAbsolute);
+        let mFile = this.fileMap.allFiles.get(file.srcPath);
         this.fileMap.removeFileClasses(mFile);
         for (let cs of file.parser.references.classStatements) {
             this.fileMap.addClass(cs, mFile);
@@ -77,7 +77,7 @@ export default class ReflectionUtil {
     public shouldParseReflectionFile(file: BscFile) {
         if (this.maestroConfig.reflection.excludeFilters) {
             for (let filter of [...this.maestroConfig.reflection.excludeFilters, '**/components/maestro/generated/*']) {
-                if (minimatch(file.pathAbsolute, filter)) {
+                if (minimatch(file.srcPath, filter)) {
                     return false;
                 }
             }

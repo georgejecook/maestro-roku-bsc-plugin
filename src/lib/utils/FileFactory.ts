@@ -25,9 +25,9 @@ export class FileFactory {
         }
     }
 
-    public addFile(program, projectPath: string, contents: string) {
+    public addFile(program: Program, projectPath: string, contents: string) {
         try {
-            return program.addOrReplaceFile({ src: path.resolve(projectPath), dest: projectPath }, contents);
+            return program.setFile({ src: path.resolve(projectPath), dest: projectPath }, contents);
         } catch (error) {
             console.error(`Error adding framework file: ${projectPath} : ${error.message}`);
         }

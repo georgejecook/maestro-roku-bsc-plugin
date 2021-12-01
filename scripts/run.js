@@ -3,7 +3,7 @@ const path = require('path');
 // eslint-disable-next-line
 
 let zapp = {
-    'rootDir': '/home/george/hope/applicaster/4/zapp-roku-app/src',
+    'rootDir': '/home/george/hope/applicaster/zapp-roku-app/src',
     'stagingFolderPath': 'build',
     'retainStagingFolder': true,
     'createPackage': false,
@@ -13,6 +13,8 @@ let zapp = {
         'source/**/*.*',
         'components/**/*.*',
         'images/**/*.*',
+        '!**/*.md',
+        '!asset-bundle/__MACOSX',
         {
             'src': '../external/plugins-src/**/*.*',
             'dest': ''
@@ -28,46 +30,20 @@ let zapp = {
         {
             'src': '../external/private-oc-src/**/*.*',
             'dest': ''
-        },
-        {
-            'src': '!../external/plugins-src/**/*.spec.bs',
-            'dest': ''
-        },
-        {
-            'src': '!../external/plugins-core-src/**/*.spec.*',
-            'dest': ''
-        },
-        {
-            'src': '!../external/private-emmys-src/**/*.spec.*',
-            'dest': ''
-        },
-        {
-            'src': '!../external/private-oc-src/**/*.spec.*',
-            'dest': ''
-        },
-        '!**/*.spec.bs'
+        }
     ],
     'diagnosticFilters': [
         {
             'src': '**/roku_modules/**/*.*',
-            'codes': [
-                1107,
-                1009,
-                1001,
-                1067
-            ]
+            'codes': [1107, 1009, 1001, 1067]
         },
         {
             'src': '**/Whitelist.xml',
-            'codes': [
-                1067
-            ]
+            'codes': [1067]
         },
         {
             'src': 'components/maestro/generated/**/*.*',
-            'codes': [
-                1001
-            ]
+            'codes': [1001]
         },
         1013,
         {
@@ -84,41 +60,68 @@ let zapp = {
         },
         {
             'src': '**/RALETrackerTask.*'
+        },
+        {
+            'src': '../external/plugins-src/source/google_analytics_roku/*.*'
+        },
+        {
+            'src': 'source/lib/rokuPromise.bs'
+        },
+        {
+            'src': '../external/plugins-src/components/google_analytics_roku/*.*'
+        },
+        {
+            'src': '**/roku_modules/**/*.*'
+        },
+        {
+            'src': '**/*spec.bs',
+            'codes': ['LINT3011']
         }
     ],
     'plugins': [
         '/home/george/hope/open-source/maestro/maestro-roku-bsc-plugin/dist/plugin.js',
-        '/home/george/hope/open-source/rooibos/bsc-plugin/dist/plugin.js'
+        '/home/george/hope/open-source/rooibos/bsc-plugin/dist/plugin.js',
+        '/home/george/hope/open-source/maestro/roku-log-bsc-plugin/dist/plugin.js'
     ],
-    'rooibos': {
-        'isRecordingCodeCoverage': false,
-        'testsFilePattern': null
-    },
-    'maestro': {
-        'buildForIDE': false,
-        'excludeFilters': [
-            '**/roku_modules/**/*',
-            '**/rooibos/**/*',
-            '**/RALETrackerTask.xml'
-        ],
-        'buildTimeImports': {
-            'IAuthProvider': [
-                'pkg:/source/zapp_oauth_plugin/ZappOAuthPlugin.bs'
-            ],
-            'IEntitlementsProvider': [
-                'pkg:/source/simple_entitlements_roku/SimpleEntitlementsPlugin.bs'
-            ],
-            'IBookmarksProvider': [],
-            'IPlayerAnalytics': [],
-            'IAnalytics': []
-        }
-    },
+    'ignore': ['maestro-roku-bsc-plugin'],
     'rokuLog': {
         'strip': false,
         'insertPkgPath': true,
         'removeComments': true
     },
-    'sourceMap': true
+    'rooibos': {
+        'tags': ['!integration', '!deprecated', '!fixme'],
+        'showOnlyFailures': true,
+        'catchCrashes': true,
+        'lineWidth': 70,
+        'failFast': false
+    },
+    'maestro': {
+        'nodeClasses': {
+            'buildForIDE': false,
+            'generateTestUtils': true
+        },
+        'excludeFilters': ['**/roku_modules/**/*', '**/rooibos-roku/**/*'],
+        'buildTimeImports': {
+            'IAuthProvider': [],
+            'IEntitlementsProvider': [],
+            'IBookmarksProvider': [],
+            'IPlayerAnalytics': [],
+            'IAnalytics': [],
+            'IBootstrapPlugin': []
+        },
+        'mvvm': {
+            'insertXmlBindingsEarly': false,
+            'createCodeBehindFilesWhenNeeded': false,
+            'insertCreateVMMethod': false,
+            'callCreateVMMethodInInit': false,
+            'callCreateNodeVarsInInit': true
+        },
+        'reflection': {
+            'generateReflectionFunctions': true,
+            'excludeFilters': ['**/roku_modules/**/*', '**/*.spec.bs']
+        }
+    }
 };
 let z41 = {
     'rootDir': '/home/george/hope/applicaster/4-1/zapp-roku-app/src',
@@ -581,7 +584,13 @@ let nba = {
         }
     ],
     'maestro': {
-        'excludeFilters': ['**/roku_modules/**/*', '**/rooibos-roku/**/*'],
+        'excludeFilters': [
+            '**/roku_modules/**/*',
+            '**/rooibos-roku/**/*',
+            '**/bitmovinAnalytics/**/*.*',
+            '**/bitmovinPlayer/**/*.*',
+            '**/mediakind/**/*.*'
+        ],
         'buildForIDE': true
     },
     'rooibos': {
@@ -594,10 +603,7 @@ let nba = {
         'removeComments': true
     },
     'logLevel': 'error',
-    'retainStagingFolder': true,
-    'transpileOptions': {
-        'removeParameterTypes': true
-    }
+    'retainStagingFolder': true
 };
 
 
@@ -605,9 +611,9 @@ let programBuilder = new ProgramBuilder();
 programBuilder.run(
     // swv
     // zapp
-    // maestro
+    maestro
     // corco
-    nba
+    // nba
     // z41
     // maestroSample
     // maestroList
