@@ -491,6 +491,9 @@ export class MaestroPlugin implements CompilerPlugin {
 
 
     afterScopeValidate(scope: Scope, files: BscFile[], callables: CallableContainerMap) {
+        if (!this.maestroConfig.extraValidation) {
+            console.log('wtf');
+        }
         if (!this.maestroConfig.extraValidation.doExtraValidation) {
             return;
         }

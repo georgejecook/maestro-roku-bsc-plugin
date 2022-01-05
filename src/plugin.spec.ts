@@ -42,6 +42,7 @@ describe('MaestroPlugin', () => {
         program.plugins = new PluginInterface([plugin], program.logger);
         program.createSourceScope(); //ensure source scope is created
         plugin.maestroConfig = {
+            extraValidation: {},
             addFrameworkFiles: false,
             mvvm: {},
             nodeClasses: {}
@@ -492,6 +493,7 @@ describe('MaestroPlugin', () => {
         });
         it('can turnoff default default ignored folders ', async () => {
             plugin.maestroConfig = {
+                extraValidation: {},
                 addFrameworkFiles: false,
                 excludeFilters: [],
                 mvvm: {},
@@ -530,6 +532,7 @@ describe('MaestroPlugin', () => {
         });
         it('does not manipulate files in specified folders ', async () => {
             plugin.maestroConfig = {
+                extraValidation: {},
                 addFrameworkFiles: false,
                 excludeFilters: ['**/ignored/**/*.*'],
                 mvvm: {},
