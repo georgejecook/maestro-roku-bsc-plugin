@@ -126,7 +126,7 @@ export class MaestroPlugin implements CompilerPlugin {
         config.reflection.excludeFilters = config.reflection.excludeFilters === undefined ? ['**/roku_modules/**/*', '**/*.spec.bs'] : config.reflection.excludeFilters;
         config.extraValidation = config.extraValidation ?? {};
         config.extraValidation.doExtraValidation = config.extraValidation.doExtraValidation === undefined ? true : config.extraValidation.doExtraValidation;
-        config.extraValidation.excludeFilters = config.extraValidation.excludeFilters === undefined ? ['**/roku_modules/**/*'] : config.extraValidation.excludeFilters;
+        config.extraValidation.excludeFilters = config.extraValidation.excludeFilters === undefined ? [] : config.extraValidation.excludeFilters;
         return config;
     }
 
