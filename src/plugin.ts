@@ -122,10 +122,10 @@ export class MaestroPlugin implements CompilerPlugin {
         config.mvvm.callCreateNodeVarsInInit = config.mvvm.callCreateNodeVarsInInit === undefined ? true : config.mvvm.callCreateNodeVarsInInit;
 
         config.reflection = config.refelection ?? {};
-        config.reflection.generateReflectionFunctions = config.reflection.generateReflectionFunctions === undefined ? false : config.reflection.generateReflectionFunctions;
+        config.reflection.generateReflectionFunctions = config.reflection.generateReflectionFunctions === undefined ? true : config.reflection.generateReflectionFunctions;
         config.reflection.excludeFilters = config.reflection.excludeFilters === undefined ? ['**/roku_modules/**/*', '**/*.spec.bs'] : config.reflection.excludeFilters;
         config.extraValidation = config.extraValidation ?? {};
-        config.extraValidation.doExtraValidation = config.extraValidation.doExtraValidation === undefined ? false : config.extraValidation.doExtraValidation;
+        config.extraValidation.doExtraValidation = config.extraValidation.doExtraValidation === undefined ? true : config.extraValidation.doExtraValidation;
         config.extraValidation.excludeFilters = config.extraValidation.excludeFilters === undefined ? ['**/roku_modules/**/*'] : config.extraValidation.excludeFilters;
         return config;
     }
@@ -307,10 +307,10 @@ export class MaestroPlugin implements CompilerPlugin {
         return true;
     }
     shouldDoExtraValidationsOnFile(file: BscFile) {
-        if (!this.maestroConfig.extraValidation) {
+        if (!this.maestroConfig.extraValidation.doExtraValidation) {
             return false;
         }
-        if (this.shouldParseFile(file)) {
+        if (!this.shouldParseFile(file)) {
             return false;
         }
         if (this.maestroConfig.extraValidation.excludeFilters) {

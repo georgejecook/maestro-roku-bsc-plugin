@@ -459,12 +459,44 @@ describe('MaestroPlugin', () => {
             expect(a).to.equal(b);
 
         });
+        it('does not manipulate xml files when xml processing is disabled', async () => {
+            plugin.maestroConfig.processXMLFiles = false;
+            plugin.afterProgramCreate(program);
+            program.addOrReplaceFile('components/comp.xml', `
+            <component name="mv_BaseScreen" extends="mv_BaseView" vm="Myclass">
+    <interface>
+    </interface>
+    <children>
+    <Label id="test" text="{{field}}" />
+    </children>
+</component>`);
+            program.validate();
+            expect(program.getDiagnostics()).to.be.empty;
+            await builder.transpile();
+            console.log(builder.getDiagnostics());
+            expect(builder.getDiagnostics()).to.be.empty;
+
+            let a = getContents('components/comp.xml');
+            //note - we still remove illegal vm attribute
+            let b = trimLeading(`<component name="mv_BaseScreen" extends="mv_BaseView">
+            <interface>
+            </interface>
+            <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
+            <children>
+            <Label id="test" text="{{field}}" />
+            </children>
+            </component>
+            `);
+            expect(a).to.equal(b);
+
+        });
         it('can turnoff default default ignored folders ', async () => {
             plugin.maestroConfig = {
                 addFrameworkFiles: false,
                 excludeFilters: [],
                 mvvm: {},
-                nodeClasses: {}
+                nodeClasses: {},
+                processXMLFiles: true
             };
             plugin.importProcessor.config = plugin.maestroConfig;
 
@@ -854,6 +886,26 @@ describe('MaestroPlugin', () => {
             program.validate();
             await builder.transpile();
             expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.not.empty;
+
+        });
+        it('does not produce diagnostics for missing observer function when extra validation is enabled', async () => {
+            plugin.maestroConfig.extraValidation.doExtraValidation = false;
+            plugin.afterProgramCreate(program);
+            program.addOrReplaceFile('source/comp.bs', `
+                @node("Comp", "Group")
+                class Comp
+
+                    @observer("onTitleChange")
+                    public title = ""
+                    public content = ""
+
+                    function new()
+                    end function
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
 
         });
         it('gives diagnostics for wrong observer function params', async () => {
