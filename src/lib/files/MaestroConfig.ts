@@ -18,6 +18,7 @@ export interface MaestroConfig {
     stripParamTypes?: boolean;
     paramStripExceptions?: string;
     applyStrictToAllClasses?: boolean;
+    processXMLFiles?: boolean;
     mvvm?: {
         insertXmlBindingsEarly?: boolean;
         createCodeBehindFilesWhenNeeded?: boolean;
@@ -32,6 +33,10 @@ export interface MaestroConfig {
     reflection?: {
         generateReflectionFunctions?: boolean; //if true will generate the functions required to lookup classes by name
         excludeFilters?: string[]; // will exclude certain files from reflection
+    };
+    extraValidation?: {
+        doExtraValidation?: boolean; //if true will do additional maestro validation
+        excludeFilters?: string[]; // will exclude certain files from extra validation
     };
 }
 
