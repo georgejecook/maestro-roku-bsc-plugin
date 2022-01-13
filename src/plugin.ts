@@ -16,7 +16,8 @@ import { isVariableExpression,
     isDottedGetExpression,
     DottedSetStatement,
     isVoidType,
-    isDynamicType } from 'brighterscript';
+    isDynamicType,
+    isNewExpression } from 'brighterscript';
 import type { BrsFile,
     BscFile,
     ClassStatement,
@@ -44,7 +45,7 @@ import ReflectionUtil from './lib/reflection/ReflectionUtil';
 import { FileFactory } from './lib/utils/FileFactory';
 import NodeClassUtil from './lib/node-classes/NodeClassUtil';
 import { RawCodeStatement } from './lib/utils/RawCodeStatement';
-import { addClassFieldsNotFoundOnSetOrGet, addIOCNoTypeSupplied, addIOCWrongArgs, IOCClassNotInScope, unknownClassMethod, unknownType, wrongMethodArgs } from './lib/utils/Diagnostics';
+import { addClassFieldsNotFoundOnSetOrGet, addIOCNoTypeSupplied, addIOCWrongArgs, functionNotImported, IOCClassNotInScope, namespaceNotImported, unknownClassMethod, unknownConstructorMethod, unknownSuperClass, unknownType, wrongConstructorArgs, wrongMethodArgs } from './lib/utils/Diagnostics';
 import { getAllAnnotations, getAllFields, getAllMethods, makeASTFunction } from './lib/utils/Utils';
 import { getSGMembersLookup } from './SGApi';
 import { DependencyGraph } from 'brighterscript/dist/DependencyGraph';
@@ -55,6 +56,7 @@ type Writeable<T> = { -readonly [P in keyof T]: T[P] };
 interface FunctionInfo {
     minArgs: number;
     maxArgs: number;
+    pkgPaths: {string: string};
 }
 interface NamespaceContainer {
     file: BscFile;
@@ -126,6 +128,7 @@ export class MaestroPlugin implements CompilerPlugin {
         config.reflection.excludeFilters = config.reflection.excludeFilters === undefined ? ['**/roku_modules/**/*', '**/*.spec.bs'] : config.reflection.excludeFilters;
         config.extraValidation = config.extraValidation ?? {};
         config.extraValidation.doExtraValidation = config.extraValidation.doExtraValidation === undefined ? true : config.extraValidation.doExtraValidation;
+        config.extraValidation.doExtraImportValidation = config.extraValidation.doExtraImportValidation === undefined ? false : config.extraValidation.doExtraImportValidation;
         config.extraValidation.excludeFilters = config.extraValidation.excludeFilters === undefined ? [] : config.extraValidation.excludeFilters;
         return config;
     }
@@ -449,8 +452,6 @@ export class MaestroPlugin implements CompilerPlugin {
     }
 
     private checkMReferences(file: File) {
-        // console.log('>>>', file.fullPath);
-
         for (let cs of (file.bscFile as BrsFile).parser.references.classStatements) {
             // eslint-disable-next-line @typescript-eslint/dot-notation
             if (!this.maestroConfig.applyStrictToAllClasses && !getAllAnnotations(this.fileMap, cs)['strict']) {
@@ -594,21 +595,88 @@ export class MaestroPlugin implements CompilerPlugin {
     doExtraValidations(file: BrsFile) {
         //ensure we have all lookups
         let scopeNamespaces: Record<string, any> = {};
-        let classMemberLookup: Record<string, FunctionInfo | boolean> = {};
+        let classMethodLookup: Record<string, FunctionInfo | boolean> = {};
         for (let scope of this.builder.program.getScopesForFile(file)) {
             scopeNamespaces = { ...this.getNamespaceLookup(scope), ...scopeNamespaces };
-            classMemberLookup = { ...this.buildClassMemberLookup(scope), ...classMemberLookup };
-            this.validateFunctionCalls(file, scopeNamespaces, classMemberLookup);
+            classMethodLookup = { ...this.buildClassMethodLookup(scope), ...classMethodLookup };
+            this.validateFunctionCalls(file, scopeNamespaces, classMethodLookup);
         }
     }
 
-    public validateFunctionCalls(file: BrsFile, nsLookup, memberLookup) {
+    public validateFunctionCalls(file: BrsFile, nsLookup, methodLookup) {
+        // file.parser.references.importStatements
         // for now we're only validating classes
+
+        let importedPkgPaths = (file.program as any).dependencyGraph.getAllDependencies(file.dependencyGraphKey).map((d) => d.replace('.d.bs', '.bs'));
+        importedPkgPaths.push(file.pkgPath.toLowerCase());
         for (let cs of file.parser.references.classStatements) {
-
+            if (cs.parentClassName && this.maestroConfig.extraValidation.doExtraImportValidation) {
+                let name = cs.parentClassName.getName(ParseMode.BrighterScript);
+                if (!methodLookup[name]) {
+                // console.log('>> ' + name);
+                // eslint-disable-next-line @typescript-eslint/dot-notation
+                    file['diagnostics'].push({
+                        ...unknownSuperClass(`${name}`),
+                        range: cs.range,
+                        file: file
+                    });
+                } else {
+                    let member = methodLookup[name] as FunctionInfo;
+                    if (typeof member !== 'boolean') {
+                        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+                        if (!this.isImported(member, importedPkgPaths)) {
+                        // eslint-disable-next-line @typescript-eslint/dot-notation
+                            file['diagnostics'].push({
+                                ...unknownSuperClass(`${name}`),
+                                range: cs.range,
+                                file: file
+                            });
+                        }
+                    }
+                }
+            }
             cs.walk(createVisitor({
-                CallExpression: (ce) => {
+                NewExpression: (ne) => {
+                    if (this.maestroConfig.extraValidation.doExtraImportValidation) {
 
+                        let name = ne.className.getName(ParseMode.BrighterScript);
+                        if (!methodLookup[name]) {
+                            // console.log('>> ' + name);
+                            // eslint-disable-next-line @typescript-eslint/dot-notation
+                            file['diagnostics'].push({
+                                ...unknownConstructorMethod(`${name}`, this.name),
+                                range: ne.range,
+                                file: file
+                            });
+                        } else {
+                            let member = methodLookup[name] as FunctionInfo;
+                            if (typeof member !== 'boolean') {
+                                let numArgs = ne.call.args.length;
+                                if (numArgs < member.minArgs || numArgs > member.maxArgs) {
+                                    // eslint-disable-next-line @typescript-eslint/dot-notation
+                                    file['diagnostics'].push({
+                                        ...wrongConstructorArgs(`${name}`, numArgs, member.minArgs, member.maxArgs),
+                                        range: ne.range,
+                                        file: file
+                                    });
+                                }
+                                // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+                                if (!this.isImported(member, importedPkgPaths)) {
+                                    // eslint-disable-next-line @typescript-eslint/dot-notation
+                                    file['diagnostics'].push({
+                                        ...unknownConstructorMethod(`${name}`, this.name),
+                                        range: ne.range,
+                                        file: file
+                                    });
+                                }
+                            }
+                        }
+                    }
+                },
+                CallExpression: (ce, parent) => {
+                    if (isNewExpression(parent)) {
+                        return;
+                    }
                     let dg = ce.callee as DottedGetExpression;
                     let nameParts = this.getAllDottedGetParts(dg);
                     let name = nameParts.pop();
@@ -636,9 +704,19 @@ export class MaestroPlugin implements CompilerPlugin {
                                     range: ce.range,
                                     file: file
                                 });
+                            // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
                             } else {
                                 let member = ns.functionStatements[name.toLowerCase()];
                                 if (member) {
+                                    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+                                    if (this.maestroConfig.extraValidation.doExtraImportValidation && !this.isNamespaceImported(ns, importedPkgPaths)) {
+                                        // eslint-disable-next-line @typescript-eslint/dot-notation
+                                        file['diagnostics'].push({
+                                            ...namespaceNotImported(`${fullPathName}.${name}`),
+                                            range: ce.range,
+                                            file: file
+                                        });
+                                    }
                                     let numArgs = ce.args.length;
                                     let minArgs = member.func.parameters.filter((p) => !p.defaultValue).length;
                                     let maxArgs = member.func.parameters.length;
@@ -656,7 +734,7 @@ export class MaestroPlugin implements CompilerPlugin {
                             }
                         } else if (nameParts.length > 0) {
                             //is a class method?
-                            if (!memberLookup[name.toLowerCase()]) {
+                            if (!methodLookup[name.toLowerCase()]) {
                                 // console.log('>> ' + name.toLowerCase());
                                 // eslint-disable-next-line @typescript-eslint/dot-notation
                                 file['diagnostics'].push({
@@ -665,7 +743,7 @@ export class MaestroPlugin implements CompilerPlugin {
                                     file: file
                                 });
                             } else {
-                                let member = memberLookup[name.toLowerCase()] as FunctionInfo;
+                                let member = methodLookup[name.toLowerCase()] as FunctionInfo;
                                 if (typeof member !== 'boolean') {
                                     let numArgs = ce.args.length;
                                     if (numArgs < member.minArgs || numArgs > member.maxArgs) {
@@ -676,7 +754,15 @@ export class MaestroPlugin implements CompilerPlugin {
                                             file: file
                                         });
                                     }
-
+                                    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+                                    if (this.maestroConfig.extraValidation.doExtraImportValidation && !this.isImported(member, importedPkgPaths)) {
+                                        // eslint-disable-next-line @typescript-eslint/dot-notation
+                                        file['diagnostics'].push({
+                                            ...functionNotImported(`${name}`),
+                                            range: ce.range,
+                                            file: file
+                                        });
+                                    }
                                 }
                             }
                         }
@@ -688,6 +774,25 @@ export class MaestroPlugin implements CompilerPlugin {
         }
 
     }
+
+    private isImported(info: FunctionInfo, importedPkgPaths: string[]) {
+        for (let s of importedPkgPaths) {
+            if (info.pkgPaths?.[s]) {
+                return true;
+            }
+        }
+        return false;
+    }
+    private isNamespaceImported(ns: NamespaceContainer, importedPkgPaths: string[]) {
+        let p = ns.file.pkgPath.toLowerCase().replace('.d.bs', '.bs');
+        for (let s of importedPkgPaths) {
+            if (p === s) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public getNamespaceLookup(scope: Scope) {
         // eslint-disable-next-line @typescript-eslint/dot-notation
         return scope['cache'].getOrAdd('namespaceLookup', () => scope.buildNamespaceLookup());
@@ -698,10 +803,10 @@ export class MaestroPlugin implements CompilerPlugin {
      */
     public getClassMemberLookup(scope: Scope) {
         // eslint-disable-next-line @typescript-eslint/dot-notation
-        return scope['cache'].getOrAdd('classMemberLookup', () => this.buildClassMemberLookup(scope));
+        return scope['cache'].getOrAdd('classMemberLookup', () => this.buildClassMethodLookup(scope));
     }
 
-    public buildClassMemberLookup(scope: Scope): Record<string, FunctionInfo | boolean> {
+    public buildClassFieldLookup(scope: Scope): Record<string, boolean> {
         let lookup = getSGMembersLookup();
         let filesSearched = new Set<BscFile>();
         //TODO -needs ALL known SG functions!
@@ -715,20 +820,55 @@ export class MaestroPlugin implements CompilerPlugin {
                     let lowerName = s.name.text.toLowerCase();
                     lookup[lowerName] = s;
                 }
+            }
+        }
+        return lookup;
+    }
+    public buildClassMethodLookup(scope: Scope): Record<string, FunctionInfo | boolean> {
+        let lookup = getSGMembersLookup();
+        let filesSearched = new Set<BscFile>();
+        //TODO -needs ALL known SG functions!
+        for (const file of scope.getAllFiles()) {
+            if (isXmlFile(file) || filesSearched.has(file)) {
+                continue;
+            }
+            filesSearched.add(file);
+            for (let cs of file.parser.references.classStatements) {
+                let hasNew = false;
                 for (let s of [...cs.methods]) {
                     let lowerName = s.name.text.toLowerCase();
                     let currentInfo = lookup[lowerName];
+                    if (lowerName === 'new') {
+                        lowerName = cs.getName(ParseMode.BrighterScript);
+                        hasNew = true;
+                    }
                     if (!currentInfo) {
+                        let pkgPaths = {};
+                        pkgPaths[file.pkgPath.toLowerCase().replace('.d.bs', '.bs')] = true;
                         lookup[lowerName] = {
                             minArgs: s.func.parameters.filter((p) => !p.defaultValue).length,
-                            maxArgs: s.func.parameters.length
+                            maxArgs: s.func.parameters.length,
+                            pkgPaths: pkgPaths
                         };
                     } else if (typeof currentInfo !== 'boolean') {
                         let minArgs = s.func.parameters.filter((p) => !p.defaultValue).length;
                         let maxArgs = s.func.parameters.length;
                         currentInfo.minArgs = minArgs < currentInfo.minArgs ? minArgs : currentInfo.minArgs;
                         currentInfo.maxArgs = maxArgs > currentInfo.maxArgs ? maxArgs : currentInfo.maxArgs;
+                        if (!currentInfo.pkgPaths) {
+                            currentInfo.pkgPaths = {};
+                        }
+                        currentInfo.pkgPaths[file.pkgPath.toLowerCase().replace('.d.bs', '.bs')] = true;
                     }
+                }
+                if (!hasNew) {
+                    let pkgPaths = {};
+                    pkgPaths[file.pkgPath.toLowerCase().replace('.d.bs', '.bs')] = true;
+                    lookup[cs.getName(ParseMode.BrighterScript)] = {
+                        minArgs: 0,
+                        maxArgs: 0,
+                        pkgPaths: pkgPaths
+                    };
                 }
             }
         }

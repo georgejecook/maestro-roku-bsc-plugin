@@ -1154,7 +1154,7 @@ describe('MaestroPlugin', () => {
                 program.validate();
                 expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.not.be.empty;
             });
-            it('does not gives diagostic for field in superclass', () => {
+            it('does not gives diagnostic for field in superclass', () => {
                 plugin.afterProgramCreate(program);
 
                 program.addOrReplaceFile('source/VM.bs', `
@@ -1214,6 +1214,89 @@ describe('MaestroPlugin', () => {
                 `);
                 program.validate();
                 expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+            });
+            it('gives diagnostics for function that is not in scope', async () => {
+                plugin.maestroConfig.extraValidation.doExtraImportValidation = true;
+                plugin.afterProgramCreate(program);
+                program.addOrReplaceFile('source/superComp.bs', `
+                namespace stuff
+                    class Comp
+
+                    public title = ""
+                    public content = ""
+
+                    function new()
+                    end function
+
+                    private function getTheTitle(title)
+                    end function
+                    end class
+                    function notImported()
+                    end function
+                end namespace
+                `);
+                program.addOrReplaceFile('source/comp.bs', `
+                'import "pkg:/source/superComp.bs"
+                `);
+                program.addOrReplaceFile('source/comp2.bs', `
+                    import "pkg:/source/comp.bs"
+                    class Comp2
+
+                        function new(thing)
+                            thing = new stuff.Comp()
+                            stuff.notImported()
+                            ? thing.title
+                            ? thing.content
+                            ? thing.getTheTitle("hello")
+                        end function
+                    end class
+                `);
+                program.validate();
+                await builder.transpile();
+                expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.not.empty;
+
+            });
+
+            it('does not give extra validation error when disabled', async () => {
+                plugin.maestroConfig.extraValidation.doExtraImportValidation = false;
+                plugin.afterProgramCreate(program);
+                program.addOrReplaceFile('source/superComp.bs', `
+                namespace stuff
+                    class Comp
+
+                    public title = ""
+                    public content = ""
+
+                    function new()
+                    end function
+
+                    private function getTheTitle(title)
+                    end function
+                    end class
+                    function notImported()
+                    end function
+                end namespace
+                `);
+                program.addOrReplaceFile('source/comp.bs', `
+                'import "pkg:/source/superComp.bs"
+                `);
+                program.addOrReplaceFile('source/comp2.bs', `
+                    import "pkg:/source/comp.bs"
+                    class Comp2
+
+                        function new(thing)
+                            thing = new stuff.Comp()
+                            stuff.notImported()
+                            ? thing.title
+                            ? thing.content
+                            ? thing.getTheTitle("hello")
+                        end function
+                    end class
+                `);
+                program.validate();
+                await builder.transpile();
+                expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+
             });
 
         });

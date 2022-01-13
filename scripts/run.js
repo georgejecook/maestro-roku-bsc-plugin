@@ -586,10 +586,13 @@ let nba = {
     'maestro': {
         'excludeFilters': [
             '**/roku_modules/**/*',
-            '**/rooibos-roku/**/*',
+            '**/roku_modules/**/*',
+            '**/rooibos/**/*',
             '**/bitmovinAnalytics/**/*.*',
             '**/bitmovinPlayer/**/*.*',
-            '**/mediakind/**/*.*'
+            '**/mediakind/**/*.*',
+            '**/NewRelicAgent/**/*.*',
+            '**/NewRelicAgent.brs'
         ],
         'buildForIDE': true
     },
@@ -611,9 +614,9 @@ let programBuilder = new ProgramBuilder();
 programBuilder.run(
     // swv
     // zapp
-    maestro
+    // maestro
     // corco
-    // nba
+    nba
     // z41
     // maestroSample
     // maestroList
