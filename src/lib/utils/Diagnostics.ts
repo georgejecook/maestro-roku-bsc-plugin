@@ -289,14 +289,41 @@ export function unknownClassField(name: string, scopeName: string) {
 
 export function wrongMethodArgs(name: string, numArgs: number, minArgs: number, maxArgs?: number) {
     return { message: maxArgs
-        ? `Invoking '${name}' with wrong number of args. Received ${numArgs} instead of expceted ${minArgs} to ${maxArgs}'`
+        ? `Invoking '${name}' with wrong number of args. Received ${numArgs} instead of expected ${minArgs} to ${maxArgs}'`
         : `Invoking '${name}' with wrong number of args. Received ${numArgs} instead of expected ${minArgs}'`,
     code: `MSTO${1049}`,
     severity: DiagnosticSeverity.Error };
 }
 
+export function functionNotImported(name: string) {
+    return { message: `Method '${name}' is not in scope on any of the imported files. did you forget to import it?'`,
+        code: `MSTO${1050}`,
+        severity: DiagnosticSeverity.Error };
+}
+export function unknownConstructorMethod(name: string, scopeName: string) {
+    return { message: `Cannot find class with name '${name}' when this file is included in scope '${scopeName}'`,
+        code: `MSTO${1051}`,
+        severity: DiagnosticSeverity.Error };
+}
+export function wrongConstructorArgs(name: string, numArgs: number, minArgs: number, maxArgs?: number) {
+    return { message: maxArgs
+        ? `Instantiating class '${name}' with wrong number of args. Received ${numArgs} instead of expected ${minArgs} to ${maxArgs}'`
+        : `Instantiating class '${name}' with wrong number of args. Received ${numArgs} instead of expected ${minArgs}'`,
+    code: `MSTO${1052}`,
+    severity: DiagnosticSeverity.Error };
+}
+export function namespaceNotImported(name: string) {
+    return { message: `Namespace method '${name}' is not in scope on any of the imported files. Did you forget to import it?'`,
+        code: `MSTO${1053}`,
+        severity: DiagnosticSeverity.Error };
+}
 export function addNodeClassUnknownClassType(file: BrsFile, name: string, fieldName: string, className: string, line = 0, col = 0) {
-    file.addDiagnostics([createDiagnostic(file, 1050, `Node class field "${name}" is of unknown type ${fieldName}, in class ${className}`, line, col)]);
+    file.addDiagnostics([createDiagnostic(file, 1054, `Node class field "${name}" is of unknown type ${fieldName}, in class ${className}`, line, col)]);
 
+}
+export function unknownSuperClass(name: string) {
+    return { message: `Extended class '${name}' cannot be found. Did you gorget to import it?'`,
+        code: `MSTO${1055}`,
+        severity: DiagnosticSeverity.Error };
 }
 

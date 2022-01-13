@@ -37,6 +37,7 @@ export interface MaestroConfig {
     extraValidation?: {
         doExtraValidation?: boolean; //if true will do additional maestro validation
         excludeFilters?: string[]; // will exclude certain files from extra validation
+        doExtraImportValidation?: boolean; // will exclude certain files from extra validation
     };
 }
 
