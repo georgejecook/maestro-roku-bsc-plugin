@@ -734,7 +734,7 @@ export class MaestroPlugin implements CompilerPlugin {
                             }
                         } else if (nameParts.length > 0) {
                             //is a class method?
-                            if (!methodLookup[name.toLowerCase()]) {
+                            if (this.maestroConfig.extraValidation.doExtraImportValidation && !methodLookup[name.toLowerCase()]) {
                                 // console.log('>> ' + name.toLowerCase());
                                 // eslint-disable-next-line @typescript-eslint/dot-notation
                                 file['diagnostics'].push({
