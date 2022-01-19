@@ -594,7 +594,11 @@ let nba = {
             '**/NewRelicAgent/**/*.*',
             '**/NewRelicAgent.brs'
         ],
-        'buildForIDE': true
+        'buildForIDE': true,
+        'extraValidation': {
+            'doExtraValidation': true,
+            'doExtraImportValidation': true
+        }
     },
     'rooibos': {
         'isRecordingCodeCoverage': false,
