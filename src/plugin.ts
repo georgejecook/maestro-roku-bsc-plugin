@@ -1,4 +1,5 @@
-import { isVariableExpression,
+import {
+    isVariableExpression,
     CallExpression,
     createIdentifier,
     DottedGetExpression,
@@ -17,8 +18,10 @@ import { isVariableExpression,
     DottedSetStatement,
     isVoidType,
     isDynamicType,
-    isNewExpression } from 'brighterscript';
-import type { BrsFile,
+    isNewExpression
+} from 'brighterscript';
+import type {
+    BrsFile,
     BscFile,
     ClassStatement,
     CompilerPlugin,
@@ -30,7 +33,8 @@ import type { BrsFile,
     CallableContainerMap,
     FunctionStatement,
     Statement,
-    ClassMethodStatement } from 'brighterscript';
+    ClassMethodStatement
+} from 'brighterscript';
 
 import { ProjectFileMap } from './lib/files/ProjectFileMap';
 import type { MaestroConfig } from './lib/files/MaestroConfig';
@@ -56,7 +60,7 @@ type Writeable<T> = { -readonly [P in keyof T]: T[P] };
 interface FunctionInfo {
     minArgs: number;
     maxArgs: number;
-    pkgPaths: {string: string};
+    pkgPaths: { string: string };
 }
 interface NamespaceContainer {
     file: BscFile;
@@ -326,7 +330,7 @@ export class MaestroPlugin implements CompilerPlugin {
         return true;
     }
 
-    beforeFileTranspile (entry: TranspileObj) {
+    beforeFileTranspile(entry: TranspileObj) {
         if (!this.shouldParseFile(entry.file)) {
             return;
         }
@@ -385,7 +389,7 @@ export class MaestroPlugin implements CompilerPlugin {
     }
 
     beforeProgramTranspile(program: Program, entries: TranspileObj[]) {
-        console.log('++++++', this.maestroConfig.processXMLFiles);
+        // console.log('++++++', this.maestroConfig.processXMLFiles);
         if (!this.maestroConfig.mvvm.insertXmlBindingsEarly && this.maestroConfig.processXMLFiles) {
             console.time('Inject bindings into xml files');
 
@@ -594,13 +598,14 @@ export class MaestroPlugin implements CompilerPlugin {
 
     doExtraValidations(file: BrsFile) {
         //ensure we have all lookups
-        let scopeNamespaces: Record<string, any> = {};
+        let scopeNamespaces = new Map<string, NamespaceContainer>();
         let classMethodLookup: Record<string, FunctionInfo | boolean> = {};
         for (let scope of this.builder.program.getScopesForFile(file)) {
-            scopeNamespaces = { ...this.getNamespaceLookup(scope), ...scopeNamespaces };
+            let scopeMap = this.getNamespaceLookup(scope);
+            scopeNamespaces = new Map<string, NamespaceContainer>([...Array.from(scopeMap.entries())]);
             classMethodLookup = { ...this.buildClassMethodLookup(scope), ...classMethodLookup };
-            this.validateFunctionCalls(file, scopeNamespaces, classMethodLookup);
         }
+        this.validateFunctionCalls(file, scopeNamespaces, classMethodLookup);
     }
 
     public validateFunctionCalls(file: BrsFile, nsLookup, methodLookup) {
@@ -613,8 +618,8 @@ export class MaestroPlugin implements CompilerPlugin {
             if (cs.parentClassName && this.maestroConfig.extraValidation.doExtraImportValidation) {
                 let name = cs.parentClassName.getName(ParseMode.BrighterScript);
                 if (!methodLookup[name]) {
-                // console.log('>> ' + name);
-                // eslint-disable-next-line @typescript-eslint/dot-notation
+                    console.log('>> ' + name);
+                    // eslint-disable-next-line @typescript-eslint/dot-notation
                     file['diagnostics'].push({
                         ...unknownSuperClass(`${name}`),
                         range: cs.range,
@@ -625,7 +630,7 @@ export class MaestroPlugin implements CompilerPlugin {
                     if (typeof member !== 'boolean') {
                         // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
                         if (!this.isImported(member, importedPkgPaths)) {
-                        // eslint-disable-next-line @typescript-eslint/dot-notation
+                            // eslint-disable-next-line @typescript-eslint/dot-notation
                             file['diagnostics'].push({
                                 ...unknownSuperClass(`${name}`),
                                 range: cs.range,
@@ -684,10 +689,10 @@ export class MaestroPlugin implements CompilerPlugin {
                     if (name) {
 
                         //is a namespace?
-                        if (nameParts[0] && nsLookup[nameParts[0].toLowerCase()]) {
+                        if (nameParts[0] && nsLookup.has(nameParts[0].toLowerCase())) {
                             //then it must reference something we know
                             let fullPathName = nameParts.join('.').toLowerCase();
-                            let ns = nsLookup[fullPathName];
+                            let ns = nsLookup.get(fullPathName);
                             if (!ns) {
                                 //look it up minus the tail
 
@@ -704,7 +709,7 @@ export class MaestroPlugin implements CompilerPlugin {
                                     range: ce.range,
                                     file: file
                                 });
-                            // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+                                // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
                             } else {
                                 let member = ns.functionStatements[name.toLowerCase()];
                                 if (member) {
@@ -744,7 +749,7 @@ export class MaestroPlugin implements CompilerPlugin {
                                 });
                             } else {
                                 let member = methodLookup[name.toLowerCase()] as FunctionInfo;
-                                if (typeof member !== 'boolean') {
+                                if (member && typeof member !== 'boolean') {
                                     let numArgs = ce.args.length;
                                     if (numArgs < member.minArgs || numArgs > member.maxArgs) {
                                         // eslint-disable-next-line @typescript-eslint/dot-notation
@@ -793,9 +798,9 @@ export class MaestroPlugin implements CompilerPlugin {
         return false;
     }
 
-    public getNamespaceLookup(scope: Scope) {
+    public getNamespaceLookup(scope: Scope): Map<string, NamespaceContainer> {
         // eslint-disable-next-line @typescript-eslint/dot-notation
-        return scope['cache'].getOrAdd('namespaceLookup', () => scope.buildNamespaceLookup());
+        return scope['cache'].getOrAdd<Map<string, NamespaceContainer>>('namespaceLookup', () => scope.buildNamespaceLookup() as any);
     }
 
     /**

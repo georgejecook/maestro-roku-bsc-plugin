@@ -1674,21 +1674,22 @@ describe('MaestroPlugin', () => {
             };
             programBuilder.run(
                 config
-            //     {
-            //     project: '/home/george/hope/applicaster/zapp-roku-app/bsconfig-test.json'
-            //     // project: '/home/george/hope/open-source/maestro/swerve-app/bsconfig-test.json'
-            // }
+                //     {
+                //     project: '/home/george/hope/applicaster/zapp-roku-app/bsconfig-test.json'
+                //     // project: '/home/george/hope/open-source/maestro/swerve-app/bsconfig-test.json'
+                // }
             ).catch(e => {
                 console.error(e);
             });
         });
     });
-    describe('run a local project (s)', () => {
+    describe.skip('run a local project (s)', () => {
         it('sanity checks on parsing - only run this outside of ci', () => {
-            let swv = {
+            const p = {
                 'stagingFolderPath': 'build',
-                'rootDir': 'src',
+                'rootDir': '/home/george/hope/nba/nba-roku',
                 'files': [
+                    '!**/*.i8n.json',
                     'manifest',
                     'source/**/*.*',
                     'images/**/*.*',
@@ -1696,7 +1697,8 @@ describe('MaestroPlugin', () => {
                     'sounds/*.*',
                     'fonts/**/*.*',
                     'meta/**/*.*',
-                    'components/**/*.*'
+                    'components/**/*.*',
+                    { 'src': '../src-dev/source/**/*.*', 'dest': 'source' }
                 ],
                 'autoImportComponentScript': true,
                 'createPackage': false,
@@ -1705,17 +1707,26 @@ describe('MaestroPlugin', () => {
                         'src': '**/roku_modules/**/*.*'
                     },
                     {
-                        'src': '**/Whitelist.xml',
-                        'codes': [
-                            1067
-                        ]
-                    },
-                    {
-                        'src': 'components/maestro/generated/**/*.*'
-                    },
-                    1013,
-                    {
                         'src': '**/RALETrackerTask.*'
+                    },
+                    {
+                        'src': '**/*spec.bs',
+                        'codes': ['LINT3011']
+                    },
+                    {
+                        'src': '**/bitmovinAnalytics/**/*.*'
+                    },
+                    {
+                        'src': '**/bitmovinPlayer/**/*.*'
+                    },
+                    {
+                        'src': '**/mediakind/**/*.*'
+                    },
+                    {
+                        'src': '**/NewRelicAgent/**/*.*'
+                    },
+                    {
+                        'src': '**/NewRelicAgent.brs'
                     }
                 ],
                 'plugins': [
@@ -1725,8 +1736,19 @@ describe('MaestroPlugin', () => {
                 'maestro': {
                     'excludeFilters': [
                         '**/roku_modules/**/*',
-                        '**/*BaseTestSuite*.bs'
-                    ]
+                        '**/node_modules/**/*',
+                        '**/rooibos/**/*',
+                        '**/bitmovinAnalytics/**/*.*',
+                        '**/bitmovinPlayer/**/*.*',
+                        '**/mediakind/**/*.*',
+                        '**/NewRelicAgent/**/*.*',
+                        '**/NewRelicAgent.brs'
+                    ],
+                    'buildForIDE': true,
+                    'extraValidation': {
+                        'doExtraValidation': true,
+                        'doExtraImportValidation': true
+                    }
                 },
                 'rooibos': {
                     'isRecordingCodeCoverage': false,
@@ -1737,10 +1759,15 @@ describe('MaestroPlugin', () => {
                     'insertPkgPath': true,
                     'removeComments': true
                 },
-                'logLevel': 'error'
+                'logLevel': 'error',
+                'retainStagingFolder': true,
+                'transpileOptions': {
+                    'removeParameterTypes': true
+                }
             };
+
             let programBuilder = new ProgramBuilder();
-            programBuilder.run(swv as any).catch(e => {
+            programBuilder.run(p as any).catch(e => {
                 console.error(e);
             });
         });
