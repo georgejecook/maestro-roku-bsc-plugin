@@ -227,7 +227,7 @@ export class MaestroPlugin implements CompilerPlugin {
         // console.log('MAESTRO bpv-----');
         if (this.maestroConfig.processXMLFiles) {
             for (let filePath of [...this.dirtyCompFilePaths.values()]) {
-                console.time('Validate bindings');
+                // console.time('Validate bindings');
                 let file = this.fileMap.allFiles.get(filePath);
                 file.bscFile = this.builder.program.getFileByPathAbsolute(filePath);
                 file.resetDiagnostics();
@@ -236,7 +236,7 @@ export class MaestroPlugin implements CompilerPlugin {
                     console.log('adding xml transpiled code for ', file.bscFile.pkgPath);
                     this.bindingProcessor.generateCodeForXMLFile(file, this.builder.program);
                 }
-                console.timeEnd('Validate bindings');
+                // console.timeEnd('Validate bindings');
             }
         }
 
