@@ -557,22 +557,60 @@ export class MaestroPlugin implements CompilerPlugin {
         let isNodeClass = cs['_isNodeClass'] === true;
 
         for (let f of cs.fields) {
-            let annotation = (f.annotations || []).find((a) => a.name === 'inject' || a.name === 'injectClass' || a.name === 'createClass');
+            let annotation = (f.annotations || []).find((a) => a.name.toLowerCase() === 'inject' || a.name.toLowerCase() === 'injectClass' || a.name.toLowerCase() === 'createClass');
             if (annotation) {
                 let args = annotation.getArguments();
                 let wf = f as Writeable<ClassFieldStatement>;
                 if (annotation.name === 'inject') {
+                    if (args.length < 1) {
+                        continue;
+                    }
+                    let args1 = args[0].toString().split('.');
+                    let iocKey;
+                    let iocPath;
+                    if (args1.length > 0) {
+                        iocKey = args1.splice(0);
+                        iocPath = args1.join('.');
+                    } else {
+                        iocKey = args1;
+                        iocPath = args.length === 2 ? args[1].toString() : undefined;
+                    }
+
                     if (isNodeClass && (f.accessModifier || f.accessModifier.kind === TokenKind.Public)) {
                         if (args.length === 1) {
-                            wf.initialValue = new RawCodeStatement(`__m_setTopField("${f.name.text}", mioc_getInstance("${args[0].toString()}"))`, file, f.range);
+                            wf.initialValue = new RawCodeStatement(`__m_setTopField("${f.name.text}", mioc_getInstance("${iocKey}"))`, file, f.range);
                         } else if (args.length === 2) {
-                            wf.initialValue = new RawCodeStatement(`__m_setTopField("${f.name.text}", mioc_getInstance("${args[0].toString()}", "${args[1].toString()}"))`, file, f.range);
+                            wf.initialValue = new RawCodeStatement(`__m_setTopField("${f.name.text}", mioc_getInstance("${iocKey}", "${iocPath}"))`, file, f.range);
                         }
                     } else {
-                        if (args.length === 1) {
-                            wf.initialValue = new RawCodeStatement(`mioc_getInstance("${args[0].toString()}")`, file, f.range);
-                        } else if (args.length === 2) {
-                            wf.initialValue = new RawCodeStatement(`mioc_getInstance("${args[0].toString()}", "${args[1].toString()}")`, file, f.range);
+                        //check for observer field in here..
+
+                        let observerAnnotation = (f.annotations || []).find((a) => a.name.toLowerCase() === 'observer');
+                        if (observerAnnotation) {
+                            // '@observer("onUserAuthorizedChange")
+                            // '@inject("user.details.isAuthorized") -("isAuthorized", "user", "details.isAuthorized", "details", "isAuthorized", onUserAuthorized)
+                            // '@inject("user.isAuthorized") - ("isAuthorized", "user", "isAuthorized", "", "isAuthorized", onUserAuthorized)
+                            let observerArgs = observerAnnotation?.getArguments() ?? [];
+                            let funcName = (observerArgs[0] as string).toLowerCase();
+                            //TODO add validation
+                            // let observerFunc = members.get((observerArgs[0] as string).toLowerCase());
+                            // if (observerArgs.length > 0) {
+                            //     let observerFunc = members.get((observerArgs[0] as string).toLowerCase());
+                            //     if (isClassMethodStatement(observerFunc)) {
+                            //         f.numArgs = observerFunc?.func?.parameters?.length;
+                            //     }
+                            // }
+                            if (args.length === 1) {
+                                wf.initialValue = new RawCodeStatement(`m._addIOCObserver("${iocKey}")`, file, f.range);
+                            } else if (args.length === 2) {
+                                wf.initialValue = new RawCodeStatement(`m._addIOCObserver("${iocKey}", "${iocPath}")`, file, f.range);
+                            }
+                        } else {
+                            if (args.length === 1) {
+                                wf.initialValue = new RawCodeStatement(`mioc_getInstance("${iocKey}")`, file, f.range);
+                            } else if (args.length === 2) {
+                                wf.initialValue = new RawCodeStatement(`mioc_getInstance("${iocKey}", "${iocPath}")`, file, f.range);
+                            }
                         }
                     }
                 } else if (annotation.name === 'injectClass') {

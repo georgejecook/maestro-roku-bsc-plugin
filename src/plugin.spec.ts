@@ -1558,6 +1558,51 @@ describe('MaestroPlugin', () => {
                 expect(d[2].code).to.equal('MSTO1042');
                 expect(d[3].code).to.equal('MSTO1043');
             });
+
+            it.only('allows observing of an injected field', async () => {
+                plugin.afterProgramCreate(program);
+
+                program.addOrReplaceFile('source/VM.bs', `
+                    class MyView
+                        @observer("onEntitlementsChange")
+                        @inject("Entitlements")
+                        private fieldA
+                    end class
+                `);
+                program.validate();
+                await builder.transpile();
+                expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+                let a = getContents('source/VM.brs');
+                let b = trimLeading(`function __VM_builder()
+                instance = {}
+                instance.new = sub()
+                m.fieldA = mioc_getInstance("Entitlements")
+                m.fieldB = mioc_createClassInstance("ChildVM")
+                m.fieldC = mioc_createClassInstance("ChildVM")
+                m.__classname = "VM"
+                end sub
+                return instance
+                end function
+                function VM()
+                instance = __VM_builder()
+                instance.new()
+                return instance
+                end function
+                function __ChildVM_builder()
+                instance = __VM_builder()
+                instance.super0_new = instance.new
+                instance.new = sub()
+                m.super0_new()
+                end sub
+                return instance
+                end function
+                function ChildVM()
+                instance = __ChildVM_builder()
+                instance.new()
+                return instance
+                end function`);
+                expect(a).to.equal(b);
+            });
         });
     });
     describe.skip('run a local project (zp)', () => {
