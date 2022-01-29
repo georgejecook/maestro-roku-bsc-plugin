@@ -49,7 +49,7 @@ import ReflectionUtil from './lib/reflection/ReflectionUtil';
 import { FileFactory } from './lib/utils/FileFactory';
 import NodeClassUtil from './lib/node-classes/NodeClassUtil';
 import { RawCodeStatement } from './lib/utils/RawCodeStatement';
-import { addClassFieldsNotFoundOnSetOrGet, addIOCNoTypeSupplied, addIOCWrongArgs, functionNotImported, IOCClassNotInScope, namespaceNotImported, unknownClassMethod, unknownConstructorMethod, unknownSuperClass, unknownType, wrongConstructorArgs, wrongMethodArgs } from './lib/utils/Diagnostics';
+import { addClassFieldsNotFoundOnSetOrGet, addIOCNoTypeSupplied, addIOCWrongArgs, functionNotImported, IOCClassNotInScope, namespaceNotImported, noPathForInject, noPathForIOCSync, unknownClassMethod, unknownConstructorMethod, unknownSuperClass, unknownType, wrongConstructorArgs, wrongMethodArgs } from './lib/utils/Diagnostics';
 import { getAllAnnotations, getAllFields, getAllMethods, makeASTFunction } from './lib/utils/Utils';
 import { getSGMembersLookup } from './SGApi';
 import { DependencyGraph } from 'brighterscript/dist/DependencyGraph';
@@ -563,12 +563,30 @@ export class MaestroPlugin implements CompilerPlugin {
                 let wf = f as Writeable<ClassFieldStatement>;
                 if (annotation.name === 'inject') {
                     if (args.length < 1) {
+                        // eslint-disable-next-line @typescript-eslint/dot-notation
+                        file['diagnostics'].push({
+                            ...noPathForInject(),
+                            range: cs.range,
+                            file: file
+                        });
+                        continue;
+                    }
+                    let syncAnnotation = (f.annotations || []).find((a) => a.name.toLowerCase() === 'sync');
+                    if (syncAnnotation && args.length < 2) {
+                        // eslint-disable-next-line @typescript-eslint/dot-notation
+                        file['diagnostics'].push({
+                            ...noPathForIOCSync(),
+                            range: cs.range,
+                            file: file
+                        });
                         continue;
                     }
                     let args1 = args[0].toString().split('.');
                     let iocKey;
                     let iocPath;
-                    if (args1.length > 0) {
+                    let observeField;
+                    let observePath;
+                    if (args1.length > 1) {
                         iocKey = args1.splice(0);
                         iocPath = args1.join('.');
                     } else {
@@ -576,7 +594,36 @@ export class MaestroPlugin implements CompilerPlugin {
                         iocPath = args.length === 2 ? args[1].toString() : undefined;
                     }
 
-                    if (isNodeClass && (f.accessModifier || f.accessModifier.kind === TokenKind.Public)) {
+                    if (syncAnnotation && !iocPath) {
+                        // eslint-disable-next-line @typescript-eslint/dot-notation
+                        file['diagnostics'].push({
+                            ...noPathForIOCSync(),
+                            range: cs.range,
+                            file: file
+                        });
+                        continue;
+                    }
+                    if (iocPath) {
+                        let observeParts = iocPath.split('.');
+                        if (observeParts.length > 1) {
+                            observeField = observeParts.pop();
+                            observePath = observeParts.join('.');
+                        } else {
+                            observeField = observeParts[0];
+                            observePath = '';
+                        }
+                    }
+
+                    if (isNodeClass && (f.accessModifier?.kind === TokenKind.Public)) {
+                        if (syncAnnotation) {
+                            // eslint-disable-next-line @typescript-eslint/dot-notation
+                            file['diagnostics'].push({
+                                ...noPathForIOCSync(),
+                                range: cs.range,
+                                file: file
+                            });
+                            continue;
+                        }
                         if (args.length === 1) {
                             wf.initialValue = new RawCodeStatement(`__m_setTopField("${f.name.text}", mioc_getInstance("${iocKey}"))`, file, f.range);
                         } else if (args.length === 2) {
@@ -586,29 +633,40 @@ export class MaestroPlugin implements CompilerPlugin {
                         //check for observer field in here..
 
                         let observerAnnotation = (f.annotations || []).find((a) => a.name.toLowerCase() === 'observer');
-                        if (observerAnnotation) {
+                        if (observerAnnotation || syncAnnotation) {
                             // '@observer("onUserAuthorizedChange")
                             // '@inject("user.details.isAuthorized") -("isAuthorized", "user", "details.isAuthorized", "details", "isAuthorized", onUserAuthorized)
-                            // '@inject("user.isAuthorized") - ("isAuthorized", "user", "isAuthorized", "", "isAuthorized", onUserAuthorized)
-                            let observerArgs = observerAnnotation?.getArguments() ?? [];
-                            let funcName = (observerArgs[0] as string).toLowerCase();
-                            //TODO add validation
-                            // let observerFunc = members.get((observerArgs[0] as string).toLowerCase());
-                            // if (observerArgs.length > 0) {
-                            //     let observerFunc = members.get((observerArgs[0] as string).toLowerCase());
-                            //     if (isClassMethodStatement(observerFunc)) {
-                            //         f.numArgs = observerFunc?.func?.parameters?.length;
-                            //     }
-                            // }
-                            if (args.length === 1) {
-                                wf.initialValue = new RawCodeStatement(`m._addIOCObserver("${iocKey}")`, file, f.range);
-                            } else if (args.length === 2) {
-                                wf.initialValue = new RawCodeStatement(`m._addIOCObserver("${iocKey}", "${iocPath}")`, file, f.range);
+                            // '@inject("user", "isAuthorized") - ("isAuthorized", "user", "isAuthorized", "", "isAuthorized", onUserAuthorized)
+                            let funcName = 'invalid';
+                            if (observerAnnotation) {
+                                let observerArgs = observerAnnotation?.getArguments() ?? [];
+                                funcName = `m.${(observerArgs[0] as string).toLowerCase()}`;
+                                //TODO add validation
+                                // let observerFunc = members.get((observerArgs[0] as string).toLowerCase());
+                                // if (observerArgs.length > 0) {
+                                //     let observerFunc = members.get((observerArgs[0] as string).toLowerCase());
+                                //     if (isClassMethodStatement(observerFunc)) {
+                                //         f.numArgs = observerFunc?.func?.parameters?.length;
+                                //     }
+                                // }
+                            }
+
+                            // (fieldName as string, instanceName as string, path as string, observedPath as string, observedField as string, callback = invalid as function)
+
+                            if (!iocPath) {
+                                // eslint-disable-next-line @typescript-eslint/dot-notation
+                                file['diagnostics'].push({
+                                    ...noPathForIOCSync(),
+                                    range: cs.range,
+                                    file: file
+                                });
+                            } else {
+                                wf.initialValue = new RawCodeStatement(`m._addIOCObserver("${f.name.text}", "${iocKey}", "${iocPath}", "${observePath}", "${observeField}", ${funcName})`, file, f.range);
                             }
                         } else {
-                            if (args.length === 1) {
+                            if (!iocPath) {
                                 wf.initialValue = new RawCodeStatement(`mioc_getInstance("${iocKey}")`, file, f.range);
-                            } else if (args.length === 2) {
+                            } else {
                                 wf.initialValue = new RawCodeStatement(`mioc_getInstance("${iocKey}", "${iocPath}")`, file, f.range);
                             }
                         }

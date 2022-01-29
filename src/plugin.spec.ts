@@ -1531,7 +1531,7 @@ describe('MaestroPlugin', () => {
                 expect(a).to.equal(b);
             });
 
-            it('gives diagnostics when the injection annotations are malformed', () => {
+            it('gives diagnostics when the injection annotations are malformed', async () => {
                 plugin.afterProgramCreate(program);
 
                 program.addOrReplaceFile('source/VM.bs', `
@@ -1546,17 +1546,49 @@ describe('MaestroPlugin', () => {
                         public fieldD
                         @createClass("ChildVM", bad, values)
                         public fieldE
-                    end class
-                    class ChildVM extends VM
+                        @sync
+                        @inject("noPathPublic")
+                        public fieldF
+                        @sync
+                        @inject("noPath")
+                        private fieldG
+                        @sync
+                        @inject("notPrivate", "name")
+                        public fieldH
                     end class
                 `);
                 program.validate();
+                await builder.transpile();
                 let d = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error);
-                expect(d).to.have.lengthOf(4);
+                expect(d).to.have.lengthOf(7);
                 expect(d[0].code).to.equal('MSTO1042');
                 expect(d[1].code).to.equal('MSTO1042');
                 expect(d[2].code).to.equal('MSTO1042');
                 expect(d[3].code).to.equal('MSTO1043');
+                expect(d[4].code).to.equal('MSTO1057');
+                expect(d[5].code).to.equal('MSTO1056');
+                expect(d[6].code).to.equal('MSTO1056');
+            });
+
+            it.only('gives diagnostics when the injection public field with sync @nodeclass', async () => {
+                plugin.afterProgramCreate(program);
+
+                program.addOrReplaceFile('source/VM.bs', `
+                    @node("test", "Group")
+                    class VM
+                        @sync
+                        @inject("user","publicInvalid")
+                        public fieldA as string
+                        @sync
+                        @inject("user", "valid")
+                        private fieldB as string
+                    end class
+                `);
+                program.validate();
+                await builder.transpile();
+                let d = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error);
+                expect(d).to.have.lengthOf(1);
+                expect(d[0].code).to.equal('MSTO1056');
             });
 
             it.only('allows observing of an injected field', async () => {
@@ -1564,43 +1596,37 @@ describe('MaestroPlugin', () => {
 
                 program.addOrReplaceFile('source/VM.bs', `
                     class MyView
-                        @observer("onEntitlementsChange")
-                        @inject("Entitlements")
+                        @sync
+                        @inject("Entitlements", "isLoggedIn")
                         private fieldA
+                        @sync
+                        @inject("user", "Entitlements.isLoggedIn")
+                        private fieldB
+                        @sync
+                        @inject("user", "Entitlements.valid.isLoggedIn")
+                        private fieldC
+                        @sync
+                        @observer("onFieldChange")
+                        @inject("Entitlements", "isLoggedIn")
+                        private fieldD
+                        @sync
+                        @observer("onFieldChange")
+                        @inject("user", "Entitlements.isLoggedIn")
+                        private fieldE
+                        @sync
+                        @observer("onFieldChange")
+                        @inject("user", "Entitlements.valid.isLoggedIn")
+                        private fieldF
+
+                        function onFieldChange(value)
+                        end function
                     end class
                 `);
                 program.validate();
                 await builder.transpile();
                 expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
                 let a = getContents('source/VM.brs');
-                let b = trimLeading(`function __VM_builder()
-                instance = {}
-                instance.new = sub()
-                m.fieldA = mioc_getInstance("Entitlements")
-                m.fieldB = mioc_createClassInstance("ChildVM")
-                m.fieldC = mioc_createClassInstance("ChildVM")
-                m.__classname = "VM"
-                end sub
-                return instance
-                end function
-                function VM()
-                instance = __VM_builder()
-                instance.new()
-                return instance
-                end function
-                function __ChildVM_builder()
-                instance = __VM_builder()
-                instance.super0_new = instance.new
-                instance.new = sub()
-                m.super0_new()
-                end sub
-                return instance
-                end function
-                function ChildVM()
-                instance = __ChildVM_builder()
-                instance.new()
-                return instance
-                end function`);
+                let b = trimLeading(``);
                 expect(a).to.equal(b);
             });
         });
