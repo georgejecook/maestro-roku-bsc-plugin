@@ -557,7 +557,7 @@ export class MaestroPlugin implements CompilerPlugin {
         let isNodeClass = cs['_isNodeClass'] === true;
 
         for (let f of cs.fields) {
-            let annotation = (f.annotations || []).find((a) => a.name.toLowerCase() === 'inject' || a.name.toLowerCase() === 'injectClass' || a.name.toLowerCase() === 'createClass');
+            let annotation = (f.annotations || []).find((a) => a.name.toLowerCase() === 'inject' || a.name.toLowerCase() === 'injectclass' || a.name.toLowerCase() === 'createclass');
             if (annotation) {
                 let args = annotation.getArguments();
                 let wf = f as Writeable<ClassFieldStatement>;
