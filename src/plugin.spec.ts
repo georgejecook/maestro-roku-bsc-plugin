@@ -1438,7 +1438,7 @@ describe('MaestroPlugin', () => {
 
                 program.addOrReplaceFile('source/VM.bs', `
                     class VM
-                        @inject("EntitleMents")
+                        @inject("Entitlements")
                         public fieldA
                         @injectClass("mc.collections.FieldMapper")
                         public fieldB
@@ -1455,7 +1455,7 @@ describe('MaestroPlugin', () => {
                 let b = trimLeading(`function __VM_builder()
                 instance = {}
                 instance.new = sub()
-                m.fieldA = mioc_getInstance("EntitleMents")
+                m.fieldA = mioc_getInstance("Entitlements")
                 m.fieldB = mioc_getClassInstance("mc.collections.FieldMapper")
                 m.__classname = "VM"
                 end sub
@@ -1531,7 +1531,7 @@ describe('MaestroPlugin', () => {
                 expect(a).to.equal(b);
             });
 
-            it('gives diagnostics when the injection annotations are malformed', () => {
+            it('gives diagnostics when the injection annotations are malformed', async () => {
                 plugin.afterProgramCreate(program);
 
                 program.addOrReplaceFile('source/VM.bs', `
@@ -1546,17 +1546,108 @@ describe('MaestroPlugin', () => {
                         public fieldD
                         @createClass("ChildVM", bad, values)
                         public fieldE
-                    end class
-                    class ChildVM extends VM
+                        @sync
+                        @inject("noPathPublic")
+                        public fieldF
+                        @sync
+                        @inject("noPath")
+                        private fieldG
+                        @sync
+                        @inject("notPrivate", "name")
+                        public fieldH
                     end class
                 `);
                 program.validate();
+                await builder.transpile();
                 let d = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error);
-                expect(d).to.have.lengthOf(4);
+                expect(d).to.have.lengthOf(8);
                 expect(d[0].code).to.equal('MSTO1042');
                 expect(d[1].code).to.equal('MSTO1042');
                 expect(d[2].code).to.equal('MSTO1042');
                 expect(d[3].code).to.equal('MSTO1043');
+                expect(d[4].code).to.equal('MSTO1043');
+                expect(d[5].code).to.equal('MSTO1057');
+                expect(d[6].code).to.equal('MSTO1056');
+                expect(d[7].code).to.equal('MSTO1056');
+            });
+
+            it('gives diagnostics when the injection public field with sync @nodeclass', async () => {
+                plugin.afterProgramCreate(program);
+
+                program.addOrReplaceFile('source/VM.bs', `
+                    @node("test", "Group")
+                    class VM
+                        @sync
+                        @inject("user","publicInvalid")
+                        public fieldA as string
+                        @sync
+                        @inject("user", "valid")
+                        private fieldB as string
+                    end class
+                `);
+                program.validate();
+                await builder.transpile();
+                let d = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error);
+                expect(d).to.have.lengthOf(1);
+                expect(d[0].code).to.equal('MSTO1056');
+            });
+
+            it('allows observing of an injected field', async () => {
+                plugin.afterProgramCreate(program);
+
+                program.addOrReplaceFile('source/VM.bs', `
+                    class MyView
+                        @sync
+                        @inject("Entitlements", "isLoggedIn")
+                        private fieldA
+                        @sync
+                        @inject("user", "Entitlements.isLoggedIn")
+                        private fieldB
+                        @sync
+                        @inject("user", "Entitlements.valid.isLoggedIn")
+                        private fieldC
+                        @sync
+                        @observer("onFieldChange")
+                        @inject("Entitlements", "isLoggedIn")
+                        private fieldD
+                        @sync
+                        @observer("onFieldChange")
+                        @inject("user", "Entitlements.isLoggedIn")
+                        private fieldE
+                        @sync
+                        @observer("onFieldChange")
+                        @inject("user", "Entitlements.valid.isLoggedIn")
+                        private fieldF
+
+                        function onFieldChange(value)
+                        end function
+                    end class
+                `);
+                program.validate();
+                await builder.transpile();
+                expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+                let a = getContents('source/VM.brs');
+                let b = trimLeading(`function __MyView_builder()
+                instance = {}
+                instance.new = sub()
+                m.fieldA = m._addIOCObserver("fieldA", "Entitlements", "isLoggedIn", "", "isLoggedIn", invalid)
+                m.fieldB = m._addIOCObserver("fieldB", "user", "Entitlements.isLoggedIn", "Entitlements", "isLoggedIn", invalid)
+                m.fieldC = m._addIOCObserver("fieldC", "user", "Entitlements.valid.isLoggedIn", "Entitlements.valid", "isLoggedIn", invalid)
+                m.fieldD = m._addIOCObserver("fieldD", "Entitlements", "isLoggedIn", "", "isLoggedIn", m.onfieldchange)
+                m.fieldE = m._addIOCObserver("fieldE", "user", "Entitlements.isLoggedIn", "Entitlements", "isLoggedIn", m.onfieldchange)
+                m.fieldF = m._addIOCObserver("fieldF", "user", "Entitlements.valid.isLoggedIn", "Entitlements.valid", "isLoggedIn", m.onfieldchange)
+                m.__classname = "MyView"
+                end sub
+                instance.onFieldChange = function(value)
+                end function
+                return instance
+                end function
+                function MyView()
+                instance = __MyView_builder()
+                instance.new()
+                return instance
+                end function`);
+                expect(a).to.equal(b);
             });
         });
     });

@@ -327,3 +327,15 @@ export function unknownSuperClass(name: string) {
         severity: DiagnosticSeverity.Error };
 }
 
+export function noPathForIOCSync() {
+    return { message: `@sync tag requires that the injected field is private and is injecting a sub-value, from a node e.g @inject("user", "name"), @inject("user", "profile.name") - in the latter case, the observer will fire when profile.name changes.'`,
+        code: `MSTO${1056}`,
+        severity: DiagnosticSeverity.Error };
+}
+
+export function noPathForInject() {
+    return { message: `@inject tag requires 1 or 2 arguments to indicate what to inject. e.g @inject("user", "name"), @inject("user", "profile.name") '`,
+        code: `MSTO${1057}`,
+        severity: DiagnosticSeverity.Error };
+}
+

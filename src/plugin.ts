@@ -49,7 +49,7 @@ import ReflectionUtil from './lib/reflection/ReflectionUtil';
 import { FileFactory } from './lib/utils/FileFactory';
 import NodeClassUtil from './lib/node-classes/NodeClassUtil';
 import { RawCodeStatement } from './lib/utils/RawCodeStatement';
-import { addClassFieldsNotFoundOnSetOrGet, addIOCNoTypeSupplied, addIOCWrongArgs, functionNotImported, IOCClassNotInScope, namespaceNotImported, unknownClassMethod, unknownConstructorMethod, unknownSuperClass, unknownType, wrongConstructorArgs, wrongMethodArgs } from './lib/utils/Diagnostics';
+import { addClassFieldsNotFoundOnSetOrGet, addIOCNoTypeSupplied, addIOCWrongArgs, functionNotImported, IOCClassNotInScope, namespaceNotImported, noPathForInject, noPathForIOCSync, unknownClassMethod, unknownConstructorMethod, unknownSuperClass, unknownType, wrongConstructorArgs, wrongMethodArgs } from './lib/utils/Diagnostics';
 import { getAllAnnotations, getAllFields, getAllMethods, makeASTFunction } from './lib/utils/Utils';
 import { getSGMembersLookup } from './SGApi';
 import { DependencyGraph } from 'brighterscript/dist/DependencyGraph';
@@ -557,22 +557,118 @@ export class MaestroPlugin implements CompilerPlugin {
         let isNodeClass = cs['_isNodeClass'] === true;
 
         for (let f of cs.fields) {
-            let annotation = (f.annotations || []).find((a) => a.name === 'inject' || a.name === 'injectClass' || a.name === 'createClass');
+            let annotation = (f.annotations || []).find((a) => a.name.toLowerCase() === 'inject' || a.name.toLowerCase() === 'injectclass' || a.name.toLowerCase() === 'createclass');
             if (annotation) {
                 let args = annotation.getArguments();
                 let wf = f as Writeable<ClassFieldStatement>;
                 if (annotation.name === 'inject') {
-                    if (isNodeClass && (f.accessModifier || f.accessModifier.kind === TokenKind.Public)) {
+                    if (args.length < 1) {
+                        // eslint-disable-next-line @typescript-eslint/dot-notation
+                        file['diagnostics'].push({
+                            ...noPathForInject(),
+                            range: cs.range,
+                            file: file
+                        });
+                        continue;
+                    }
+                    let syncAnnotation = (f.annotations || []).find((a) => a.name.toLowerCase() === 'sync');
+                    if (syncAnnotation && args.length < 2) {
+                        // eslint-disable-next-line @typescript-eslint/dot-notation
+                        file['diagnostics'].push({
+                            ...noPathForIOCSync(),
+                            range: cs.range,
+                            file: file
+                        });
+                        continue;
+                    }
+                    let args1 = args[0].toString().split('.');
+                    let iocKey;
+                    let iocPath;
+                    let observeField;
+                    let observePath;
+                    if (args1.length > 1) {
+                        iocKey = args1.splice(0);
+                        iocPath = args1.join('.');
+                    } else {
+                        iocKey = args1;
+                        iocPath = args.length === 2 ? args[1].toString() : undefined;
+                    }
+
+                    if (syncAnnotation && !iocPath) {
+                        // eslint-disable-next-line @typescript-eslint/dot-notation
+                        file['diagnostics'].push({
+                            ...noPathForIOCSync(),
+                            range: cs.range,
+                            file: file
+                        });
+                        continue;
+                    }
+                    if (iocPath) {
+                        let observeParts = iocPath.split('.');
+                        if (observeParts.length > 1) {
+                            observeField = observeParts.pop();
+                            observePath = observeParts.join('.');
+                        } else {
+                            observeField = observeParts[0];
+                            observePath = '';
+                        }
+                    }
+
+                    if (isNodeClass && (f.accessModifier?.kind === TokenKind.Public)) {
+                        if (syncAnnotation) {
+                            // eslint-disable-next-line @typescript-eslint/dot-notation
+                            file['diagnostics'].push({
+                                ...noPathForIOCSync(),
+                                range: cs.range,
+                                file: file
+                            });
+                            continue;
+                        }
                         if (args.length === 1) {
-                            wf.initialValue = new RawCodeStatement(`__m_setTopField("${f.name.text}", mioc_getInstance("${args[0].toString()}"))`, file, f.range);
+                            wf.initialValue = new RawCodeStatement(`__m_setTopField("${f.name.text}", mioc_getInstance("${iocKey}"))`, file, f.range);
                         } else if (args.length === 2) {
-                            wf.initialValue = new RawCodeStatement(`__m_setTopField("${f.name.text}", mioc_getInstance("${args[0].toString()}", "${args[1].toString()}"))`, file, f.range);
+                            wf.initialValue = new RawCodeStatement(`__m_setTopField("${f.name.text}", mioc_getInstance("${iocKey}", "${iocPath}"))`, file, f.range);
                         }
                     } else {
-                        if (args.length === 1) {
-                            wf.initialValue = new RawCodeStatement(`mioc_getInstance("${args[0].toString()}")`, file, f.range);
-                        } else if (args.length === 2) {
-                            wf.initialValue = new RawCodeStatement(`mioc_getInstance("${args[0].toString()}", "${args[1].toString()}")`, file, f.range);
+                        //check for observer field in here..
+
+                        let observerAnnotation = (f.annotations || []).find((a) => a.name.toLowerCase() === 'observer');
+                        if (observerAnnotation || syncAnnotation) {
+                            // '@observer("onUserAuthorizedChange")
+                            // '@inject("user.details.isAuthorized") -("isAuthorized", "user", "details.isAuthorized", "details", "isAuthorized", onUserAuthorized)
+                            // '@inject("user", "isAuthorized") - ("isAuthorized", "user", "isAuthorized", "", "isAuthorized", onUserAuthorized)
+                            let funcName = 'invalid';
+                            if (observerAnnotation) {
+                                let observerArgs = observerAnnotation?.getArguments() ?? [];
+                                funcName = `m.${(observerArgs[0] as string).toLowerCase()}`;
+                                //TODO add validation
+                                // let observerFunc = members.get((observerArgs[0] as string).toLowerCase());
+                                // if (observerArgs.length > 0) {
+                                //     let observerFunc = members.get((observerArgs[0] as string).toLowerCase());
+                                //     if (isClassMethodStatement(observerFunc)) {
+                                //         f.numArgs = observerFunc?.func?.parameters?.length;
+                                //     }
+                                // }
+                            }
+
+                            // (fieldName as string, instanceName as string, path as string, observedPath as string, observedField as string, callback = invalid as function)
+
+                            if (!iocPath) {
+                                // eslint-disable-next-line @typescript-eslint/dot-notation
+                                file['diagnostics'].push({
+                                    ...noPathForIOCSync(),
+                                    range: cs.range,
+                                    file: file
+                                });
+                            } else {
+                                wf.initialValue = new RawCodeStatement(`m._addIOCObserver("${f.name.text}", "${iocKey}", "${iocPath}", "${observePath}", "${observeField}", ${funcName})`, file, f.range);
+                            }
+                        } else {
+                            if (!iocPath) {
+                                wf.initialValue = new RawCodeStatement(`mioc_getInstance("${iocKey}")`, file, f.range);
+                            } else {
+                                wf.initialValue = new RawCodeStatement(`mioc_getInstance("${iocKey}", "${iocPath}")`, file, f.range);
+                            }
                         }
                     }
                 } else if (annotation.name === 'injectClass') {
