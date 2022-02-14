@@ -770,7 +770,79 @@ describe('MaestroPlugin', () => {
             expect(a).to.equal(b);
 
         });
+        it('hooks up public fields with observers - allows @rootOnly observer', async () => {
+            plugin.afterProgramCreate(program);
+            program.addOrReplaceFile('source/comp.bs', `
+                @node("Comp", "Group")
+                class Comp
 
+                    @rootOnly
+                    @observer("onTitleChange")
+                    public title = ""
+                    public content = ""
+
+                    function new()
+                    end function
+
+                    private function onTitleChange(value)
+                    end function
+
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+
+            let a = getContents('components/maestro/generated/Comp.xml');
+            let b = trimLeading(`<?xml version="1.0" encoding="UTF-8" ?>
+            <component name="Comp" extends="Group">
+            <interface>
+            <field id="title" type="string" />
+            <field id="content" type="string" />
+            </interface>
+            <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
+            <children />
+            </component>
+            `);
+            expect(a).to.equal(b);
+
+            a = getContents('components/maestro/generated/Comp.brs');
+            b = trimLeading(`'import "pkg:/source/comp.bs"
+
+            function init()
+            m.top.title = ""
+            m._p_title = invalid
+            m.top.content = ""
+            instance = __Comp_builder()
+            instance.delete("top")
+            instance.delete("global")
+            top = m.top
+            m.append(instance)
+            m.__isVMCreated = true
+            m.new()
+            m.top = top
+            m_wireUpObservers()
+            end function
+
+            function on_title(event)
+            v = event.getData()
+            m._p_title = v
+            m.onTitleChange(event.getData())
+            end function
+
+            function m_wireUpObservers()
+            m.top.observeField("title", "on_title")
+            end function
+
+            function __m_setTopField(field, value)
+            if m.top.doesExist(field) then
+            m.top[field] = value
+            end if
+            return value
+            end function`);
+            expect(a).to.equal(b);
+
+        });
         it('manages inferred and specific field types', async () => {
             plugin.afterProgramCreate(program);
             program.addOrReplaceFile('source/comp.bs', `
