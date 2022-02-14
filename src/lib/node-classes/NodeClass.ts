@@ -13,7 +13,7 @@ import { getAllFields } from '../utils/Utils';
 const path = require('path');
 
 
-interface BoundClassField{
+interface BoundClassField {
     cs: ClassStatement;
     f: ClassFieldStatement;
 }
@@ -25,7 +25,7 @@ export enum NodeClassType {
 }
 
 export class NodeField {
-    constructor(public file: BrsFile, public classStatement: ClassStatement, public field: ClassFieldStatement, public fieldType: string, public observerAnnotation?: AnnotationExpression, public alwaysNotify?: boolean, public debounce?: boolean, public isPossibleClassType = false) {
+    constructor(public file: BrsFile, public classStatement: ClassStatement, public field: ClassFieldStatement, public fieldType: string, public observerAnnotation?: AnnotationExpression, public alwaysNotify?: boolean, public debounce?: boolean, public isPossibleClassType = false, public isRootOnlyObserver = false) {
         this.name = field.name.text;
         this.type = isPossibleClassType ? 'assocarray' : fieldType;
         this.classType = isPossibleClassType ? fieldType : '';
@@ -55,37 +55,41 @@ export class NodeField {
         return text;
     }
 
+
+    private getCallBackFunctionText(code: string) {
+        let text = `
+        function on_${this.name}(event)
+          `;
+        if (this.isRootOnlyObserver) {
+            text += `v = event.getData()
+            if (type(v) <> "roSGNode" or not v.isSameNode(m._p_${this.name})
+              m._p_${this.name} = v
+              ${code}
+            end if
+            `;
+        } else {
+            text += code + `
+                `;
+        }
+        text += `end function
+            `;
+        return text;
+    }
+
     getCallbackStatement() {
-        return `
-    function on_${this.name}(event)
-      m.${this.callback}(${this.numArgs === 1 ? 'event.getData()' : ''})
-    end function
-    `;
+        return this.getCallBackFunctionText(`m.${this.callback}(${this.numArgs === 1 ? 'event.getData()' : ''})`);
     }
 
     getDebouncedCallbackStatement() {
-        return `
-    function on_${this.name}()
-      addCallback("${this.callback}")
-      end function
-      `;
+        return this.getCallBackFunctionText(`addCallback("${this.callback}")`);
     }
-
 
     getLazyCallbackStatement() {
-        return `
-    function on_${this.name}(event)
-    _getVM().${this.callback}(${this.numArgs === 1 ? 'event.getData()' : ''})
-    end function
-    `;
-
+        return this.getCallBackFunctionText(`_getVM().${this.callback}(${this.numArgs === 1 ? 'event.getData()' : ''})`);
     }
+
     getLazyDebouncedCallbackStatement() {
-        return `
-    function on_${this.name}()
-      addCallback("${this.callback}")
-    end function
-    `;
+        return this.getCallBackFunctionText(`addCallback("${this.callback}")`);
     }
 }
 
@@ -350,6 +354,9 @@ export class NodeClass {
             if (this.type === NodeClassType.node) {
                 for (let member of this.nodeFields) {
                     initBody += `m.top.${member.name} = ${member.value}\n`;
+                    if (member.isRootOnlyObserver) {
+                        initBody += `m._p_${member.name} = invalid\n`;
+                    }
                 }
                 if (!this.isLazy) {
                     initBody += `
@@ -538,9 +545,11 @@ export class NodeClass {
 
             let debounce = field.annotations?.find((a) => a.name.toLowerCase() === 'debounce') !== undefined;
             let observerAnnotation = field.annotations?.find((a) => a.name.toLowerCase() === 'observer');
+            let rootOnly = field.annotations?.find((a) => a.name.toLowerCase() === 'rootonly');
             let alwaysNotify = field.annotations?.find((a) => a.name.toLowerCase() === 'alwaysnotify') !== undefined;
-            let f = new NodeField(file, bf.cs, field, fieldType, observerAnnotation, alwaysNotify, debounce, !this.knownFieldTypes[fieldType.toLowerCase()]);
             let observerArgs = observerAnnotation?.getArguments() ?? [];
+            let isRootOnly = rootOnly !== undefined || ((observerArgs.length > 2 && observerArgs[1] === true));
+            let f = new NodeField(file, bf.cs, field, fieldType, observerAnnotation, alwaysNotify, debounce, !this.knownFieldTypes[fieldType.toLowerCase()], isRootOnly);
             if (observerArgs.length > 0) {
                 let observerFunc = members.get((observerArgs[0] as string).toLowerCase());
                 if (isClassMethodStatement(observerFunc)) {
