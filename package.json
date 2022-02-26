@@ -1,6 +1,6 @@
 {
     "name": "maestro-roku-bsc-plugin",
-    "version": "0.18.0",
+    "version": "0.18.1",
     "description": "Visual studio plugin for maestro brightscript development",
     "files": [
         "dist/**/!(*.spec.*)*",
@@ -26,9 +26,9 @@
         "auto-changelog": "^2.2.1",
         "brighterscript": "0.45.3",
         "chai": "^4.2.0",
-        "eslint": "^7.11.0",
-        "eslint-plugin-github": "^4.1.1",
-        "eslint-plugin-no-only-tests": "^2.4.0",
+        "eslint": "^7.32.0",
+        "eslint-plugin-github": "4.3.0",
+        "eslint-plugin-no-only-tests": "2.6.0",
         "fs-extra": "^9.1.0",
         "lodash": "^4.17.20",
         "minimatch": "^3.0.4",
