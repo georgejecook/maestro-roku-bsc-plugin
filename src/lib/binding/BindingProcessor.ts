@@ -145,7 +145,12 @@ end function\n`;
             pathAbsolute: file.fullPath,
             source: file.bscFile.fileContents
         };
-        file.bscFile.parse(fileContents.source);
+
+        let xmlFile = file.bscFile as XmlFile;
+        xmlFile.parse(fileContents.source);
+        // eslint-disable-next-line @typescript-eslint/no-confusing-void-expression
+        xmlFile.ast.component?.setAttribute('vm', undefined);
+        xmlFile.needsTranspiled = true;
         file.bindings = this.processElements(file);
     }
 

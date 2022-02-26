@@ -16,7 +16,7 @@ describe('build time imports', () => {
 
     it('adds build time imports', () => {
         let program = new Program({});
-        program.addOrReplaceFile('source/AuthManager.bs', `
+        program.setFile('source/AuthManager.bs', `
         class someClass
         end class
     `);
@@ -37,7 +37,7 @@ end function`);
 
     it('empty build time imports', () => {
         let program = new Program({});
-        program.addOrReplaceFile('source/AuthManager.bs', `
+        program.setFile('source/AuthManager.bs', `
         class someClass
         end class
     `);
