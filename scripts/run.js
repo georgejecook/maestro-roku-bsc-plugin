@@ -542,14 +542,83 @@ let maestroSample = {
     'retainStagingFolder': true
 };
 
-let nba = {
+// let nba = {
+//     'rootDir': '/home/george/hope/nba/nba-roku/src',
+//     'stagingFolderPath': 'build',
+//     'plugins': [
+//         '/home/george/hope/open-source/maestro/maestro-roku-bsc-plugin/dist/plugin.js',
+//         '/home/george/hope/open-source/rooibos/bsc-plugin/dist/plugin.js'
+//     ],
+//     'files': [
+//         'manifest',
+//         'source/**/*.*',
+//         'images/**/*.*',
+//         'sounds/**/*.*',
+//         'sounds/*.*',
+//         'fonts/**/*.*',
+//         'meta/**/*.*',
+//         'components/**/*.*',
+//         { 'src': '../src-dev/source/**/*.*', 'dest': 'source' }
+//     ],
+//     'autoImportComponentScript': true,
+//     'createPackage': false,
+//     'diagnosticFilters': [
+//         {
+//             'src': '**/roku_modules/**/*.*'
+//         },
+//         {
+//             'src': '**/RALETrackerTask.*'
+//         },
+//         {
+//             'src': '**/*spec.bs',
+//             'codes': ['LINT3011']
+//         },
+//         {
+//             'src': '**/bitmovinAnalytics/**/*.*'
+//         },
+//         {
+//             'src': '**/bitmovinPlayer/**/*.*'
+//         },
+//         {
+//             'src': '**/mediakind/**/*.*'
+//         }
+//     ],
+//     'maestro': {
+//         'excludeFilters': [
+//             '**/roku_modules/**/*',
+//             '**/roku_modules/**/*',
+//             '**/rooibos/**/*',
+//             '**/bitmovinAnalytics/**/*.*',
+//             '**/bitmovinPlayer/**/*.*',
+//             '**/mediakind/**/*.*',
+//             '**/NewRelicAgent/**/*.*',
+//             '**/NewRelicAgent.brs'
+//         ],
+//         'buildForIDE': false,
+//         'extraValidation': {
+//             'doExtraValidation': true,
+//             'doExtraImportValidation': true
+//         }
+//     },
+//     'rooibos': {
+//         'isRecordingCodeCoverage': false,
+//         'testsFilePattern': null
+//     },
+//     'rokuLog': {
+//         'strip': false,
+//         'insertPkgPath': true,
+//         'removeComments': true
+//     },
+//     'logLevel': 'error',
+//     'retainStagingFolder': true
+// };
+
+
+let nbaLatest = {
     'rootDir': '/home/george/hope/nba/nba-roku/src',
     'stagingFolderPath': 'build',
-    'plugins': [
-        '/home/george/hope/open-source/maestro/maestro-roku-bsc-plugin/dist/plugin.js',
-        '/home/george/hope/open-source/rooibos/bsc-plugin/dist/plugin.js'
-    ],
     'files': [
+        '!**/*.i8n.json',
         'manifest',
         'source/**/*.*',
         'images/**/*.*',
@@ -567,6 +636,9 @@ let nba = {
             'src': '**/roku_modules/**/*.*'
         },
         {
+            'src': '**/rooibos/**/*.*'
+        },
+        {
             'src': '**/RALETrackerTask.*'
         },
         {
@@ -581,12 +653,23 @@ let nba = {
         },
         {
             'src': '**/mediakind/**/*.*'
+        },
+        {
+            'src': '**/NewRelicAgent/**/*.*'
+        },
+        {
+            'src': '**/NewRelicAgent.brs'
         }
+    ],
+    'plugins': [
+        '/home/george/hope/open-source/maestro/maestro-roku-bsc-plugin/dist/plugin.js',
+        '/home/george/hope/open-source/maestro/roku-log-bsc-plugin/dist/plugin.js',
+        '/home/george/hope/open-source/rooibos/bsc-plugin/dist/plugin.js'
     ],
     'maestro': {
         'excludeFilters': [
             '**/roku_modules/**/*',
-            '**/roku_modules/**/*',
+            '**/node_modules/**/*',
             '**/rooibos/**/*',
             '**/bitmovinAnalytics/**/*.*',
             '**/bitmovinPlayer/**/*.*',
@@ -594,10 +677,11 @@ let nba = {
             '**/NewRelicAgent/**/*.*',
             '**/NewRelicAgent.brs'
         ],
-        'buildForIDE': true,
+        'buildForIDE': false,
         'extraValidation': {
             'doExtraValidation': true,
-            'doExtraImportValidation': true
+            'doExtraImportValidation': true,
+            'excludeFilters': []
         }
     },
     'rooibos': {
@@ -610,9 +694,11 @@ let nba = {
         'removeComments': true
     },
     'logLevel': 'error',
-    'retainStagingFolder': true
+    'retainStagingFolder': true,
+    'transpileOptions': {
+        'removeParameterTypes': true
+    }
 };
-
 
 let programBuilder = new ProgramBuilder();
 programBuilder.run(
@@ -620,7 +706,8 @@ programBuilder.run(
     // zapp
     // maestro
     // corco
-    nba
+    nbaLatest
+    // nba
     // z41
     // maestroSample
     // maestroList

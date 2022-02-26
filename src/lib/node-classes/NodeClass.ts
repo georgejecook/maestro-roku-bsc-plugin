@@ -62,7 +62,7 @@ export class NodeField {
           `;
         if (this.isRootOnlyObserver) {
             text += `v = event.getData()
-            if (type(v) <> "roSGNode" or not v.isSameNode(m._p_${this.name})
+            if type(v) <> "roSGNode" or not v.isSameNode(m._p_${this.name})
               m._p_${this.name} = v
               ${code}
             end if

@@ -34,6 +34,8 @@ import type {
     FunctionStatement,
     Statement,
     ClassMethodStatement
+    ,
+    BeforeFileTranspileEvent
 } from 'brighterscript';
 
 import { ProjectFileMap } from './lib/files/ProjectFileMap';
@@ -116,6 +118,7 @@ export class MaestroPlugin implements CompilerPlugin {
         config.paramStripExceptions = config.paramStripExceptions ?? ['onKeyEvent'];
         config.applyStrictToAllClasses = config.applyStrictToAllClasses ?? true;
         config.nodeClasses = config.nodeClasses ?? {};
+        config.buildTimeImports = config.buildTimeImports ?? {};
         config.nodeClasses.buildForIDE = config.buildForIDE; //legacy support
         config.nodeClasses.buildForIDE = config.nodeClasses.buildForIDE === undefined ? false : config.nodeClasses.buildForIDE;
 
@@ -223,7 +226,7 @@ export class MaestroPlugin implements CompilerPlugin {
         }
     }
 
-    beforeProgramValidate(program: Program) {
+    afterProgramValidate(program: Program) {
         // console.log('MAESTRO bpv-----');
         if (this.maestroConfig.processXMLFiles) {
             for (let filePath of [...this.dirtyCompFilePaths.values()]) {
@@ -251,9 +254,12 @@ export class MaestroPlugin implements CompilerPlugin {
             console.timeEnd('Build node classes');
         }
         this.dirtyCompFilePaths.clear();
+        this.afterProgramValidate2(program);
     }
 
-    afterProgramValidate(program: Program) {
+    //note this is moved because of changes in how the bsc plugin system worked
+    //TODO - revisit and see if there's some other tidying up we can do in here
+    afterProgramValidate2(program: Program) {
         for (let f of Object.values(this.builder.program.files)) {
             if (f.pkgPath.startsWith('components/maestro/generated')) {
                 (f as any).diagnostics = [];
@@ -263,6 +269,12 @@ export class MaestroPlugin implements CompilerPlugin {
                     s['diagnostics'] = [];
                 }
             }
+        }
+
+        let runtimeFile = this.builder.program.getFile<BrsFile>('source/roku_modules/maestro/reflection/Reflection.brs');
+        if (runtimeFile) {
+            // eslint-disable-next-line @typescript-eslint/dot-notation
+            runtimeFile['diagnostics'] = [];
         }
 
         if (this.maestroConfig.extraValidation.doExtraValidation) {
@@ -330,12 +342,12 @@ export class MaestroPlugin implements CompilerPlugin {
         return true;
     }
 
-    beforeFileTranspile(entry: TranspileObj) {
-        if (!this.shouldParseFile(entry.file)) {
+    beforeFileTranspile(event: BeforeFileTranspileEvent) {
+        if (!this.shouldParseFile(event.file)) {
             return;
         }
-        if (isBrsFile(entry.file) && this.shouldParseFile(entry.file)) {
-            let classes = entry.file.parser.references.classStatements;
+        if (isBrsFile(event.file) && this.shouldParseFile(event.file)) {
+            let classes = event.file.parser.references.classStatements;
             for (let cs of classes) {
                 let fieldMap = getAllFields(this.fileMap, cs);
                 let id = createToken(TokenKind.Identifier, '__classname', cs.range);
@@ -351,7 +363,7 @@ export class MaestroPlugin implements CompilerPlugin {
                     cs.memberMap.__className = classNameStatement;
                 } else {
                     //this is more complicated, have to add this to the constructor
-                    let s = new RawCodeStatement(`m.__className = "${cs.getName(ParseMode.BrighterScript)}"`, entry.file, cs.range);
+                    let s = new RawCodeStatement(`m.__className = "${cs.getName(ParseMode.BrighterScript)}"`, event.file, cs.range);
 
                     let constructor = cs.memberMap.new as ClassMethodStatement;
                     if (constructor) {
@@ -366,10 +378,10 @@ export class MaestroPlugin implements CompilerPlugin {
                 if (allClassAnnotations['usesetfield']) {
                     this.updateFieldSets(cs);
                 }
-                this.injectIOCCode(cs, entry.file);
+                this.injectIOCCode(cs, event.file);
             }
             if (this.maestroConfig.stripParamTypes) {
-                for (let fs of entry.file.parser.references.functionExpressions) {
+                for (let fs of event.file.parser.references.functionExpressions) {
                     if (fs.returnType && !isVoidType(fs.returnType) && !isDynamicType(fs.returnType)) {
                         const name = fs.functionStatement?.name?.text ?? fs.parentFunction?.functionStatement?.name?.text;
                         if (!this.maestroConfig.paramStripExceptions.includes(name)) {
@@ -385,7 +397,6 @@ export class MaestroPlugin implements CompilerPlugin {
         for (let nc of this.fileMap.nodeClasses.values()) {
             nc.replacePublicMFieldRefs(this.fileMap);
         }
-
     }
 
     beforeProgramTranspile(program: Program, entries: TranspileObj[]) {
@@ -434,7 +445,7 @@ export class MaestroPlugin implements CompilerPlugin {
                         let callE = new CallExpression(
                             new DottedGetExpression(
                                 ds.obj,
-                                createIdentifier('setField', ds.range).name,
+                                createIdentifier('setField', ds.range),
                                 createToken(TokenKind.Dot, '.', ds.range)),
                             createToken(TokenKind.LeftParen, '(', ds.range),
                             createToken(TokenKind.RightParen, ')', ds.range),
@@ -714,7 +725,7 @@ export class MaestroPlugin implements CompilerPlugin {
             if (cs.parentClassName && this.maestroConfig.extraValidation.doExtraImportValidation) {
                 let name = cs.parentClassName.getName(ParseMode.BrighterScript);
                 if (!methodLookup[name]) {
-                    console.log('>> ' + name);
+                    // console.log('>> ' + name);
                     // eslint-disable-next-line @typescript-eslint/dot-notation
                     file['diagnostics'].push({
                         ...unknownSuperClass(`${name}`),
@@ -896,7 +907,7 @@ export class MaestroPlugin implements CompilerPlugin {
 
     public getNamespaceLookup(scope: Scope): Map<string, NamespaceContainer> {
         // eslint-disable-next-line @typescript-eslint/dot-notation
-        return scope['cache'].getOrAdd<Map<string, NamespaceContainer>>('namespaceLookup', () => scope.buildNamespaceLookup() as any);
+        return scope['cache'].getOrAdd('namespaceLookup', () => scope.buildNamespaceLookup() as any);
     }
 
     /**

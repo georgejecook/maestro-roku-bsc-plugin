@@ -28,8 +28,15 @@ describe('MaestroPlugin', () => {
         options = {
             rootDir: _rootDir,
             stagingFolderPath: _stagingFolderPath,
+            autoImportComponentScript: true
+        };
+        options.maestro = {
             mvvm: {},
-            nodeClasses: {}
+            nodeClasses: {},
+            processXMLFiles: true,
+            buildTimeImports: {
+                'IAuthProvider': ['pkg:/source/AuthManager.bs']
+            }
         };
         fsExtra.ensureDirSync(_stagingFolderPath);
         fsExtra.ensureDirSync(_rootDir);
@@ -45,10 +52,14 @@ describe('MaestroPlugin', () => {
             extraValidation: {},
             addFrameworkFiles: false,
             mvvm: {},
-            nodeClasses: {}
+            processXMLFiles: true,
+            nodeClasses: {},
+            buildTimeImports: {
+                'IAuthProvider': ['pkg:/source/AuthManager.bs']
+            }
         };
         plugin.beforeProgramCreate(builder);
-        program.addOrReplaceFile('manifest', ``);
+        program.setFile('manifest', ``);
 
     });
     afterEach(() => {
@@ -64,17 +75,17 @@ describe('MaestroPlugin', () => {
         it('gives error diagnostics when field bindings do not match class', async () => {
             plugin.isFrameworkAdded = true;
             plugin.afterProgramCreate(program);
-            program.addOrReplaceFile('source/comp.bs', `
+            program.setFile('source/comp.bs', `
             class myVM
                 function onChangeVisible(value)
                 end function
            end class
         `);
-            program.addOrReplaceFile('components/comp.brs', `
+            program.setFile('components/comp.brs', `
 
         `);
 
-            program.addOrReplaceFile('components/comp.xml', `
+            program.setFile('components/comp.xml', `
             <component name="mv_BaseScreen" extends="mv_BaseView" vm="myVM">
     <interface>
     </interface>
@@ -108,18 +119,18 @@ describe('MaestroPlugin', () => {
 
         it('does not give diagnostics for valid target bindings', async () => {
             plugin.afterProgramCreate(program);
-            program.addOrReplaceFile('source/comp.bs', `
+            program.setFile('source/comp.bs', `
             class myVM
                 public isClicked
                 function onChangeVisible(value = invalid, node = invalid)
                 end function
            end class
         `);
-            program.addOrReplaceFile('components/comp.brs', `
+            program.setFile('components/comp.brs', `
 
         `);
 
-            program.addOrReplaceFile('components/comp.xml', `
+            program.setFile('components/comp.xml', `
             <component name="mv_BaseScreen" extends="mv_BaseView" vm="myVM">
     <interface>
     </interface>
@@ -147,17 +158,17 @@ describe('MaestroPlugin', () => {
 
         it('gives diagnostics when trying to set a function call back as a field', async () => {
             plugin.afterProgramCreate(program);
-            program.addOrReplaceFile('source/comp.bs', `
+            program.setFile('source/comp.bs', `
             class myVM
                 function onChangeVisible(value)
                 end function
            end class
         `);
-            program.addOrReplaceFile('components/comp.brs', `
+            program.setFile('components/comp.brs', `
 
         `);
 
-            program.addOrReplaceFile('components/comp.xml', `
+            program.setFile('components/comp.xml', `
             <component name="mv_BaseScreen" extends="mv_BaseView" vm="myVM">
     <interface>
     </interface>
@@ -181,18 +192,18 @@ describe('MaestroPlugin', () => {
         });
         it('gives error diagnostics when id is not set', async () => {
             plugin.afterProgramCreate(program);
-            program.addOrReplaceFile('source/comp.bs', `
+            program.setFile('source/comp.bs', `
             class myVM
                 public text
                 function onChangeVisible(value)
                 end function
            end class
         `);
-            program.addOrReplaceFile('components/comp.brs', `
+            program.setFile('components/comp.brs', `
 
         `);
 
-            program.addOrReplaceFile('components/comp.xml', `
+            program.setFile('components/comp.xml', `
             <component name="mv_BaseScreen" extends="mv_BaseView" vm="myVM">
     <interface>
     </interface>
@@ -216,18 +227,18 @@ describe('MaestroPlugin', () => {
 
         it('takes optional params into account', async () => {
             plugin.afterProgramCreate(program);
-            program.addOrReplaceFile('source/comp.bs', `
+            program.setFile('source/comp.bs', `
             class myVM
                 public isClicked
                 function onChangeVisible(value = invalid, node = invalid)
                 end function
            end class
         `);
-            program.addOrReplaceFile('components/comp.brs', `
+            program.setFile('components/comp.brs', `
 
         `);
 
-            program.addOrReplaceFile('components/comp.xml', `
+            program.setFile('components/comp.xml', `
             <component name="mv_BaseScreen" extends="mv_BaseView" vm="myVM">
     <interface>
     </interface>
@@ -254,21 +265,21 @@ describe('MaestroPlugin', () => {
 
         it('inserts static bindings', async () => {
             plugin.afterProgramCreate(program);
-            program.addOrReplaceFile('source/vm.bs', `
+            program.setFile('source/vm.bs', `
             class myVM
                 public riversJson
                 public entry
            end class
         `);
 
-            program.addOrReplaceFile('components/comp.bs', `
+            program.setFile('components/comp.bs', `
             class myVM
                 public riversJson
                 public entry
            end class
         `);
 
-            program.addOrReplaceFile('components/comp.xml', `
+            program.setFile('components/comp.xml', `
             <component name="mv_BaseScreen" extends="mv_BaseView" vm="myVM">
     <interface>
     </interface>
@@ -346,18 +357,18 @@ describe('MaestroPlugin', () => {
 
         it('warns when field bindings are not public', async () => {
             plugin.afterProgramCreate(program);
-            program.addOrReplaceFile('source/comp.bs', `
+            program.setFile('source/comp.bs', `
             class myVM
                 private width
                 private function onChangeVisible(value)
                 end function
            end class
         `);
-            program.addOrReplaceFile('components/comp.brs', `
+            program.setFile('components/comp.brs', `
 
         `);
 
-            program.addOrReplaceFile('components/comp.xml', `
+            program.setFile('components/comp.xml', `
             <component name="mv_BaseScreen" extends="mv_BaseView" vm="myVM">
     <interface>
     </interface>
@@ -382,7 +393,7 @@ describe('MaestroPlugin', () => {
 
         it('does not manipulate non binding xml files', async () => {
             plugin.afterProgramCreate(program);
-            program.addOrReplaceFile('components/comp.xml', `
+            program.setFile('components/comp.xml', `
             <component name="mv_BaseScreen" extends="mv_BaseView">
     <interface>
     </interface>
@@ -405,7 +416,7 @@ describe('MaestroPlugin', () => {
         });
         it('does removes vm tags from files files', async () => {
             plugin.afterProgramCreate(program);
-            program.addOrReplaceFile('components/comp.xml', `
+            program.setFile('components/comp.xml', `
             <component name="mv_BaseScreen" extends="mv_BaseView" vm="myVM">
     <interface>
     </interface>
@@ -432,7 +443,7 @@ describe('MaestroPlugin', () => {
 
         it('does not manipulate xml files that are in default ignored folders (roku_modules)', async () => {
             plugin.afterProgramCreate(program);
-            program.addOrReplaceFile('components/roku_modules/mv/comp.xml', `
+            program.setFile('components/roku_modules/mv/comp.xml', `
             <component name="mv_BaseScreen" extends="mv_BaseView" vm="Myclass">
     <interface>
     </interface>
@@ -463,7 +474,7 @@ describe('MaestroPlugin', () => {
         it('does not manipulate xml files when xml processing is disabled', async () => {
             plugin.maestroConfig.processXMLFiles = false;
             plugin.afterProgramCreate(program);
-            program.addOrReplaceFile('components/comp.xml', `
+            program.setFile('components/comp.xml', `
             <component name="mv_BaseScreen" extends="mv_BaseView" vm="Myclass">
     <interface>
     </interface>
@@ -503,7 +514,7 @@ describe('MaestroPlugin', () => {
             plugin.importProcessor.config = plugin.maestroConfig;
 
             plugin.afterProgramCreate(program);
-            program.addOrReplaceFile('components/roku_modules/mv/comp.xml', `
+            program.setFile('components/roku_modules/mv/comp.xml', `
             <component name="mv_BaseScreen" extends="mv_BaseView" vm="Myclass">
     <interface>
     </interface>
@@ -541,7 +552,7 @@ describe('MaestroPlugin', () => {
             plugin.importProcessor.config = plugin.maestroConfig;
 
             plugin.afterProgramCreate(program);
-            program.addOrReplaceFile('components/ignored/mv/comp.xml', `
+            program.setFile('components/ignored/mv/comp.xml', `
             <component name="mv_BaseScreen" extends="mv_BaseView" vm="Myclass">
     <interface>
     </interface>
@@ -574,7 +585,7 @@ describe('MaestroPlugin', () => {
 
         it('parses a node class with no errors', async () => {
             plugin.afterProgramCreate(program);
-            program.addOrReplaceFile('source/comp.bs', `
+            program.setFile('source/comp.bs', `
                 @node("Comp", "Group")
                 class Comp
 
@@ -596,6 +607,8 @@ describe('MaestroPlugin', () => {
             <field id="title" type="string" />
             <field id="content" type="string" />
             </interface>
+            <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
+            <script type="text/brightscript" uri="pkg:/source/comp.brs" />
             <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
             <children />
             </component>
@@ -634,7 +647,7 @@ describe('MaestroPlugin', () => {
 
         it('parses tunnels public functions', async () => {
             plugin.afterProgramCreate(program);
-            program.addOrReplaceFile('source/comp.bs', `
+            program.setFile('source/comp.bs', `
                 @node("Comp", "Group")
                 class Comp
 
@@ -661,6 +674,8 @@ describe('MaestroPlugin', () => {
             <field id="content" type="string" />
             <function name="someFunction" />
             </interface>
+            <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
+            <script type="text/brightscript" uri="pkg:/source/comp.brs" />
             <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
             <children />
             </component>
@@ -703,7 +718,7 @@ describe('MaestroPlugin', () => {
 
         it('hooks up public fields with observers', async () => {
             plugin.afterProgramCreate(program);
-            program.addOrReplaceFile('source/comp.bs', `
+            program.setFile('source/comp.bs', `
                 @node("Comp", "Group")
                 class Comp
 
@@ -730,6 +745,8 @@ describe('MaestroPlugin', () => {
             <field id="title" type="string" />
             <field id="content" type="string" />
             </interface>
+            <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
+            <script type="text/brightscript" uri="pkg:/source/comp.brs" />
             <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
             <children />
             </component>
@@ -772,7 +789,7 @@ describe('MaestroPlugin', () => {
         });
         it('hooks up public fields with observers - allows @rootOnly observer', async () => {
             plugin.afterProgramCreate(program);
-            program.addOrReplaceFile('source/comp.bs', `
+            program.setFile('source/comp.bs', `
                 @node("Comp", "Group")
                 class Comp
 
@@ -800,6 +817,8 @@ describe('MaestroPlugin', () => {
             <field id="title" type="string" />
             <field id="content" type="string" />
             </interface>
+            <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
+            <script type="text/brightscript" uri="pkg:/source/comp.brs" />
             <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
             <children />
             </component>
@@ -826,8 +845,10 @@ describe('MaestroPlugin', () => {
 
             function on_title(event)
             v = event.getData()
+            if type(v) <> "roSGNode" or not v.isSameNode(m._p_title) then
             m._p_title = v
             m.onTitleChange(event.getData())
+            end if
             end function
 
             function m_wireUpObservers()
@@ -845,7 +866,7 @@ describe('MaestroPlugin', () => {
         });
         it('manages inferred and specific field types', async () => {
             plugin.afterProgramCreate(program);
-            program.addOrReplaceFile('source/comp.bs', `
+            program.setFile('source/comp.bs', `
                 class TestClass
                 end class
                 @node("Comp", "Group")
@@ -893,6 +914,8 @@ describe('MaestroPlugin', () => {
             <field id="arrTyped" type="array" />
             <field id="aaTyped" type="assocarray" />
             </interface>
+            <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
+            <script type="text/brightscript" uri="pkg:/source/comp.brs" />
             <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
             <children />
             </component>
@@ -946,7 +969,7 @@ describe('MaestroPlugin', () => {
         });
         it('gives diagnostics for missing observer function params', async () => {
             plugin.afterProgramCreate(program);
-            program.addOrReplaceFile('source/comp.bs', `
+            program.setFile('source/comp.bs', `
                 @node("Comp", "Group")
                 class Comp
 
@@ -966,7 +989,7 @@ describe('MaestroPlugin', () => {
         it('does not produce diagnostics for missing observer function when extra validation is enabled', async () => {
             plugin.maestroConfig.extraValidation.doExtraValidation = false;
             plugin.afterProgramCreate(program);
-            program.addOrReplaceFile('source/comp.bs', `
+            program.setFile('source/comp.bs', `
                 @node("Comp", "Group")
                 class Comp
 
@@ -985,7 +1008,7 @@ describe('MaestroPlugin', () => {
         });
         it('gives diagnostics for wrong observer function params', async () => {
             plugin.afterProgramCreate(program);
-            program.addOrReplaceFile('source/comp.bs', `
+            program.setFile('source/comp.bs', `
                 @node("Comp", "Group")
                 class Comp
 
@@ -1008,7 +1031,7 @@ describe('MaestroPlugin', () => {
         });
         it('gives diagnostics for wrong constructor function params', async () => {
             plugin.afterProgramCreate(program);
-            program.addOrReplaceFile('source/comp.bs', `
+            program.setFile('source/comp.bs', `
                 @node("Comp", "Group")
                 class Comp
 
@@ -1027,7 +1050,7 @@ describe('MaestroPlugin', () => {
         });
         it('gives diagnostics for no constructor', async () => {
             plugin.afterProgramCreate(program);
-            program.addOrReplaceFile('source/comp.bs', `
+            program.setFile('source/comp.bs', `
                 @node("Comp", "Group")
                 class Comp
 
@@ -1047,7 +1070,7 @@ describe('MaestroPlugin', () => {
 
         it('adds __classname to all classes in a project', async () => {
             plugin.afterProgramCreate(program);
-            program.addOrReplaceFile('source/comp.bs', `
+            program.setFile('source/comp.bs', `
                 @node("Comp", "Group")
                 class Comp
 
@@ -1058,7 +1081,7 @@ describe('MaestroPlugin', () => {
                     end function
                end class
             `);
-            program.addOrReplaceFile('source/myClass.bs', `
+            program.setFile('source/myClass.bs', `
                 class myClass
                     public title
                 end class
@@ -1070,7 +1093,7 @@ describe('MaestroPlugin', () => {
             `);
             await builder.transpile();
             expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
-            let classFile = program.getFileByPkgPath<BrsFile>('source/myClass.bs');
+            let classFile = program.getFile<BrsFile>('source/myClass.bs');
             let cs = classFile.parser.references.classStatements[0];
             expect(cs.body.length === 3);
             expect(cs.fields.length === 2);
@@ -1123,7 +1146,7 @@ describe('MaestroPlugin', () => {
 
         it('does not add __classname if in parent class', async () => {
             plugin.afterProgramCreate(program);
-            program.addOrReplaceFile('source/myClass.bs', `
+            program.setFile('source/myClass.bs', `
                 class ClassA
                     public title
                 end class
@@ -1133,7 +1156,7 @@ describe('MaestroPlugin', () => {
             `);
             await builder.transpile();
             expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
-            let classFile = program.getFileByPkgPath<BrsFile>('source/myClass.bs');
+            let classFile = program.getFile<BrsFile>('source/myClass.bs');
             let cs = classFile.parser.references.classStatements[0];
             expect(cs.body.length === 3);
             expect(cs.fields.length === 2);
@@ -1174,7 +1197,7 @@ describe('MaestroPlugin', () => {
             it('gives diagostic for unknown field', () => {
                 plugin.afterProgramCreate(program);
 
-                program.addOrReplaceFile('source/VM.bs', `
+                program.setFile('source/VM.bs', `
                     @strict
                     class VM
                         public fieldA
@@ -1191,7 +1214,7 @@ describe('MaestroPlugin', () => {
             it('gives diagostic for unknown field; but skips valid skips', () => {
                 plugin.afterProgramCreate(program);
 
-                program.addOrReplaceFile('source/VM.bs', `
+                program.setFile('source/VM.bs', `
                     @strict
                     class VM
                         public fieldA
@@ -1212,7 +1235,7 @@ describe('MaestroPlugin', () => {
             it('gives diagnostic for  unknown function', () => {
                 plugin.afterProgramCreate(program);
 
-                program.addOrReplaceFile('source/VM.bs', `
+                program.setFile('source/VM.bs', `
                     @strict
                     class VM
                         function doStuff()
@@ -1229,14 +1252,14 @@ describe('MaestroPlugin', () => {
             it('does not gives diagnostic for field in superclass', () => {
                 plugin.afterProgramCreate(program);
 
-                program.addOrReplaceFile('source/VM.bs', `
+                program.setFile('source/VM.bs', `
                     class VM
                         public isThere
                         protected isThereToo
                     end class
                 `);
 
-                program.addOrReplaceFile('source/SubVM.bs', `
+                program.setFile('source/SubVM.bs', `
                     class SubVM extends VM
                         function doStuff2()
                         m.isthere = true
@@ -1250,13 +1273,13 @@ describe('MaestroPlugin', () => {
             it('takes into account d files from roku modules', () => {
                 plugin.afterProgramCreate(program);
 
-                program.addOrReplaceFile('source/VM.bs', `
+                program.setFile('source/VM.bs', `
                     class VM
                         public isThere
                     end class
                 `);
 
-                program.addOrReplaceFile('source/SubVM.bs', `
+                program.setFile('source/SubVM.bs', `
                     class SubVM extends VM
                         function doStuff2()
                         m.isthere = true
@@ -1270,14 +1293,14 @@ describe('MaestroPlugin', () => {
             it('does not gives diagnostic for function in superclass', () => {
                 plugin.afterProgramCreate(program);
 
-                program.addOrReplaceFile('source/VM.bs', `
+                program.setFile('source/VM.bs', `
                     class VM
                         function there()
                         end function
                     end class
                 `);
 
-                program.addOrReplaceFile('source/SubVM.bs', `
+                program.setFile('source/SubVM.bs', `
                     class SubVM extends VM
                         function doStuff2()
                         m.there()
@@ -1290,7 +1313,7 @@ describe('MaestroPlugin', () => {
             it('gives diagnostics for function that is not in scope', async () => {
                 plugin.maestroConfig.extraValidation.doExtraImportValidation = true;
                 plugin.afterProgramCreate(program);
-                program.addOrReplaceFile('source/superComp.bs', `
+                program.setFile('source/superComp.bs', `
                 namespace stuff
                     class Comp
 
@@ -1307,10 +1330,10 @@ describe('MaestroPlugin', () => {
                     end function
                 end namespace
                 `);
-                program.addOrReplaceFile('source/comp.bs', `
+                program.setFile('source/comp.bs', `
                 'import "pkg:/source/superComp.bs"
                 `);
-                program.addOrReplaceFile('source/comp2.bs', `
+                program.setFile('source/comp2.bs', `
                     import "pkg:/source/comp.bs"
                     class Comp2
 
@@ -1332,7 +1355,7 @@ describe('MaestroPlugin', () => {
             it('does not give extra validation error when disabled', async () => {
                 plugin.maestroConfig.extraValidation.doExtraImportValidation = false;
                 plugin.afterProgramCreate(program);
-                program.addOrReplaceFile('source/superComp.bs', `
+                program.setFile('source/superComp.bs', `
                 namespace stuff
                     class Comp
 
@@ -1349,10 +1372,10 @@ describe('MaestroPlugin', () => {
                     end function
                 end namespace
                 `);
-                program.addOrReplaceFile('source/comp.bs', `
+                program.setFile('source/comp.bs', `
                 'import "pkg:/source/superComp.bs"
                 `);
-                program.addOrReplaceFile('source/comp2.bs', `
+                program.setFile('source/comp2.bs', `
                     import "pkg:/source/comp.bs"
                     class Comp2
 
@@ -1377,7 +1400,7 @@ describe('MaestroPlugin', () => {
             it('replaces m.value = with m.setField', async () => {
                 plugin.afterProgramCreate(program);
 
-                program.addOrReplaceFile('source/VM.bs', `
+                program.setFile('source/VM.bs', `
                     @useSetField
                     class VM
 
@@ -1432,7 +1455,7 @@ describe('MaestroPlugin', () => {
             it('replaces m.value = with m.setField, when field is defined in super class', async () => {
                 plugin.afterProgramCreate(program);
 
-                program.addOrReplaceFile('source/VM.bs', `
+                program.setFile('source/VM.bs', `
                     @useSetField
                     class VM
 
@@ -1508,7 +1531,7 @@ describe('MaestroPlugin', () => {
             it('wires up fields with inject annotations', async () => {
                 plugin.afterProgramCreate(program);
 
-                program.addOrReplaceFile('source/VM.bs', `
+                program.setFile('source/VM.bs', `
                     class VM
                         @inject("Entitlements")
                         public fieldA
@@ -1556,7 +1579,7 @@ describe('MaestroPlugin', () => {
             it('allows instantiation of class objects from annotation', async () => {
                 plugin.afterProgramCreate(program);
 
-                program.addOrReplaceFile('source/VM.bs', `
+                program.setFile('source/VM.bs', `
                     class VM
                         @inject("Entitlements")
                         public fieldA
@@ -1606,7 +1629,7 @@ describe('MaestroPlugin', () => {
             it('gives diagnostics when the injection annotations are malformed', async () => {
                 plugin.afterProgramCreate(program);
 
-                program.addOrReplaceFile('source/VM.bs', `
+                program.setFile('source/VM.bs', `
                     class VM
                         @inject()
                         public fieldA
@@ -1646,7 +1669,7 @@ describe('MaestroPlugin', () => {
             it('gives diagnostics when the injection public field with sync @nodeclass', async () => {
                 plugin.afterProgramCreate(program);
 
-                program.addOrReplaceFile('source/VM.bs', `
+                program.setFile('source/VM.bs', `
                     @node("test", "Group")
                     class VM
                         @sync
@@ -1667,7 +1690,7 @@ describe('MaestroPlugin', () => {
             it('allows observing of an injected field', async () => {
                 plugin.afterProgramCreate(program);
 
-                program.addOrReplaceFile('source/VM.bs', `
+                program.setFile('source/VM.bs', `
                     class MyView
                         @sync
                         @inject("Entitlements", "isLoggedIn")
@@ -1723,6 +1746,65 @@ describe('MaestroPlugin', () => {
             });
         });
     });
+    describe('Tranpsiles import processing', () => {
+
+        it('adds build time imports', async () => {
+            plugin.maestroConfig = {
+                extraValidation: {},
+                addFrameworkFiles: false,
+                mvvm: {},
+                processXMLFiles: true,
+                nodeClasses: {},
+                buildTimeImports: {
+                    'IAuthProvider': ['pkg:/source/AuthManager.bs']
+                }
+            };
+
+            plugin.afterProgramCreate(program);
+            program.setFile('components/comp.xml', `
+            <component name="mv_BaseScreen" extends="mv_BaseView" vm="myVM">
+    <interface>
+    </interface>
+</component>`);
+
+
+            program.setFile('components/comp.bs', `
+import "build:/IAuthProvider"
+`);
+            program.setFile('source/AuthManager.bs', `
+sub hello()
+end sub
+`);
+
+            program.validate();
+            await builder.transpile();
+            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+            let a = getContents('components/comp.xml');
+            let b = trimLeading(`<component name="mv_BaseScreen" extends="mv_BaseView">
+            <interface>
+            </interface>
+            <script type="text/brightscript" uri="pkg:/components/comp.brs" />
+            <script type="text/brightscript" uri="pkg:/source/AuthManager.brs" />
+            <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
+            </component>
+`);
+            expect(a).to.equal(b);
+            a = getContents('components/comp.brs');
+            b = trimLeading(`'import "pkg:/source/AuthManager.bs"
+
+            function m_createNodeVars()
+            end function
+
+            function init()
+            m_createNodeVars()
+            end function`);
+            expect(a).to.equal(b);
+
+        });
+
+    });
+
+
     describe.skip('run a local project (zp)', () => {
         it('sanity checks on parsing - only run this outside of ci', () => {
             let programBuilder = new ProgramBuilder();
@@ -1993,7 +2075,8 @@ describe('MaestroPlugin', () => {
 });
 
 function getContents(filename: string) {
-    return trimLeading(fsExtra.readFileSync(s`${_stagingFolderPath}/${filename}`).toString());
+    let name = path.join(_stagingFolderPath, filename);
+    return trimLeading(fsExtra.readFileSync(name).toString());
 }
 
 function checkDiagnostic(d: BsDiagnostic, expectedCode: number, line?: number) {

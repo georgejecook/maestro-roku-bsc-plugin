@@ -19,11 +19,13 @@ export default class ReflectionUtil {
     }
 
     public updateRuntimeFile() {
-        let runtimeFile = this.builder.program.getFileByPkgPath<BrsFile>('source/roku_modules/maestro/reflection/Reflection.brs');
+        let runtimeFile = this.builder.program.getFile<BrsFile>('source/roku_modules/maestro/reflection/Reflection.brs');
         if (runtimeFile) {
             runtimeFile.needsTranspiled = true;
             this.updateClassLookupFunction(runtimeFile);
             this.updateXMLCompTypesFunction(runtimeFile);
+            // eslint-disable-next-line @typescript-eslint/dot-notation
+            runtimeFile['diagnostics'] = [];
         }
 
     }
