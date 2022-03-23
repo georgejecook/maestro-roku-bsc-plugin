@@ -133,7 +133,7 @@ export class File {
 
             if (this.vmClassName) {
                 // eslint-disable-next-line @typescript-eslint/no-confusing-void-expression
-                xmlFile.ast.component?.setAttributeValue('vm', undefined);
+                xmlFile.ast.component?.removeAttribute('vm');
             }
 
             if (this.componentName && this.parentComponentName) {

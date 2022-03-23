@@ -39,6 +39,7 @@ export default class ImportProcessor {
     public processDynamicImports(file: BrsFile, program: Program) {
         let statementsToRemove = [];
         let statementsToAdd = [];
+
         for (let importStatement of file.parser.references.importStatements) {
             if (importStatement.filePath.startsWith('build:/')) {
                 let key = importStatement.filePath.replace('build:/', '');

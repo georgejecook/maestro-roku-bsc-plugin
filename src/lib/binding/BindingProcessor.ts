@@ -148,7 +148,7 @@ end function\n`;
             srcPath: file.fullPath,
             source: file.bscFile.fileContents
         };
-        file.bscFile.parse(fileContents.source);
+        // file.bscFile.parse(fileContents.source);
         file.bindings = this.processElements(file);
     }
 

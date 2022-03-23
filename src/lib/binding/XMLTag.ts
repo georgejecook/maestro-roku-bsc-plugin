@@ -128,7 +128,7 @@ export class XMLTag {
                 (xmlElement.getAttribute('value') as any).value.text = '';
             } else {
                 // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-                xmlElement.setAttributeValue(b.nodeField.toLowerCase(), undefined);
+                xmlElement.removeAttribute(b.nodeField.toLowerCase());
             }
         }
         this.hasBindings = bindings.length > 0;

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-confusing-void-expression */
-import type { AnnotationExpression, BrsFile, ClassFieldStatement, ClassMethodStatement, ClassStatement, FunctionParameterExpression, Program, ProgramBuilder, XmlFile } from 'brighterscript';
+import type { AnnotationExpression, BrsFile, BscFile, ClassFieldStatement, ClassMethodStatement, ClassStatement, FunctionParameterExpression, Program, ProgramBuilder, XmlFile } from 'brighterscript';
 import { isCallExpression, isNewExpression, TokenKind, isClassMethodStatement, ParseMode, createVisitor, isVariableExpression, WalkMode, FunctionStatement, isAALiteralExpression, isArrayLiteralExpression, isIntegerType, isLiteralExpression, isLiteralNumber, isLongIntegerType, isUnaryExpression } from 'brighterscript';
 import { TranspileState } from 'brighterscript/dist/parser/TranspileState';
 import type { ProjectFileMap } from '../files/ProjectFileMap';
@@ -341,7 +341,7 @@ export class NodeClass {
             //update node fields, in case of them being present in base classes
             this.nodeFields = this.getNodeFields(this.file, this.classStatement, fileMap);
 
-            let source = `import "pkg:/${this.file.pkgPath}"\n`;
+            let source = `import "${this.file.pkgPath}"\n`;
 
             let initBody = ``;
             let otherFunctionsText = ``;
@@ -499,8 +499,9 @@ export class NodeClass {
             DottedGetExpression: (de) => {
                 if (isVariableExpression(de.obj) && de.obj.name.text === 'm' && allTopFields[de.name.text.toLowerCase()]) {
                     try {
+                        // (de as any)['obj'] = new RawCodeStatement(`m.top`, this.file, de.range);
                         // eslint-disable-next-line
-                        (de as any)['obj'] = new RawCodeStatement(`m.top`, this.file, de.range);
+                        (de as any).obj.name.text === 'm.top';
                     } catch (e) {
                         console.log(`Error updating m.public field to dotted get: ${this.file.pkgPath} ${e.getMessage()}`);
                     }

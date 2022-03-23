@@ -1,4 +1,4 @@
-import type { BrsFile, Program, ProgramBuilder, XmlFile } from 'brighterscript';
+import type { BrsFile, BscFile, Program, ProgramBuilder, XmlFile } from 'brighterscript';
 
 import * as path from 'path';
 import * as fs from 'fs-extra';
@@ -25,9 +25,9 @@ export class FileFactory {
         }
     }
 
-    public addFile(program: Program, projectPath: string, contents: string) {
+    public addFile<T extends BscFile>(program: Program, projectPath: string, contents: string) {
         try {
-            return program.setFile({ src: path.resolve(projectPath), dest: projectPath }, contents);
+            return program.setFile<T>({ src: path.resolve(projectPath), dest: projectPath }, contents);
         } catch (error) {
             console.error(`Error adding framework file: ${projectPath} : ${error.message}`);
         }

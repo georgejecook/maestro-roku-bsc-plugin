@@ -606,6 +606,90 @@ let nba = {
     'retainStagingFolder': true
 };
 
+let nbaLatest = {
+    'rootDir': '/home/george/hope/nba/nba-roku/src',
+    'stagingFolderPath': 'build',
+    "files": [
+        "!**/*.i8n.json",
+        "manifest",
+        "source/**/*.*",
+        "images/**/*.*",
+        "sounds/**/*.*",
+        "sounds/*.*",
+        "fonts/**/*.*",
+        "meta/**/*.*",
+        "components/**/*.*",
+        { "src": "../src-dev/source/**/*.*", "dest": "source" }
+    ],
+    "autoImportComponentScript": true,
+    "createPackage": false,
+    "diagnosticFilters": [
+        {
+            "src": "**/roku_modules/**/*.*"
+        },
+        {
+            "src": "**/rooibos/**/*.*"
+        },
+        {
+            "src": "**/RALETrackerTask.*"
+        },
+        {
+            "src": "**/*spec.bs",
+            "codes": ["LINT3011"]
+        },
+        {
+            "src": "**/bitmovinAnalytics/**/*.*"
+        },
+        {
+            "src": "**/bitmovinPlayer/**/*.*"
+        },
+        {
+            "src": "**/mediakind/**/*.*"
+        },
+        {
+            "src": "**/NewRelicAgent/**/*.*"
+        },
+        {
+            "src": "**/NewRelicAgent.brs"
+        }
+    ],
+    "plugins": [
+        '/home/george/hope/open-source/maestro/maestro-roku-bsc-plugin/dist/plugin.js',
+        '/home/george/hope/open-source/rooibos/bsc-plugin/dist/plugin.js'
+    ],
+    "maestro": {
+        "excludeFilters": [
+            "**/roku_modules/**/*",
+            "**/node_modules/**/*",
+            "**/rooibos/**/*",
+            "**/bitmovinAnalytics/**/*.*",
+            "**/bitmovinPlayer/**/*.*",
+            "**/mediakind/**/*.*",
+            "**/NewRelicAgent/**/*.*",
+            "**/NewRelicAgent.brs"
+        ],
+        "buildForIDE": true,
+        "extraValidation": {
+            "doExtraValidation": true,
+            "doExtraImportValidation": true,
+            "excludeFilters": []
+        }
+    },
+    "rooibos": {
+        "isRecordingCodeCoverage": false,
+        "testsFilePattern": null
+    },
+    "rokuLog": {
+        "strip": false,
+        "insertPkgPath": true,
+        "removeComments": true
+    },
+    "logLevel": "error",
+    "retainStagingFolder": true,
+    "transpileOptions": {
+        "removeParameterTypes": true
+    }
+};
 
 let programBuilder = new ProgramBuilder();
 programBuilder.run(
@@ -614,6 +698,7 @@ programBuilder.run(
     maestro
     // corco
     // nba
+    nbaLatest
     // z41
     // maestroSample
     // maestroList
