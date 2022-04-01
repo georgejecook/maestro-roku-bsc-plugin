@@ -2071,6 +2071,135 @@ end sub
 
     });
 
+    describe('asXXX support', () => {
+        beforeEach(() => {
+            plugin.maestroConfig.updateAsFunctionCalls = true;
+        });
+
+        it('converts asXXX calls in regular functions into mc_getXXX', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                function notInClass()
+                    formatJson(asAA(json.user))
+                    print(asString(json.user.name, "default name"))
+                    if asBoolean(json.user.favorites[0].isActive)
+                        print asInteger(json.age[0].time[thing].other["this"])
+                    end if
+                    print m.items.getValue(asArray(items, ["none"]))
+                    print m.items.show(asNode(items[0].item))
+                end function
+            `);
+            program.validate();
+            await builder.transpile();
+            //ignore diagnostics - need to import core
+
+            let a = getContents('source/comp.brs');
+            let b = trimLeading(`function notInClass()
+            formatJson(mc_getAA(json, "user"))
+            print (mc_getString(json, "user.name", "default name"))
+            if mc_getBoolean(json, "user.favorites.0.isActive") then
+            print mc_getInteger(json.age[0].time[thing].other["this"], "age.0.time.thing.other.this")
+            end if
+            print m.items.getValue(mc_getArray(items, "", [
+            "none"
+            ]))
+            print m.items.show(mc_getNode(items, "0.item"))
+            end function`);
+        });
+
+        it('fails validations if a func or call func is present in an asXXX call', () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                function notInClass()
+                    formatJson(asAA(json.getName()))
+                    print(asString(json.user.getValue().name, "default name"))
+                    if asBoolean(json.user@.getfavorites().isActive)
+                        print asInteger(json.age[0].time[thing].get().other["this"])
+                    end if
+                end function
+            `);
+            program.validate();
+            let d = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error);
+            expect(d).to.have.lengthOf(7);
+            expect(d[4].code).to.equal('MSTO1058');
+            expect(d[4].message).to.equal('Cannot call function, or do callfunc invocation (@.) inside an asXXX expression. Function called: "getName"');
+            expect(d[5].code).to.equal('MSTO1058');
+            expect(d[5].message).to.equal('Cannot call function, or do callfunc invocation (@.) inside an asXXX expression. Function called: "getValue"');
+            expect(d[6].code).to.equal('MSTO1058');
+            expect(d[6].message).to.equal('Cannot call function, or do callfunc invocation (@.) inside an asXXX expression. Function called: "get"');
+        });
+
+        it('converts asXXX calls in namespace functions', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                namespace ns
+                    function inNAmespace()
+                        formatJson(asAA(json.user))
+                        if asBoolean(json.user.favorites[0].isActive)
+                            print asInteger(json.age[0].time[thing].other["this"])
+                        end if
+                        print m.items.getValue(asArray(items))
+                        print m.items.show(asNode(items[0].item))
+                    end function
+                end namespace
+            `);
+            program.validate();
+            await builder.transpile();
+            //ignore diagnostics - need to import core
+
+            let a = getContents('source/comp.brs');
+            let b = trimLeading(`function ns_inNAmespace()
+            formatJson(mc_getAA(json, "user"))
+            if mc_getBoolean(json, "user.favorites.0.isActive") then
+            print mc_getInteger(json.age[0].time[thing].other["this"], "age.0.time.thing.other.this")
+            end if
+            print m.items.getValue(mc_getArray(items, ""))
+            print m.items.show(mc_getNode(items, "0.item"))
+            end function`);
+        });
+        it('converts asXXX calls in class functions', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                class Comp
+                    private json
+                    function classMethod()
+                        formatJson(asAA(m.json.user))
+                        if asBoolean(m.json.user.favorites[0].isActive)
+                            print asInteger(m.json.age[0].time[thing].other["this"])
+                        end if
+                        print m.items.getValue(asArray(items))
+                        print m.items.show(asNode(items[0].item))
+                    end function
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            //ignore diagnostics - need to import core
+
+            let a = getContents('source/comp.brs');
+            let b = trimLeading(`function __Comp_builder()
+            instance = {}
+            instance.new = sub()
+            m.json = invalid
+            m.__classname = "Comp"
+            end sub
+            instance.classMethod = function()
+            formatJson(mc_getAA(m, "json.user"))
+            if mc_getBoolean(m, "json.user.favorites.0.isActive") then
+            print mc_getInteger(m.json.age[0].time[thing].other["this"], "json.age.0.time.thing.other.this")
+            end if
+            print m.items.getValue(mc_getArray(items, ""))
+            print m.items.show(mc_getNode(items, "0.item"))
+            end function
+            return instance
+            end function
+            function Comp()
+            instance = __Comp_builder()
+            instance.new()
+            return instance
+            end function`);
+        });
+    });
 
 });
 

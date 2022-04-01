@@ -11,6 +11,7 @@ export enum MaestroLogLevel {
 }
 
 export interface MaestroConfig {
+    updateAsFunctionCalls?: boolean;
     logLevel?: MaestroLogLevel;
     buildTimeImports?: any;
     excludeFilters?: string[];

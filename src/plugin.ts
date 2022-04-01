@@ -18,7 +18,13 @@ import {
     DottedSetStatement,
     isVoidType,
     isDynamicType,
-    isNewExpression
+    isNewExpression,
+    isLiteralString,
+    isIndexedGetExpression,
+    isExpression,
+    isLiteralExpression,
+    isCallExpression,
+    isCallfuncExpression
 } from 'brighterscript';
 import type {
     BrsFile,
@@ -36,6 +42,11 @@ import type {
     ClassMethodStatement
     ,
     BeforeFileTranspileEvent
+    ,
+    Expression
+    ,
+    FunctionExpression,
+    CallfuncExpression
 } from 'brighterscript';
 
 import { ProjectFileMap } from './lib/files/ProjectFileMap';
@@ -51,12 +62,13 @@ import ReflectionUtil from './lib/reflection/ReflectionUtil';
 import { FileFactory } from './lib/utils/FileFactory';
 import NodeClassUtil from './lib/node-classes/NodeClassUtil';
 import { RawCodeStatement } from './lib/utils/RawCodeStatement';
-import { addClassFieldsNotFoundOnSetOrGet, addIOCNoTypeSupplied, addIOCWrongArgs, functionNotImported, IOCClassNotInScope, namespaceNotImported, noPathForInject, noPathForIOCSync, unknownClassMethod, unknownConstructorMethod, unknownSuperClass, unknownType, wrongConstructorArgs, wrongMethodArgs } from './lib/utils/Diagnostics';
+import { addClassFieldsNotFoundOnSetOrGet, addIOCNoTypeSupplied, addIOCWrongArgs, noCallsInAsXXXAllowed, functionNotImported, IOCClassNotInScope, namespaceNotImported, noPathForInject, noPathForIOCSync, unknownClassMethod, unknownConstructorMethod, unknownSuperClass, unknownType, wrongConstructorArgs, wrongMethodArgs } from './lib/utils/Diagnostics';
 import { getAllAnnotations, getAllFields, getAllMethods, makeASTFunction } from './lib/utils/Utils';
 import { getSGMembersLookup } from './SGApi';
 import { DependencyGraph } from 'brighterscript/dist/DependencyGraph';
 import { debug } from 'node:console';
 import { DynamicType } from 'brighterscript/dist/types/DynamicType';
+import { isStringLiteral } from 'typescript';
 
 type Writeable<T> = { -readonly [P in keyof T]: T[P] };
 interface FunctionInfo {
@@ -114,6 +126,7 @@ export class MaestroPlugin implements CompilerPlugin {
         config.addFrameworkFiles = config.addFrameworkFiles ?? true;
         config.stripParamTypes = config.stripParamTypes ?? true;
         config.processXMLFiles = config.processXMLFiles ?? true;
+        config.updateAsFunctionCalls = config.updateAsFunctionCalls ?? true;
 
         config.paramStripExceptions = config.paramStripExceptions ?? ['onKeyEvent'];
         config.applyStrictToAllClasses = config.applyStrictToAllClasses ?? true;
@@ -221,6 +234,42 @@ export class MaestroPlugin implements CompilerPlugin {
             } else {
                 for (let compFile of this.getCompFilesThatHaveFileInScope(file)) {
                     this.dirtyCompFilePaths.add(compFile.fullPath);
+                }
+            }
+        }
+        if (isBrsFile(file) && this.maestroConfig.updateAsFunctionCalls) {
+            this.validateAsXXXCalls(file);
+        }
+    }
+
+    private validateAsXXXCalls(file: BrsFile) {
+        if (this.maestroConfig.updateAsFunctionCalls) {
+            for (let functionScope of file.functionScopes) {
+                // event.file.functionCalls
+                for (let callExpression of functionScope.func.callExpressions) {
+                    let regex = /as(Any|Array|AA|Boolean|Float|Integer|Node|Point|String)/i;
+                    if (isVariableExpression(callExpression.callee) && isExpression(callExpression.args[0])) {
+                        let name = callExpression.callee.name.text;
+                        if (regex.test(name)) {
+                            try {
+                                let value = callExpression.args[0] as DottedGetExpression;
+                                this.getStringPathFromDottedGet(value);
+                                this.getRootValue(value);
+                            } catch (error) {
+                                if (error.message === 'unsupportedValue') {
+                                    // eslint-disable-next-line @typescript-eslint/dot-notation
+                                    file['diagnostics'].push({
+                                        ...noCallsInAsXXXAllowed(error.functionName),
+                                        range: error.range,
+                                        file: file
+                                    });
+
+                                } else {
+                                    console.error('could not update asXXX function call, due to unexpected error', error);
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -393,10 +442,99 @@ export class MaestroPlugin implements CompilerPlugin {
                     }
                 }
             }
+            if (this.maestroConfig.updateAsFunctionCalls) {
+                for (let functionScope of event.file.functionScopes) {
+
+                    // event.file.functionCalls
+                    for (let callExpression of functionScope.func.callExpressions) {
+                        let regex = /as(Any|Array|AA|Boolean|Float|Integer|Node|Point|String)/i;
+                        if (isVariableExpression(callExpression.callee) && isExpression(callExpression.args[0])) {
+                            let name = callExpression.callee.name.text;
+                            if (regex.test(name)) {
+                                try {
+                                    let value = callExpression.args.shift() as DottedGetExpression;
+                                    let stringPath = this.getStringPathFromDottedGet(value);
+                                    name = `mc_get${name.match(regex)[1]}`;
+                                    callExpression.callee.name.text = name;
+                                    callExpression.args.unshift(stringPath);
+                                    let rootValue = this.getRootValue(value);
+                                    callExpression.args.unshift(rootValue);
+                                } catch (error) {
+                                    console.error('could not update asXXX function call, due to error', error);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
         for (let nc of this.fileMap.nodeClasses.values()) {
             nc.replacePublicMFieldRefs(this.fileMap);
         }
+    }
+
+    private getRootValue(value: DottedGetExpression) {
+        let root;
+        if (isDottedGetExpression(value)) {
+
+            root = value.obj;
+            while (root.obj) {
+                root = root.obj;
+            }
+        } else {
+            root = value;
+        }
+
+        return root;
+    }
+    private getStringPathFromDottedGet(value: DottedGetExpression) {
+        let parts = [this.getPathValuePartAsString(value)];
+        let root;
+        root = value.obj;
+        while (root) {
+            if (isCallExpression(root)) {
+                throw this.getWrongAsXXXFunctionPartError(root);
+            }
+            if (root.obj) {
+                parts.push(`${this.getPathValuePartAsString(root)}`);
+            }
+            root = root.obj;
+        }
+        return createStringLiteral(parts.reverse().join('.'));
+    }
+
+    private getWrongAsXXXFunctionPartError(expr: Expression) {
+        let error = new Error('unsupportedValue');
+        // eslint-disable-next-line @typescript-eslint/dot-notation
+        error['range'] = expr.range;
+        if (isCallExpression(expr) || isCallfuncExpression(expr)) {
+            if (isDottedGetExpression(expr.callee)) {
+                // eslint-disable-next-line @typescript-eslint/dot-notation
+                error['functionName'] = expr.callee.name.text;
+            } else {
+                // eslint-disable-next-line @typescript-eslint/dot-notation
+                error['functionName'] = '#unknown#';
+            }
+        }
+        return error;
+    }
+    private getPathValuePartAsString(expr: Expression) {
+        if (isCallExpression(expr) || isCallfuncExpression(expr)) {
+            throw this.getWrongAsXXXFunctionPartError(expr);
+        }
+        if (!expr) {
+            return undefined;
+        }
+        if (isDottedGetExpression(expr)) {
+            return expr.name.text;
+        } else if (isIndexedGetExpression(expr)) {
+            if (isLiteralExpression(expr.index)) {
+                return `${expr.index.token.text.replace(/^"/, '').replace(/"$/, '')}`;
+            } else if (isVariableExpression(expr.index)) {
+                return `${expr.index.name.text}`;
+            }
+        }
+
     }
 
     beforeProgramTranspile(program: Program, entries: TranspileObj[]) {
