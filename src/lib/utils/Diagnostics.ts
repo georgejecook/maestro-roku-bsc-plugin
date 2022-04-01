@@ -339,3 +339,10 @@ export function noPathForInject() {
         severity: DiagnosticSeverity.Error };
 }
 
+export function noCallsInAsXXXAllowed(functionName: string) {
+    return { message: `Cannot call function, or do callfunc invocation (@.) inside an asXXX expression. Function called: "${functionName}"`,
+        code: `MSTO${1058}`,
+        severity: DiagnosticSeverity.Error };
+
+}
+
