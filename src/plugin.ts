@@ -243,7 +243,7 @@ export class MaestroPlugin implements CompilerPlugin {
     }
 
     private validateAsXXXCalls(file: BrsFile) {
-        if (this.maestroConfig.updateAsFunctionCalls) {
+        if (this.maestroConfig.updateAsFunctionCalls && this.shouldDoExtraValidationsOnFile(file)) {
             for (let functionScope of file.functionScopes) {
                 // event.file.functionCalls
                 for (let callExpression of functionScope.func.callExpressions) {
@@ -460,7 +460,9 @@ export class MaestroPlugin implements CompilerPlugin {
                                     let rootValue = this.getRootValue(value);
                                     callExpression.args.unshift(rootValue);
                                 } catch (error) {
-                                    console.error('could not update asXXX function call, due to error', error);
+                                    if (error.message !== 'unsupportedValue') {
+                                        console.error('could not update asXXX function call, due to unexpected error', error);
+                                    }
                                 }
                             }
                         }
@@ -492,7 +494,7 @@ export class MaestroPlugin implements CompilerPlugin {
         let root;
         root = value.obj;
         while (root) {
-            if (isCallExpression(root)) {
+            if (isCallExpression(root) || isCallfuncExpression(root)) {
                 throw this.getWrongAsXXXFunctionPartError(root);
             }
             if (root.obj) {
@@ -507,7 +509,7 @@ export class MaestroPlugin implements CompilerPlugin {
         let error = new Error('unsupportedValue');
         // eslint-disable-next-line @typescript-eslint/dot-notation
         error['range'] = expr.range;
-        if (isCallExpression(expr) || isCallfuncExpression(expr)) {
+        if (isCallExpression(expr)) {
             if (isDottedGetExpression(expr.callee)) {
                 // eslint-disable-next-line @typescript-eslint/dot-notation
                 error['functionName'] = expr.callee.name.text;
@@ -515,6 +517,9 @@ export class MaestroPlugin implements CompilerPlugin {
                 // eslint-disable-next-line @typescript-eslint/dot-notation
                 error['functionName'] = '#unknown#';
             }
+        } else if (isCallfuncExpression(expr)) {
+            // eslint-disable-next-line @typescript-eslint/dot-notation
+            error['functionName'] = expr.methodName.text;
         }
         return error;
     }

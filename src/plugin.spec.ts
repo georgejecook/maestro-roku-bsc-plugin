@@ -2071,12 +2071,12 @@ end sub
 
     });
 
-    describe('asXXX support', () => {
+    describe('as support', () => {
         beforeEach(() => {
             plugin.maestroConfig.updateAsFunctionCalls = true;
         });
 
-        it('converts asXXX calls in regular functions into mc_getXXX', async () => {
+        it('converts as calls in regular functions into mc_getXXX', async () => {
             plugin.afterProgramCreate(program);
             program.setFile('source/comp.bs', `
                 function notInClass()
@@ -2107,29 +2107,54 @@ end sub
             end function`);
         });
 
-        it('fails validations if a func or call func is present in an asXXX call', () => {
+        it('fails validations if a method invocation is present in an as call', () => {
             plugin.afterProgramCreate(program);
             program.setFile('source/comp.bs', `
                 function notInClass()
-                    formatJson(asAA(json.getName()))
                     print(asString(json.user.getValue().name, "default name"))
-                    if asBoolean(json.user@.getfavorites().isActive)
+                    formatJson(asAA(json.getName()))
+                    if asBoolean(json.user.getfavorites().isActive)
                         print asInteger(json.age[0].time[thing].get().other["this"])
                     end if
                 end function
             `);
             program.validate();
             let d = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error);
-            expect(d).to.have.lengthOf(7);
+            expect(d).to.have.lengthOf(8);
             expect(d[4].code).to.equal('MSTO1058');
-            expect(d[4].message).to.equal('Cannot call function, or do callfunc invocation (@.) inside an asXXX expression. Function called: "getName"');
+            expect(d[4].message).to.equal('Cannot call function inside an as expression. Function called: "getValue"');
             expect(d[5].code).to.equal('MSTO1058');
-            expect(d[5].message).to.equal('Cannot call function, or do callfunc invocation (@.) inside an asXXX expression. Function called: "getValue"');
+            expect(d[5].message).to.equal('Cannot call function inside an as expression. Function called: "getName"');
             expect(d[6].code).to.equal('MSTO1058');
-            expect(d[6].message).to.equal('Cannot call function, or do callfunc invocation (@.) inside an asXXX expression. Function called: "get"');
+            expect(d[6].message).to.equal('Cannot call function inside an as expression. Function called: "getfavorites"');
+            expect(d[7].code).to.equal('MSTO1058');
+            expect(d[7].message).to.equal('Cannot call function inside an as expression. Function called: "get"');
+        });
+        it('fails validations if a callfunc invocation is present in an as call', () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                function notInClass()
+                    print(asString(json.user@.getValue().name, "default name"))
+                    formatJson(asAA(json@.getName()))
+                    if asBoolean(json.user@.getfavorites().isActive)
+                        print asInteger(json.age[0].time[thing]@.get().other["this"])
+                    end if
+                end function
+            `);
+            program.validate();
+            let d = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error);
+            expect(d).to.have.lengthOf(8);
+            expect(d[4].code).to.equal('MSTO1058');
+            expect(d[4].message).to.equal('Cannot call function inside an as expression. Function called: "getValue"');
+            expect(d[5].code).to.equal('MSTO1058');
+            expect(d[5].message).to.equal('Cannot call function inside an as expression. Function called: "getName"');
+            expect(d[6].code).to.equal('MSTO1058');
+            expect(d[6].message).to.equal('Cannot call function inside an as expression. Function called: "getfavorites"');
+            expect(d[7].code).to.equal('MSTO1058');
+            expect(d[7].message).to.equal('Cannot call function inside an as expression. Function called: "get"');
         });
 
-        it('converts asXXX calls in namespace functions', async () => {
+        it('converts as calls in namespace functions', async () => {
             plugin.afterProgramCreate(program);
             program.setFile('source/comp.bs', `
                 namespace ns
@@ -2157,7 +2182,7 @@ end sub
             print m.items.show(mc_getNode(items, "0.item"))
             end function`);
         });
-        it('converts asXXX calls in class functions', async () => {
+        it('converts as calls in class functions', async () => {
             plugin.afterProgramCreate(program);
             program.setFile('source/comp.bs', `
                 class Comp
