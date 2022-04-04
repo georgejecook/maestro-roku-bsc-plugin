@@ -2105,6 +2105,38 @@ end sub
             ]))
             print m.items.show(mc_getNode(items, "0.item"))
             end function`);
+            expect(a).to.equal(b);
+        });
+        it('ignores asXXX calls in that do not start with as_XXX', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+            function notInClass()
+            formatJson(fw_asAA(json.user))
+            print(fw_asString(json.user.name, "default name"))
+            if asBoolean(json.user.favorites[0].isActive)
+            print fw_asInteger(json.age[0].time[thing].other["this"])
+            end if
+            print m.items.getValue(fw_asArray(items, ["none"]))
+            print m.items.show(fw_asNode(items[0].item))
+            end function
+            `);
+            program.validate();
+            await builder.transpile();
+            //ignore diagnostics - need to import core
+
+            let a = getContents('source/comp.brs');
+            let b = trimLeading(`function notInClass()
+            formatJson(fw_asAA(json.user))
+            print (fw_asString(json.user.name, "default name"))
+            if mc_getBoolean(json, "user.favorites.0.isActive") then
+            print fw_asInteger(json.age[0].time[thing].other["this"])
+            end if
+            print m.items.getValue(fw_asArray(items, [
+            "none"
+            ]))
+            print m.items.show(fw_asNode(items[0].item))
+            end function`);
+            expect(a).to.equal(b);
         });
 
         it('fails validations if a method invocation is present in an as call', () => {
