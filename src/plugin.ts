@@ -477,7 +477,7 @@ export class MaestroPlugin implements CompilerPlugin {
 
     private getRootValue(value: DottedGetExpression) {
         let root;
-        if (isDottedGetExpression(value)) {
+        if (isDottedGetExpression(value) || isIndexedGetExpression(value)) {
 
             root = value.obj;
             while (root.obj) {
