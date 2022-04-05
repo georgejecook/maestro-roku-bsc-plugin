@@ -2080,12 +2080,14 @@ end sub
             plugin.afterProgramCreate(program);
             program.setFile('source/comp.bs', `
                 function notInClass()
+                    print asAA(data.Schedules[0].Productions[0])
                     formatJson(asAA(json.user))
                     print(asString(json.user.name, "default name"))
                     if asBoolean(json.user.favorites[0].isActive)
                         print asInteger(json.age[0].time[thing].other["this"])
                     end if
                     print m.items.getValue(asArray(items, ["none"]))
+                    print m.items.show(asNode(items[0].item))
                     print m.items.show(asNode(items[0].item))
                 end function
             `);
@@ -2095,14 +2097,16 @@ end sub
 
             let a = getContents('source/comp.brs');
             let b = trimLeading(`function notInClass()
+            print mc_getAA(data, "Schedules.0.Productions.0")
             formatJson(mc_getAA(json, "user"))
             print (mc_getString(json, "user.name", "default name"))
             if mc_getBoolean(json, "user.favorites.0.isActive") then
-            print mc_getInteger(json.age[0].time[thing].other["this"], "age.0.time.thing.other.this")
+            print mc_getInteger(json, "age.0.time.thing.other.this")
             end if
             print m.items.getValue(mc_getArray(items, "", [
             "none"
             ]))
+            print m.items.show(mc_getNode(items, "0.item"))
             print m.items.show(mc_getNode(items, "0.item"))
             end function`);
             expect(a).to.equal(b);
@@ -2208,7 +2212,7 @@ end sub
             let b = trimLeading(`function ns_inNAmespace()
             formatJson(mc_getAA(json, "user"))
             if mc_getBoolean(json, "user.favorites.0.isActive") then
-            print mc_getInteger(json.age[0].time[thing].other["this"], "age.0.time.thing.other.this")
+            print mc_getInteger(json, "age.0.time.thing.other.this")
             end if
             print m.items.getValue(mc_getArray(items, ""))
             print m.items.show(mc_getNode(items, "0.item"))
@@ -2243,7 +2247,7 @@ end sub
             instance.classMethod = function()
             formatJson(mc_getAA(m, "json.user"))
             if mc_getBoolean(m, "json.user.favorites.0.isActive") then
-            print mc_getInteger(m.json.age[0].time[thing].other["this"], "json.age.0.time.thing.other.this")
+            print mc_getInteger(m.json, "json.age.0.time.thing.other.this")
             end if
             print m.items.getValue(mc_getArray(items, ""))
             print m.items.show(mc_getNode(items, "0.item"))
