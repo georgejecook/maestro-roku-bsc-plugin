@@ -270,79 +270,116 @@ export function addXmlBindingCantParseFunctionCall(file: File, tagText: string, 
 }
 
 export function unknownType(name: string, scopeName: string) {
-    return { message: `Cannot find namespaced function or class with name '${name}' when this file is included in scope '${scopeName}'`,
+    return {
+        message: `Cannot find namespaced function or class with name '${name}' when this file is included in scope '${scopeName}'`,
         code: `MSTO${1046}`,
-        severity: DiagnosticSeverity.Error };
+        severity: DiagnosticSeverity.Error
+    };
 }
 
 export function unknownClassMethod(name: string, scopeName: string) {
-    return { message: `Cannot find class method with name '${name}' when this file is included in scope '${scopeName}'`,
+    return {
+        message: `Cannot find class method with name '${name}' when this file is included in scope '${scopeName}'`,
         code: `MSTO${1047}`,
-        severity: DiagnosticSeverity.Error };
+        severity: DiagnosticSeverity.Error
+    };
 }
 
 export function unknownClassField(name: string, scopeName: string) {
-    return { message: `Cannot find class field with name '${name}' when this file is included in scope '${scopeName}'`,
+    return {
+        message: `Cannot find class field with name '${name}' when this file is included in scope '${scopeName}'`,
         code: `MSTO${1048}`,
-        severity: DiagnosticSeverity.Error };
+        severity: DiagnosticSeverity.Error
+    };
 }
 
 export function wrongMethodArgs(name: string, numArgs: number, minArgs: number, maxArgs?: number) {
-    return { message: maxArgs
-        ? `Invoking '${name}' with wrong number of args. Received ${numArgs} instead of expected ${minArgs} to ${maxArgs}'`
-        : `Invoking '${name}' with wrong number of args. Received ${numArgs} instead of expected ${minArgs}'`,
-    code: `MSTO${1049}`,
-    severity: DiagnosticSeverity.Error };
+    return {
+        message: maxArgs
+            ? `Invoking '${name}' with wrong number of args. Received ${numArgs} instead of expected ${minArgs} to ${maxArgs}'`
+            : `Invoking '${name}' with wrong number of args. Received ${numArgs} instead of expected ${minArgs}'`,
+        code: `MSTO${1049}`,
+        severity: DiagnosticSeverity.Error
+    };
 }
 
 export function functionNotImported(name: string) {
-    return { message: `Method '${name}' is not in scope on any of the imported files. did you forget to import it?'`,
+    return {
+        message: `Method '${name}' is not in scope on any of the imported files. did you forget to import it?'`,
         code: `MSTO${1050}`,
-        severity: DiagnosticSeverity.Error };
+        severity: DiagnosticSeverity.Error
+    };
 }
 export function unknownConstructorMethod(name: string, scopeName: string) {
-    return { message: `Cannot find class with name '${name}' when this file is included in scope '${scopeName}'`,
+    return {
+        message: `Cannot find class with name '${name}' when this file is included in scope '${scopeName}'`,
         code: `MSTO${1051}`,
-        severity: DiagnosticSeverity.Error };
+        severity: DiagnosticSeverity.Error
+    };
 }
 export function wrongConstructorArgs(name: string, numArgs: number, minArgs: number, maxArgs?: number) {
-    return { message: maxArgs
-        ? `Instantiating class '${name}' with wrong number of args. Received ${numArgs} instead of expected ${minArgs} to ${maxArgs}'`
-        : `Instantiating class '${name}' with wrong number of args. Received ${numArgs} instead of expected ${minArgs}'`,
-    code: `MSTO${1052}`,
-    severity: DiagnosticSeverity.Error };
+    return {
+        message: maxArgs
+            ? `Instantiating class '${name}' with wrong number of args. Received ${numArgs} instead of expected ${minArgs} to ${maxArgs}'`
+            : `Instantiating class '${name}' with wrong number of args. Received ${numArgs} instead of expected ${minArgs}'`,
+        code: `MSTO${1052}`,
+        severity: DiagnosticSeverity.Error
+    };
 }
 export function namespaceNotImported(name: string) {
-    return { message: `Namespace method '${name}' is not in scope on any of the imported files. Did you forget to import it?'`,
+    return {
+        message: `Namespace method '${name}' is not in scope on any of the imported files. Did you forget to import it?'`,
         code: `MSTO${1053}`,
-        severity: DiagnosticSeverity.Error };
+        severity: DiagnosticSeverity.Error
+    };
 }
 export function addNodeClassUnknownClassType(file: BrsFile, name: string, fieldName: string, className: string, line = 0, col = 0) {
     file.addDiagnostics([createDiagnostic(file, 1054, `Node class field "${name}" is of unknown type ${fieldName}, in class ${className}`, line, col)]);
 
 }
+
 export function unknownSuperClass(name: string) {
-    return { message: `Extended class '${name}' cannot be found. Did you gorget to import it?'`,
+    return {
+        message: `Extended class '${name}' cannot be found. Did you gorget to import it?'`,
         code: `MSTO${1055}`,
-        severity: DiagnosticSeverity.Error };
+        severity: DiagnosticSeverity.Error
+    };
 }
 
 export function noPathForIOCSync() {
-    return { message: `@sync tag requires that the injected field is private and is injecting a sub-value, from a node e.g @inject("user", "name"), @inject("user", "profile.name") - in the latter case, the observer will fire when profile.name changes.'`,
+    return {
+        message: `@sync tag requires that the injected field is private and is injecting a sub-value, from a node e.g @inject("user", "name"), @inject("user", "profile.name") - in the latter case, the observer will fire when profile.name changes.'`,
         code: `MSTO${1056}`,
-        severity: DiagnosticSeverity.Error };
+        severity: DiagnosticSeverity.Error
+    };
 }
 
 export function noPathForInject() {
-    return { message: `@inject tag requires 1 or 2 arguments to indicate what to inject. e.g @inject("user", "name"), @inject("user", "profile.name") '`,
+    return {
+        message: `@inject tag requires 1 or 2 arguments to indicate what to inject. e.g @inject("user", "name"), @inject("user", "profile.name") '`,
         code: `MSTO${1057}`,
-        severity: DiagnosticSeverity.Error };
+        severity: DiagnosticSeverity.Error
+    };
 }
 
 export function noCallsInAsXXXAllowed(functionName: string) {
-    return { message: `Cannot call function inside an as expression. Function called: "${functionName}"`,
+    return {
+        message: `Cannot call function inside an as expression. Function called: "${functionName}"`,
         code: `MSTO${1058}`,
-        severity: DiagnosticSeverity.Error };
+        severity: DiagnosticSeverity.Error
+    };
 
 }
 
+export function observeRequiresFirstArgumentIsField() {
+    return {
+        message: `m.observe requires the first argument end with a field, such as 'node.field'`,
+        code: `MSTO${1059}`,
+        severity: DiagnosticSeverity.Error
+    };
+}
+
+export function addTooManyPublicParams(file: BrsFile, name: string, className: string, line = 0, col = 0) {
+    file.addDiagnostics([createDiagnostic(file, 1060, `Node class public method "${name}", in class ${className}, has too many paramters. Public methods (which become callfunc methods), will crash a roku device when they have more than 5 params`, line, col)]);
+
+}

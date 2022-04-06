@@ -4,7 +4,7 @@ import { isCallExpression, isNewExpression, TokenKind, isClassMethodStatement, P
 import { TranspileState } from 'brighterscript/dist/parser/TranspileState';
 import type { ProjectFileMap } from '../files/ProjectFileMap';
 import { expressionToString, expressionToValue } from '../Utils';
-import { addNodeClassCallbackNotDefined, addNodeClassCallbackNotFound, addNodeClassCallbackWrongParams, addNodeClassFieldNoFieldType, addNodeClassNoExtendNodeFound, addNodeClassUnknownClassType } from '../utils/Diagnostics';
+import { addNodeClassCallbackNotDefined, addNodeClassCallbackNotFound, addNodeClassCallbackWrongParams, addNodeClassFieldNoFieldType, addNodeClassNoExtendNodeFound, addNodeClassUnknownClassType, addTooManyPublicParams } from '../utils/Diagnostics';
 import type { FileFactory } from '../utils/FileFactory';
 import { RawCodeStatement } from '../utils/RawCodeStatement';
 import { getAllFields } from '../utils/Utils';
@@ -492,10 +492,14 @@ export class NodeClass {
             }
             if (field.isPossibleClassType && !this.fileMap.allClassNames.has(field.fieldType)) {
                 addNodeClassUnknownClassType(this.file, field.name, field.classType, this.classStatement.getName(ParseMode.BrighterScript), field.field.range.start.line, field.field.range.start.character);
-
             }
         }
 
+        for (let method of this.classStatement.methods.filter(this.classMemberFilter)) {
+            if (method.func.parameters.length > 5) {
+                addTooManyPublicParams(this.file, method.name.text, this.classStatement.getName(ParseMode.BrighterScript), method.name.range.start.line, method.name.range.start.character);
+            }
+        }
     }
 
     public replacePublicMFieldRefs(fileMap: ProjectFileMap) {
@@ -596,5 +600,4 @@ export class NodeClass {
         return fieldType === 'invalid' ? undefined : fieldType;
 
     }
-
 }

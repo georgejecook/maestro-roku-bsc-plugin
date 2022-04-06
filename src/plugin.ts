@@ -62,7 +62,7 @@ import ReflectionUtil from './lib/reflection/ReflectionUtil';
 import { FileFactory } from './lib/utils/FileFactory';
 import NodeClassUtil from './lib/node-classes/NodeClassUtil';
 import { RawCodeStatement } from './lib/utils/RawCodeStatement';
-import { addClassFieldsNotFoundOnSetOrGet, addIOCNoTypeSupplied, addIOCWrongArgs, noCallsInAsXXXAllowed, functionNotImported, IOCClassNotInScope, namespaceNotImported, noPathForInject, noPathForIOCSync, unknownClassMethod, unknownConstructorMethod, unknownSuperClass, unknownType, wrongConstructorArgs, wrongMethodArgs } from './lib/utils/Diagnostics';
+import { addClassFieldsNotFoundOnSetOrGet, addIOCNoTypeSupplied, addIOCWrongArgs, noCallsInAsXXXAllowed, functionNotImported, IOCClassNotInScope, namespaceNotImported, noPathForInject, noPathForIOCSync, unknownClassMethod, unknownConstructorMethod, unknownSuperClass, unknownType, wrongConstructorArgs, wrongMethodArgs, observeRequiresFirstArgumentIsField } from './lib/utils/Diagnostics';
 import { getAllAnnotations, getAllFields, getAllMethods, makeASTFunction } from './lib/utils/Utils';
 import { getSGMembersLookup } from './SGApi';
 import { DependencyGraph } from 'brighterscript/dist/DependencyGraph';
@@ -127,6 +127,7 @@ export class MaestroPlugin implements CompilerPlugin {
         config.stripParamTypes = config.stripParamTypes ?? true;
         config.processXMLFiles = config.processXMLFiles ?? true;
         config.updateAsFunctionCalls = config.updateAsFunctionCalls ?? true;
+        config.updateObserveCalls = config.updateObserveCalls ?? true;
 
         config.paramStripExceptions = config.paramStripExceptions ?? ['onKeyEvent'];
         config.applyStrictToAllClasses = config.applyStrictToAllClasses ?? true;
@@ -398,6 +399,7 @@ export class MaestroPlugin implements CompilerPlugin {
         if (isBrsFile(event.file) && this.shouldParseFile(event.file)) {
             let classes = event.file.parser.references.classStatements;
             for (let cs of classes) {
+                //do class updates in here
                 let fieldMap = getAllFields(this.fileMap, cs);
                 let id = createToken(TokenKind.Identifier, '__classname', cs.range);
                 // eslint-disable-next-line @typescript-eslint/dot-notation
@@ -428,6 +430,7 @@ export class MaestroPlugin implements CompilerPlugin {
                     this.updateFieldSets(cs);
                 }
                 this.injectIOCCode(cs, event.file);
+                this.updateObserveCalls(cs, event.file);
             }
             if (this.maestroConfig.stripParamTypes) {
                 for (let fs of event.file.parser.references.functionExpressions) {
@@ -442,27 +445,34 @@ export class MaestroPlugin implements CompilerPlugin {
                     }
                 }
             }
-            if (this.maestroConfig.updateAsFunctionCalls) {
-                for (let functionScope of event.file.functionScopes) {
+            this.updateAsFunctionCalls(event.file);
+        }
+        for (let nc of this.fileMap.nodeClasses.values()) {
+            nc.replacePublicMFieldRefs(this.fileMap);
+        }
+    }
 
-                    // event.file.functionCalls
-                    for (let callExpression of functionScope.func.callExpressions) {
-                        let regex = /^as(Any|Array|AA|Boolean|Float|Integer|Node|Point|String)/i;
-                        if (isVariableExpression(callExpression.callee) && isExpression(callExpression.args[0])) {
-                            let name = callExpression.callee.name.text;
-                            if (regex.test(name)) {
-                                try {
-                                    let value = callExpression.args.shift() as DottedGetExpression;
-                                    let stringPath = this.getStringPathFromDottedGet(value);
-                                    name = `mc_get${name.match(regex)[1]}`;
-                                    callExpression.callee.name.text = name;
-                                    callExpression.args.unshift(stringPath);
-                                    let rootValue = this.getRootValue(value);
-                                    callExpression.args.unshift(rootValue);
-                                } catch (error) {
-                                    if (error.message !== 'unsupportedValue') {
-                                        console.error('could not update asXXX function call, due to unexpected error', error);
-                                    }
+    private updateAsFunctionCalls(file: BrsFile) {
+        if (this.maestroConfig.updateAsFunctionCalls) {
+            for (let functionScope of file.functionScopes) {
+
+                // event.file.functionCalls
+                for (let callExpression of functionScope.func.callExpressions) {
+                    let regex = /^as(Any|Array|AA|Boolean|Float|Integer|Node|Point|String)/i;
+                    if (isVariableExpression(callExpression.callee) && isExpression(callExpression.args[0])) {
+                        let name = callExpression.callee.name.text;
+                        if (regex.test(name)) {
+                            try {
+                                let value = callExpression.args.shift() as DottedGetExpression;
+                                let stringPath = this.getStringPathFromDottedGet(value);
+                                name = `mc_get${name.match(regex)[1]}`;
+                                callExpression.callee.name.text = name;
+                                callExpression.args.unshift(stringPath);
+                                let rootValue = this.getRootValue(value);
+                                callExpression.args.unshift(rootValue);
+                            } catch (error) {
+                                if (error.message !== 'unsupportedValue') {
+                                    console.error('could not update asXXX function call, due to unexpected error', error);
                                 }
                             }
                         }
@@ -470,8 +480,34 @@ export class MaestroPlugin implements CompilerPlugin {
                 }
             }
         }
-        for (let nc of this.fileMap.nodeClasses.values()) {
-            nc.replacePublicMFieldRefs(this.fileMap);
+    }
+
+    private updateObserveCalls(cs: ClassStatement, file: BrsFile) {
+        if (this.maestroConfig.updateObserveCalls) {
+            for (let method of cs.methods) {
+
+                // event.file.functionCalls
+                for (let callExpression of method.func.callExpressions) {
+                    let regex = /^(observe|unobserve)/i;
+                    if (isDottedGetExpression(callExpression.callee) && isDottedGetExpression(callExpression.args[0])) {
+                        let name = callExpression.callee.name.text;
+                        if (regex.test(name)) {
+                            try {
+                                let arg0 = callExpression.args[0];
+                                let functionName = arg0.name.text;
+                                arg0 = callExpression.args.shift() as DottedGetExpression;
+                                callExpression.args.unshift(createStringLiteral(functionName));
+                                callExpression.args.unshift(arg0.obj);
+                                callExpression.callee.name.text = `${name.match(regex)[1]}NodeField`;
+                            } catch (error) {
+                                if (error.message !== 'unsupportedValue') {
+                                    console.error('could not update asXXX function call, due to unexpected error', error);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -1014,6 +1050,17 @@ export class MaestroPlugin implements CompilerPlugin {
                                         // eslint-disable-next-line @typescript-eslint/dot-notation
                                         file['diagnostics'].push({
                                             ...functionNotImported(`${name}`),
+                                            range: ce.range,
+                                            file: file
+                                        });
+                                    }
+                                }
+                                if (this.maestroConfig.updateObserveCalls) {
+                                    //CHECK that first argument of observe function is a dotted get
+                                    if (name === 'observe' && !isDottedGetExpression(ce.args[0])) {
+                                        // eslint-disable-next-line @typescript-eslint/dot-notation
+                                        file['diagnostics'].push({
+                                            ...observeRequiresFirstArgumentIsField(),
                                             range: ce.range,
                                             file: file
                                         });
