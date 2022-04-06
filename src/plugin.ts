@@ -62,7 +62,7 @@ import ReflectionUtil from './lib/reflection/ReflectionUtil';
 import { FileFactory } from './lib/utils/FileFactory';
 import NodeClassUtil from './lib/node-classes/NodeClassUtil';
 import { RawCodeStatement } from './lib/utils/RawCodeStatement';
-import { addClassFieldsNotFoundOnSetOrGet, addIOCNoTypeSupplied, addIOCWrongArgs, noCallsInAsXXXAllowed, functionNotImported, IOCClassNotInScope, namespaceNotImported, noPathForInject, noPathForIOCSync, unknownClassMethod, unknownConstructorMethod, unknownSuperClass, unknownType, wrongConstructorArgs, wrongMethodArgs, observeRequiresFirstArgumentIsField } from './lib/utils/Diagnostics';
+import { addClassFieldsNotFoundOnSetOrGet, addIOCNoTypeSupplied, addIOCWrongArgs, noCallsInAsXXXAllowed, functionNotImported, IOCClassNotInScope, namespaceNotImported, noPathForInject, noPathForIOCSync, unknownClassMethod, unknownConstructorMethod, unknownSuperClass, unknownType, wrongConstructorArgs, wrongMethodArgs, observeRequiresFirstArgumentIsField, observeRequiresFirstArgumentIsNotM } from './lib/utils/Diagnostics';
 import { getAllAnnotations, getAllFields, getAllMethods, makeASTFunction } from './lib/utils/Utils';
 import { getSGMembersLookup } from './SGApi';
 import { DependencyGraph } from 'brighterscript/dist/DependencyGraph';
@@ -824,9 +824,6 @@ export class MaestroPlugin implements CompilerPlugin {
 
                         let observerAnnotation = (f.annotations || []).find((a) => a.name.toLowerCase() === 'observer');
                         if (observerAnnotation || syncAnnotation) {
-                            // '@observer("onUserAuthorizedChange")
-                            // '@inject("user.details.isAuthorized") -("isAuthorized", "user", "details.isAuthorized", "details", "isAuthorized", onUserAuthorized)
-                            // '@inject("user", "isAuthorized") - ("isAuthorized", "user", "isAuthorized", "", "isAuthorized", onUserAuthorized)
                             let funcName = 'invalid';
                             if (observerAnnotation) {
                                 let observerArgs = observerAnnotation?.getArguments() ?? [];
@@ -1057,13 +1054,27 @@ export class MaestroPlugin implements CompilerPlugin {
                                 }
                                 if (this.maestroConfig.updateObserveCalls) {
                                     //CHECK that first argument of observe function is a dotted get
-                                    if (name === 'observe' && !isDottedGetExpression(ce.args[0])) {
-                                        // eslint-disable-next-line @typescript-eslint/dot-notation
-                                        file['diagnostics'].push({
-                                            ...observeRequiresFirstArgumentIsField(),
-                                            range: ce.range,
-                                            file: file
-                                        });
+                                    if (name === 'observe') {
+                                        if (!isDottedGetExpression(ce.args[0])) {
+                                            // eslint-disable-next-line @typescript-eslint/dot-notation
+                                            file['diagnostics'].push({
+                                                ...observeRequiresFirstArgumentIsField(),
+                                                range: ce.range,
+                                                file: file
+                                            });
+                                        } else {
+                                            let arg0 = ce.args.shift() as DottedGetExpression;
+                                            if (isVariableExpression(arg0.obj) && arg0.obj.name.text === 'm') {
+                                                // eslint-disable-next-line @typescript-eslint/dot-notation
+                                                file['diagnostics'].push({
+                                                    ...observeRequiresFirstArgumentIsNotM(),
+                                                    range: ce.range,
+                                                    file: file
+                                                });
+                                            }
+
+                                        }
+
                                     }
                                 }
                             }

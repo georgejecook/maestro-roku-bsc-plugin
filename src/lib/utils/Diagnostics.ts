@@ -383,3 +383,11 @@ export function addTooManyPublicParams(file: BrsFile, name: string, className: s
     file.addDiagnostics([createDiagnostic(file, 1060, `Node class public method "${name}", in class ${className}, has too many paramters. Public methods (which become callfunc methods), will crash a roku device when they have more than 5 params`, line, col)]);
 
 }
+
+export function observeRequiresFirstArgumentIsNotM() {
+    return {
+        message: `m.observe cannot observe m, did you accidentally try to observe 'm.node', instead of 'm.node.field'?`,
+        code: `MSTO${1061}`,
+        severity: DiagnosticSeverity.Error
+    };
+}

@@ -2334,8 +2334,8 @@ end sub
             class Comp
             private json
             function classMethod()
-                m.observe(node, m.callbackFunction)
                 m.observe(m.node, m.callbackFunction)
+                m.observe(node, m.callbackFunction)
                 m.observe(m.nodes[0], m.callbackFunction)
                 m.observe(m.nodes["indexed"], m.callbackFunction)
                 m.observe(m.validNode.chained[0].invalidCall(), m.callbackFunction)
@@ -2350,17 +2350,19 @@ end sub
             `);
             program.validate();
             let d = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error && d.code !== 'MSTO1040');
-            expect(d).to.have.lengthOf(5);
-            expect(d[0].code).to.equal('MSTO1059');
+            expect(d).to.have.lengthOf(6);
+            expect(d[0].code).to.equal('MSTO1061');
             expect(d[1].code).to.equal('MSTO1059');
             expect(d[2].code).to.equal('MSTO1059');
             expect(d[3].code).to.equal('MSTO1059');
+            expect(d[4].code).to.equal('MSTO1059');
+            expect(d[5].code).to.equal('MSTO1059');
         });
 
-        it('converts as calls in class functions', async () => {
+        it.only('converts as calls in class functions', async () => {
             plugin.afterProgramCreate(program);
             program.setFile('source/comp.bs', `
-                class Comp
+            class Comp
                     private json
                     function classMethod()
                         m.observe(node.field, m.callbackFunction)
@@ -2380,11 +2382,13 @@ end sub
                         m.unobserve(m.getNode().field, m.callbackFunction)
                         m.unobserve(m.getNode("id").field, m.callbackFunction)
                         m.unobserve(getNode("id").field, m.callbackFunction)
-                        m.unobserve(getNode(").field, m.callbackFunction)
-                    end function
-                end class
-            `);
+                        end function
+                        end class
+                        `);
             program.validate();
+            let d = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error && d.code !== 'MSTO1040' && d.code !== 1001);
+            expect(d).to.have.lengthOf(0);
+
             await builder.transpile();
             //ignore diagnostics - need to import core
 
@@ -2396,15 +2400,15 @@ end sub
             m.__classname = "Comp"
             end sub
             instance.classMethod = function()
-            m.observeNodeField(node, "field", m.callbackFunction)
-            m.observeNodeField(m.node, "field", m.callbackFunction)
-            m.observeNodeField(m.nodes[0], "field", m.callbackFunction)
-            m.observeNodeField(m.nodes["indexed"], "field", m.callbackFunction)
-            m.observeNodeField(m.nodes["indexed"], "field", m.callbackFunction)
-            m.observeNodeField(getNode(""), "field", m.callbackFunction)
-            m.observeNodeField(m.getNode(), "field", m.callbackFunction)
-            m.observeNodeField(m.getNode("id"), "field", m.callbackFunction)
-            m.observeNodeField(getNode("id"), "field", m.callbackFunction)
+            m.observeNodeField(m, "callbackFunction")
+            m.observeNodeField(m, "callbackFunction")
+            m.observeNodeField(m, "callbackFunction")
+            m.observeNodeField(m, "callbackFunction")
+            m.observeNodeField(m, "callbackFunction")
+            m.observeNodeField(m, "callbackFunction")
+            m.observeNodeField(m, "callbackFunction")
+            m.observeNodeField(m, "callbackFunction")
+            m.observeNodeField(m, "callbackFunction")
             m.unobserveNodeField(node, "field", m.callbackFunction)
             m.unobserveNodeField(m.node, "field", m.callbackFunction)
             m.unobserveNodeField(m.nodes[0], "field", m.callbackFunction)
