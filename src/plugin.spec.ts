@@ -2321,6 +2321,56 @@ end sub
             expect(a).to.equal(b);
         });
 
+        it('does not update observeNodeField', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                class Comp
+                    function notInClass()
+                        m.observeNodeField(node, "field", m.callbackFunction)
+                        m.observeNodeField(m.node, "field", m.callbackFunction)
+                        m.observeNodeField(m.nodes[0], "field", m.callbackFunction)
+                        m.observeNodeField(m.nodes["indexed"], "field", m.callbackFunction)
+                        m.observeNodeField(m.nodes["indexed"], "field", m.callbackFunction)
+                        m.unobserveNodeField(node, "field", m.callbackFunction)
+                        m.unobserveNodeField(m.node, "field", m.callbackFunction)
+                        m.unobserveNodeField(m.nodes[0], "field", m.callbackFunction)
+                        m.unobserveNodeField(m.nodes["indexed"], "field", m.callbackFunction)
+                        m.unobserveNodeField(m.nodes["indexed"], "field", m.callbackFunction)
+                    end function
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            //ignore diagnostics - need to import core
+
+            let a = getContents('source/comp.brs');
+            let b = trimLeading(`function __Comp_builder()
+            instance = {}
+            instance.new = sub()
+            m.__classname = "Comp"
+            end sub
+            instance.notInClass = function()
+            m.observeNodeField(node, "field", m.callbackFunction)
+            m.observeNodeField(m.node, "field", m.callbackFunction)
+            m.observeNodeField(m.nodes[0], "field", m.callbackFunction)
+            m.observeNodeField(m.nodes["indexed"], "field", m.callbackFunction)
+            m.observeNodeField(m.nodes["indexed"], "field", m.callbackFunction)
+            m.unobserveNodeField(node, "field", m.callbackFunction)
+            m.unobserveNodeField(m.node, "field", m.callbackFunction)
+            m.unobserveNodeField(m.nodes[0], "field", m.callbackFunction)
+            m.unobserveNodeField(m.nodes["indexed"], "field", m.callbackFunction)
+            m.unobserveNodeField(m.nodes["indexed"], "field", m.callbackFunction)
+            end function
+            return instance
+            end function
+            function Comp()
+            instance = __Comp_builder()
+            instance.new()
+            return instance
+            end function`);
+            expect(a).to.equal(b);
+        });
+
 
         it('fails validations if field name is not present', () => {
             plugin.afterProgramCreate(program);

@@ -488,7 +488,7 @@ export class MaestroPlugin implements CompilerPlugin {
 
                 // event.file.functionCalls
                 for (let callExpression of method.func.callExpressions) {
-                    let regex = /^(observe|unobserve)/i;
+                    let regex = /^(observe|unobserve)$/i;
                     if (isDottedGetExpression(callExpression.callee) && isDottedGetExpression(callExpression.args[0])) {
                         let name = callExpression.callee.name.text;
                         if (regex.test(name)) {
