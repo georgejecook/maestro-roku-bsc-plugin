@@ -2312,17 +2312,11 @@ end sub
 
             let a = getContents('source/comp.brs');
             let b = trimLeading(`function notInClass()
-            print mc_getAA(data, "Schedules.0.Productions.0")
-            formatJson(mc_getAA(json, "user"))
-            print (mc_getString(json, "user.name", "default name"))
-            if mc_getBoolean(json, "user.favorites.0.isActive") then
-            print mc_getInteger(json, "age.0.time.thing.other.this")
-            end if
-            print m.items.getValue(mc_getArray(items, "", [
-            "none"
-            ]))
-            print m.items.show(mc_getNode(items, "0.item"))
-            print m.items.show(mc_getNode(items, "0.item"))
+            m.observe(node.field, m.callbackFunction)
+            m.observe(m.node.field, m.callbackFunction)
+            m.observe(m.nodes[0].field, m.callbackFunction)
+            m.observe(m.nodes["indexed"].field, m.callbackFunction)
+            m.observe(m.nodes["indexed"].field, m.callbackFunction)
             end function`);
             expect(a).to.equal(b);
         });
@@ -2359,7 +2353,7 @@ end sub
             expect(d[5].code).to.equal('MSTO1059');
         });
 
-        it.only('converts as calls in class functions', async () => {
+        it('converts as calls in class functions', async () => {
             plugin.afterProgramCreate(program);
             program.setFile('source/comp.bs', `
             class Comp
