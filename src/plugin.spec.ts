@@ -1687,6 +1687,33 @@ describe('MaestroPlugin', () => {
                 expect(d[0].code).to.equal('MSTO1056');
             });
 
+            it('gives diagnostic when a public nodeclass function has too many params', async () => {
+                plugin.afterProgramCreate(program);
+
+                program.setFile('source/VM.bs', `
+                    @node("test", "Group")
+                    class VM
+                        function okay1(a1 as string)
+                        end function
+                        function okay2(a1 as string, a2 as string)
+                        end function
+                        function okay3(a1 as string, a2 as string, a3 as string)
+                        end function
+                        function okay4(a1 as string, a2 as string, a3 as string, a4 as string)
+                        end function
+                        function okay5(a1 as string, a2 as string, a3 as string, a4 as string, a5 as string)
+                        end function
+                        function tooManyArgs(a1 as string, a2 as string, a3 as string, a4 as string, a5 as string, a6 as string)
+                        end function
+                    end class
+                `);
+                program.validate();
+                await builder.transpile();
+                let d = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error);
+                expect(d).to.have.lengthOf(1);
+                expect(d[0].code).to.equal('MSTO1060');
+            });
+
             it('allows observing of an injected field', async () => {
                 plugin.afterProgramCreate(program);
 
@@ -2259,6 +2286,140 @@ end sub
             instance.new()
             return instance
             end function`);
+        });
+    });
+
+    describe('observe substitution support', () => {
+        beforeEach(() => {
+            plugin.maestroConfig.updateAsFunctionCalls = true;
+            plugin.maestroConfig.updateObserveCalls = true;
+        });
+
+        it('does nothing outside of a class', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                function notInClass()
+                    m.observe(node.field, m.callbackFunction)
+                    m.observe(m.node.field, m.callbackFunction)
+                    m.observe(m.nodes[0].field, m.callbackFunction)
+                    m.observe(m.nodes["indexed"].field, m.callbackFunction)
+                    m.observe(m.nodes["indexed"].field, m.callbackFunction)
+                end function
+            `);
+            program.validate();
+            await builder.transpile();
+            //ignore diagnostics - need to import core
+
+            let a = getContents('source/comp.brs');
+            let b = trimLeading(`function notInClass()
+            m.observe(node.field, m.callbackFunction)
+            m.observe(m.node.field, m.callbackFunction)
+            m.observe(m.nodes[0].field, m.callbackFunction)
+            m.observe(m.nodes["indexed"].field, m.callbackFunction)
+            m.observe(m.nodes["indexed"].field, m.callbackFunction)
+            end function`);
+            expect(a).to.equal(b);
+        });
+
+
+        it('fails validations if field name is not present', () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+            class Comp
+            private json
+            function classMethod()
+                m.observe(m.node, m.callbackFunction)
+                m.observe(node, m.callbackFunction)
+                m.observe(m.nodes[0], m.callbackFunction)
+                m.observe(m.nodes["indexed"], m.callbackFunction)
+                m.observe(m.validNode.chained[0].invalidCall(), m.callbackFunction)
+                m.observe(node.invalidCall(), m.callbackFunction)
+                m.unobserve(m.node.field, m.callbackFunction)
+                m.unobserve(m.nodes[0].field, m.callbackFunction)
+                m.unobserve(m.nodes["indexed"].field, m.callbackFunction)
+                m.unobserve(m.nodes["indexed"].field, m.callbackFunction)
+                m.unobserve(node.invalidCall(), m.callbackFunction)
+            end function
+        end class
+            `);
+            program.validate();
+            let d = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error && d.code !== 'MSTO1040');
+            expect(d).to.have.lengthOf(6);
+            expect(d[0].code).to.equal('MSTO1061');
+            expect(d[1].code).to.equal('MSTO1059');
+            expect(d[2].code).to.equal('MSTO1059');
+            expect(d[3].code).to.equal('MSTO1059');
+            expect(d[4].code).to.equal('MSTO1059');
+            expect(d[5].code).to.equal('MSTO1059');
+        });
+
+        it('converts as calls in class functions', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+            class Comp
+                    private json
+                    function classMethod()
+                        m.observe(node.field, m.callbackFunction)
+                        m.observe(m.node.field, m.callbackFunction)
+                        m.observe(m.nodes[0].field, m.callbackFunction)
+                        m.observe(m.nodes["indexed"].field, m.callbackFunction)
+                        m.observe(m.nodes["indexed"].field, m.callbackFunction)
+                        m.observe(getNode("").field, m.callbackFunction)
+                        m.observe(m.getNode().field, m.callbackFunction)
+                        m.observe(m.getNode("id").field, m.callbackFunction)
+                        m.observe(getNode("id").field, m.callbackFunction)
+                        m.unobserve(node.field, m.callbackFunction)
+                        m.unobserve(m.node.field, m.callbackFunction)
+                        m.unobserve(m.nodes[0].field, m.callbackFunction)
+                        m.unobserve(m.nodes["indexed"].field, m.callbackFunction)
+                        m.unobserve(m.nodes["indexed"].field, m.callbackFunction)
+                        m.unobserve(m.getNode().field, m.callbackFunction)
+                        m.unobserve(m.getNode("id").field, m.callbackFunction)
+                        m.unobserve(getNode("id").field, m.callbackFunction)
+                        end function
+                        end class
+                        `);
+            program.validate();
+            let d = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error && d.code !== 'MSTO1040' && d.code !== 1001);
+            expect(d).to.have.lengthOf(0);
+
+            await builder.transpile();
+            //ignore diagnostics - need to import core
+
+            let a = getContents('source/comp.brs');
+            let b = trimLeading(`function __Comp_builder()
+            instance = {}
+            instance.new = sub()
+            m.json = invalid
+            m.__classname = "Comp"
+            end sub
+            instance.classMethod = function()
+            m.observeNodeField(m, "callbackFunction")
+            m.observeNodeField(m, "callbackFunction")
+            m.observeNodeField(m, "callbackFunction")
+            m.observeNodeField(m, "callbackFunction")
+            m.observeNodeField(m, "callbackFunction")
+            m.observeNodeField(m, "callbackFunction")
+            m.observeNodeField(m, "callbackFunction")
+            m.observeNodeField(m, "callbackFunction")
+            m.observeNodeField(m, "callbackFunction")
+            m.unobserveNodeField(node, "field", m.callbackFunction)
+            m.unobserveNodeField(m.node, "field", m.callbackFunction)
+            m.unobserveNodeField(m.nodes[0], "field", m.callbackFunction)
+            m.unobserveNodeField(m.nodes["indexed"], "field", m.callbackFunction)
+            m.unobserveNodeField(m.nodes["indexed"], "field", m.callbackFunction)
+            m.unobserveNodeField(m.getNode(), "field", m.callbackFunction)
+            m.unobserveNodeField(m.getNode("id"), "field", m.callbackFunction)
+            m.unobserveNodeField(getNode("id"), "field", m.callbackFunction)
+            end function
+            return instance
+            end function
+            function Comp()
+            instance = __Comp_builder()
+            instance.new()
+            return instance
+            end function`);
+            expect(a).to.equal(b);
         });
     });
 
