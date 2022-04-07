@@ -1,10 +1,12 @@
-import type { FunctionStatement,
+import type {
+    FunctionStatement,
     IfStatement,
     BrsFile,
     XmlFile,
     SourceObj,
     Program,
-    TranspileObj } from 'brighterscript';
+    TranspileObj
+} from 'brighterscript';
 
 import { createSGAttribute, util, Lexer, Parser, ParseMode } from 'brighterscript';
 
@@ -50,7 +52,7 @@ export class BindingProcessor {
                 if (entry) {
                     let vmFile = this.fileMap.getFileForClass(file.vmClassName);
                     if (vmFile) {
-
+                        //BRON_AST_EDIT_HERE
                         let xmlFile = file.bscFile as XmlFile;
                         // eslint-disable-next-line @typescript-eslint/dot-notation
                         let dg = program['dependencyGraph'] as DependencyGraph;
@@ -106,6 +108,7 @@ end function\n`;
         let bindings = file.bindings.concat(file.getAllParentBindings());
         if (bindings.length > 0) {
             //TODO convert to pure AST
+            //BRON_AST_EDIT_HERE
             let bindingInitStatement = this.getBindingInitMethod(
                 bindings.filter(
                     (b) => b.properties.type !== BindingType.static &&
@@ -193,15 +196,18 @@ end function\n`;
     private addInitCreateNodeVarsCall(file: BrsFile) {
         let initFunc = file.parser.references.functionStatements.find((f) => f.name.text.toLowerCase() === 'init');
         if (initFunc) {
+            //BRON_AST_EDIT_HERE
             initFunc.func.body.statements.splice(0, 0, new RawCodeStatement(`
   m_createNodeVars()
     `));
         }
         if (!initFunc && this.config.mvvm.callCreateNodeVarsInInit) {
             console.log('init func was not present in ', file.pkgPath, ' adding init function');
+            //BRON_AST_EDIT_HERE
             let initFunc = makeASTFunction(`function init()
   m_createNodeVars()
 end function`);
+            //BRON_AST_EDIT_HERE
             file.parser.references.functionStatements.push(initFunc);
             file.parser.references.functionStatementLookup.set('init', initFunc);
             file.parser.ast.statements.push(initFunc);
@@ -314,6 +320,7 @@ end function`);
     private addBindingMethodsForFile(file: File) {
         //TODO - use AST for this.
         let associatedMFile = file.associatedFile.bscFile as BrsFile;
+        //BRON_AST_EDIT_HERE
         let bindings = file.bindings.concat(file.getAllParentBindings());
         if (bindings.length > 0) {
             //TODO convert to pure AST
@@ -328,10 +335,12 @@ end function`);
             ), file.bscFile as XmlFile);
 
             if (bindingInitStatement) {
+                //BRON_AST_EDIT_HERE
                 associatedMFile.parser.statements.push(bindingInitStatement);
                 file.associatedFile.isASTChanged = true;
             }
             if (staticBindingStatement) {
+                //BRON_AST_EDIT_HERE
                 associatedMFile.parser.statements.push(staticBindingStatement);
                 file.associatedFile.isASTChanged = true;
             }
@@ -356,14 +365,17 @@ end function`);
 
         if (func) {
             let ifStatement = func.func.body.statements[0] as IfStatement;
+            //BRON_AST_EDIT_HERE
             let nodeIds = [
                 ...new Set(bindings.filter((b) => !b.isTopBinding).map((b) => b.nodeId))
             ];
 
             for (let binding of bindings) {
+                //BRON_AST_EDIT_HERE
                 ifStatement.thenBranch.statements.push(new RawCodeStatement(binding.getInitText(), file, binding.range));
 
             }
+            //BRON_AST_EDIT_HERE
             ifStatement.thenBranch.statements.push(new RawCodeStatement(`
       if vm.onBindingsConfigured <> invalid
        vm.onBindingsConfigured()
@@ -382,11 +394,13 @@ end function`);
     end function`);
 
         if (func) {
+            //BRON_AST_EDIT_HERE
             let ifStatement = func.func.body.statements[0] as IfStatement;
             let nodeIds = [
+                //BRON_AST_EDIT_HERE
                 ...new Set(bindings.filter((b) => !b.isTopBinding).map((b) => b.nodeId))
             ];
-
+            //BRON_AST_EDIT_HERE
             for (let binding of bindings) {
                 ifStatement.thenBranch.statements.push(new RawCodeStatement(binding.getStaticText(), file, binding.range));
 
@@ -398,6 +412,7 @@ end function`);
     private addFindNodeVarsMethodForFile(file: File) {
         let createNodeVarsFunction = this.makeASTFunction(this.getNodeVarMethodText(file));
         let brsFile = file.associatedFile.bscFile as BrsFile;
+        //BRON_AST_EDIT_HERE
         if (createNodeVarsFunction && file.associatedFile?.bscFile?.parser) {
             brsFile.parser.statements.push(createNodeVarsFunction);
             file.associatedFile.isASTChanged = true;
@@ -427,11 +442,13 @@ end function
     private addVMConstructor(file: File) {
         console.log('addVM ', file.fullPath, file.bscFile === undefined);
         console.log('no initialize function, adding one');
+        //BRON_AST_EDIT_HERE
         let func = makeASTFunction(this.getVMInitializeText(file));
 
         if (func) {
             let vmFile = this.fileMap.getFileForClass(file.vmClassName);
             if (vmFile) {
+                //BRON_AST_EDIT_HERE
                 addImport(file.associatedFile.bscFile as BrsFile, vmFile.bscFile.pkgPath);
                 (file.associatedFile.bscFile as BrsFile).parser.statements.push(func);
                 file.associatedFile.isASTChanged = true;

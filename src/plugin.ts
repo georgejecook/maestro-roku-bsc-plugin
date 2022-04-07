@@ -404,6 +404,7 @@ export class MaestroPlugin implements CompilerPlugin {
                 let id = createToken(TokenKind.Identifier, '__classname', cs.range);
                 // eslint-disable-next-line @typescript-eslint/dot-notation
                 if (!fieldMap['__classname']) {
+                    //BRON_AST_EDIT_HERE
                     let p = createToken(TokenKind.Public, 'public', cs.range);
                     let a = createToken(TokenKind.As, 'as', cs.range);
                     let s = createToken(TokenKind.String, 'string', cs.range);
@@ -415,7 +416,7 @@ export class MaestroPlugin implements CompilerPlugin {
                 } else {
                     //this is more complicated, have to add this to the constructor
                     let s = new RawCodeStatement(`m.__className = "${cs.getName(ParseMode.BrighterScript)}"`, event.file, cs.range);
-
+                    //BRON_AST_EDIT_HERE
                     let constructor = cs.memberMap.new as ClassMethodStatement;
                     if (constructor) {
                         constructor.func.body.statements.push(s);
@@ -435,12 +436,14 @@ export class MaestroPlugin implements CompilerPlugin {
             if (this.maestroConfig.stripParamTypes) {
                 for (let fs of event.file.parser.references.functionExpressions) {
                     if (fs.returnType && !isVoidType(fs.returnType) && !isDynamicType(fs.returnType)) {
+                        //BRON_AST_EDIT_HERE
                         const name = fs.functionStatement?.name?.text ?? fs.parentFunction?.functionStatement?.name?.text;
                         if (!this.maestroConfig.paramStripExceptions.includes(name)) {
                             fs.returnType = new DynamicType();
                         }
                     }
                     for (let param of fs.parameters) {
+                        //BRON_AST_EDIT_HERE
                         param.asToken = null;
                     }
                 }
@@ -466,6 +469,7 @@ export class MaestroPlugin implements CompilerPlugin {
                                 let value = callExpression.args.shift() as DottedGetExpression;
                                 let stringPath = this.getStringPathFromDottedGet(value);
                                 name = `mc_get${name.match(regex)[1]}`;
+                                //BRON_AST_EDIT_HERE
                                 callExpression.callee.name.text = name;
                                 callExpression.args.unshift(stringPath);
                                 let rootValue = this.getRootValue(value);
@@ -493,6 +497,7 @@ export class MaestroPlugin implements CompilerPlugin {
                         let name = callExpression.callee.name.text;
                         if (regex.test(name)) {
                             try {
+                                //BRON_AST_EDIT_HERE
                                 let arg0 = callExpression.args[0];
                                 let functionName = arg0.name.text;
                                 arg0 = callExpression.args.shift() as DottedGetExpression;
@@ -589,12 +594,14 @@ export class MaestroPlugin implements CompilerPlugin {
                     // eslint-disable-next-line @typescript-eslint/dot-notation
                     if (mFile.isValid) {
                         //it's a binding file
+                        //BRON_AST_EDIT_HERE
                         this.bindingProcessor.generateCodeForXMLFile(mFile, program, entry);
                         // console.log('generating code for bindings ', entry.file.pkgPath);
                         //it's a binding file
                     } else if (mFile.bindings.length === 0 && this.shouldParseFile(entry.file)) {
                         //check if we should add bindings to this anyhow)
                         // console.log('getting ids for regular xml file ', entry.file.pkgPath);
+                        //BRON_AST_EDIT_HERE
                         this.bindingProcessor.addNodeVarsMethodForRegularXMLFile(mFile);
                         //check if we should add bindings to this anyhow)
                     } else {
@@ -609,6 +616,7 @@ export class MaestroPlugin implements CompilerPlugin {
 
     beforePublish(builder: ProgramBuilder, files: FileObj[]) {
         console.time('Update reflection runtime file');
+        //BRON_AST_EDIT_HERE
         this.reflectionUtil.updateRuntimeFile();
         console.timeEnd('Update reflection runtime file');
     }
@@ -621,6 +629,7 @@ export class MaestroPlugin implements CompilerPlugin {
                 if (isVariableExpression(ds.obj) && ds.obj?.name?.text === 'm') {
                     let lowerName = ds.name.text.toLowerCase();
                     if (fieldMap[lowerName]) {
+                        //BRON_AST_EDIT_HERE
                         let callE = new CallExpression(
                             new DottedGetExpression(
                                 ds.obj,
@@ -750,6 +759,7 @@ export class MaestroPlugin implements CompilerPlugin {
             let annotation = (f.annotations || []).find((a) => a.name.toLowerCase() === 'inject' || a.name.toLowerCase() === 'injectclass' || a.name.toLowerCase() === 'createclass');
             if (annotation) {
                 let args = annotation.getArguments();
+                //BRON_AST_EDIT_HERE
                 let wf = f as Writeable<ClassFieldStatement>;
                 if (annotation.name === 'inject') {
                     if (args.length < 1) {
@@ -814,6 +824,7 @@ export class MaestroPlugin implements CompilerPlugin {
                             });
                             continue;
                         }
+                        //BRON_AST_EDIT_HERE
                         if (args.length === 1) {
                             wf.initialValue = new RawCodeStatement(`__m_setTopField("${f.name.text}", mioc_getInstance("${iocKey}"))`, file, f.range);
                         } else if (args.length === 2) {
@@ -848,32 +859,40 @@ export class MaestroPlugin implements CompilerPlugin {
                                     file: file
                                 });
                             } else {
+                                //BRON_AST_EDIT_HERE
                                 wf.initialValue = new RawCodeStatement(`m._addIOCObserver("${f.name.text}", "${iocKey}", "${iocPath}", "${observePath}", "${observeField}", ${funcName})`, file, f.range);
                             }
                         } else {
                             if (!iocPath) {
+                                //BRON_AST_EDIT_HERE
                                 wf.initialValue = new RawCodeStatement(`mioc_getInstance("${iocKey}")`, file, f.range);
                             } else {
+                                //BRON_AST_EDIT_HERE
                                 wf.initialValue = new RawCodeStatement(`mioc_getInstance("${iocKey}", "${iocPath}")`, file, f.range);
                             }
                         }
                     }
                 } else if (annotation.name === 'injectClass') {
+                    //BRON_AST_EDIT_HERE
                     wf.initialValue = new RawCodeStatement(`mioc_getClassInstance("${args[0].toString()}")`, file, f.range);
                 } else if (annotation.name === 'createClass') {
                     let instanceArgs = [];
                     for (let i = 1; i < args.length - 1; i++) {
+                        //BRON_AST_EDIT_HERE
                         if (args[i]) {
                             instanceArgs.push(args[i].toString());
                         }
                     }
                     if (instanceArgs.length > 0) {
+                        //BRON_AST_EDIT_HERE
                         wf.initialValue = new RawCodeStatement(`mioc_createClassInstance("${args[0].toString()}", [${instanceArgs.join(',')}])`, file, f.range);
                     } else {
+                        //BRON_AST_EDIT_HERE
                         wf.initialValue = new RawCodeStatement(`mioc_createClassInstance("${args[0].toString()}")`, file, f.range);
 
                     }
                 }
+                //BRON_AST_EDIT_HERE
                 wf.equal = createToken(TokenKind.Equal, '=', f.range);
             }
         }
