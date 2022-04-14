@@ -335,7 +335,7 @@ describe('MaestroPlugin', () => {
             end function
 
             function m_initBindings()
-            if m.vm <> invalid then
+            if m.vm <> invalid
             vm = m.vm
 
             if vm.onBindingsConfigured <> invalid
@@ -346,7 +346,7 @@ describe('MaestroPlugin', () => {
             end function
 
             function m_initStaticBindings()
-            if m.vm <> invalid then
+            if m.vm <> invalid
             vm = m.vm
             m.poster.style = mc_getPath(vm,"riversJson.styles")
             m.poster.entry = vm.entry
@@ -636,7 +636,7 @@ describe('MaestroPlugin', () => {
             end function
 
             function __m_setTopField(field, value)
-            if m.top.doesExist(field) then
+            if m.top.doesExist(field)
             m.top[field] = value
             end if
             return value
@@ -703,7 +703,7 @@ describe('MaestroPlugin', () => {
             end function
 
             function __m_setTopField(field, value)
-            if m.top.doesExist(field) then
+            if m.top.doesExist(field)
             m.top[field] = value
             end if
             return value
@@ -779,7 +779,7 @@ describe('MaestroPlugin', () => {
             end function
 
             function __m_setTopField(field, value)
-            if m.top.doesExist(field) then
+            if m.top.doesExist(field)
             m.top[field] = value
             end if
             return value
@@ -845,7 +845,7 @@ describe('MaestroPlugin', () => {
 
             function on_title(event)
             v = event.getData()
-            if type(v) <> "roSGNode" or not v.isSameNode(m._p_title) then
+            if type(v) <> "roSGNode" or not v.isSameNode(m._p_title)
             m._p_title = v
             m.onTitleChange(event.getData())
             end if
@@ -856,7 +856,7 @@ describe('MaestroPlugin', () => {
             end function
 
             function __m_setTopField(field, value)
-            if m.top.doesExist(field) then
+            if m.top.doesExist(field)
             m.top[field] = value
             end if
             return value
@@ -959,7 +959,7 @@ describe('MaestroPlugin', () => {
             end function
 
             function __m_setTopField(field, value)
-            if m.top.doesExist(field) then
+            if m.top.doesExist(field)
             m.top[field] = value
             end if
             return value
@@ -2127,7 +2127,7 @@ end sub
             print mc_getAA(data, "Schedules.0.Productions.0")
             formatJson(mc_getAA(json, "user"))
             print (mc_getString(json, "user.name", "default name"))
-            if mc_getBoolean(json, "user.favorites.0.isActive") then
+            if mc_getBoolean(json, "user.favorites.0.isActive")
             print mc_getInteger(json, "age.0.time.thing.other.this")
             end if
             print m.items.getValue(mc_getArray(items, "", [
@@ -2159,7 +2159,7 @@ end sub
             let b = trimLeading(`function notInClass()
             formatJson(fw_asAA(json.user))
             print (fw_asString(json.user.name, "default name"))
-            if mc_getBoolean(json, "user.favorites.0.isActive") then
+            if mc_getBoolean(json, "user.favorites.0.isActive")
             print fw_asInteger(json.age[0].time[thing].other["this"])
             end if
             print m.items.getValue(fw_asArray(items, [
@@ -2238,7 +2238,7 @@ end sub
             let a = getContents('source/comp.brs');
             let b = trimLeading(`function ns_inNAmespace()
             formatJson(mc_getAA(json, "user"))
-            if mc_getBoolean(json, "user.favorites.0.isActive") then
+            if mc_getBoolean(json, "user.favorites.0.isActive")
             print mc_getInteger(json, "age.0.time.thing.other.this")
             end if
             print m.items.getValue(mc_getArray(items, ""))
@@ -2273,7 +2273,7 @@ end sub
             end sub
             instance.classMethod = function()
             formatJson(mc_getAA(m, "json.user"))
-            if mc_getBoolean(m, "json.user.favorites.0.isActive") then
+            if mc_getBoolean(m, "json.user.favorites.0.isActive")
             print mc_getInteger(m.json, "json.age.0.time.thing.other.this")
             end if
             print m.items.getValue(mc_getArray(items, ""))
