@@ -2473,6 +2473,153 @@ end sub
         });
     });
 
+    describe.only('stubObject substitution support', () => {
+        beforeEach(() => {
+            plugin.maestroConfig.updateAsFunctionCalls = true;
+            plugin.maestroConfig.updateObserveCalls = true;
+            plugin.maestroConfig.updateStubObjectCalls = true;
+        });
+
+        it.only('substitutes outside of class', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                function notInClass()
+                stubObject(node)
+                node = mc_setPath(invalid, "node")
+                    'stubObject(m.node)
+                    'stubObject(m.node.field)
+                    'stubObject(m.node.field, {id:"args"})
+                    'stubObject(m.node.otherThing.field)
+                    'stubObject(m.node.otherThing.field, {id:"args"})
+                end function
+            `);
+            program.validate();
+            await builder.transpile();
+            //ignore diagnostics - need to import core
+
+            let a = getContents('source/comp.brs');
+            let b = trimLeading(`function notInClass()
+            mc_stubPath(m, "node", "node")
+            mc_stubPath(m, "node.field", "field")
+            mc_stubPath(m, "node.field", "field", {
+            id: "args"
+            })
+            mc_stubPath(m, "node.otherThing.field", "field")
+            mc_stubPath(m, "node.otherThing.field", "field", {
+            id: "args"
+            })
+            end function`);
+            expect(a).to.equal(b);
+        });
+
+        it('converts m dotted stubObject calls in class functions', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+            class Comp
+                private json
+                function classMethod()
+                    stubObject(m.node.field, {id:"args"})
+                    stubObject(m.nodes["indexed"].field, {id:"args"})
+                    end function
+            end class`);
+            program.validate();
+            let d = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error && d.code !== 'MSTO1040' && d.code !== 1001);
+            expect(d).to.have.lengthOf(0);
+
+            await builder.transpile();
+            //ignore diagnostics - need to import core
+
+            let a = getContents('source/comp.brs');
+            let b = trimLeading(`function __Comp_builder()
+            instance = {}
+            instance.new = sub()
+            m.json = invalid
+            m.__classname = "Comp"
+            end sub
+            instance.classMethod = function()
+            end function
+            return instance
+            end function
+            function Comp()
+            instance = __Comp_builder()
+            instance.new()
+            return instance
+            end function`);
+            expect(a).to.equal(b);
+        });
+
+        it('converts non- m dotted stub object calls into set as mc_getPath() in class functions', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+            class Comp
+                private json
+                function classMethod()
+                    stubObject(node.field, {id:"args"})
+                    stubObject(node.otherField.field, {id:"args"})
+                end function
+            end class`);
+            program.validate();
+            let d = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error && d.code !== 'MSTO1040' && d.code !== 1001);
+            expect(d).to.have.lengthOf(0);
+
+            await builder.transpile();
+            //ignore diagnostics - need to import core
+
+            let a = getContents('source/comp.brs');
+            let b = trimLeading(`function __Comp_builder()
+            instance = {}
+            instance.new = sub()
+            m.json = invalid
+            m.__classname = "Comp"
+            end sub
+            instance.classMethod = function()
+            end function
+            return instance
+            end function
+            function Comp()
+            instance = __Comp_builder()
+            instance.new()
+            return instance
+            end function`);
+            expect(a).to.equal(b);
+        });
+        it('converts non dotted gets into assignments in class functions', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+            class Comp
+                private json
+                function classMethod()
+                    stubObject(node)
+                    stubObject(node, {id:"args"})
+                end function
+            end class`);
+            program.validate();
+            let d = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error && d.code !== 'MSTO1040' && d.code !== 1001);
+            expect(d).to.have.lengthOf(0);
+
+            await builder.transpile();
+            //ignore diagnostics - need to import core
+
+            let a = getContents('source/comp.brs');
+            let b = trimLeading(`function __Comp_builder()
+            instance = {}
+            instance.new = sub()
+            m.json = invalid
+            m.__classname = "Comp"
+            end sub
+            instance.classMethod = function()
+            end function
+            return instance
+            end function
+            function Comp()
+            instance = __Comp_builder()
+            instance.new()
+            return instance
+            end function`);
+            expect(a).to.equal(b);
+        });
+    });
+
 });
 
 function getContents(filename: string) {

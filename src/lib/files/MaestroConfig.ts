@@ -11,6 +11,7 @@ export enum MaestroLogLevel {
 }
 
 export interface MaestroConfig {
+    updateStubObjectCalls?: boolean;
     updateObserveCalls?: boolean;
     updateAsFunctionCalls?: boolean;
     logLevel?: MaestroLogLevel;

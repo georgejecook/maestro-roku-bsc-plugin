@@ -62,7 +62,7 @@ import ReflectionUtil from './lib/reflection/ReflectionUtil';
 import { FileFactory } from './lib/utils/FileFactory';
 import NodeClassUtil from './lib/node-classes/NodeClassUtil';
 import { RawCodeStatement } from './lib/utils/RawCodeStatement';
-import { addClassFieldsNotFoundOnSetOrGet, addIOCNoTypeSupplied, addIOCWrongArgs, noCallsInAsXXXAllowed, functionNotImported, IOCClassNotInScope, namespaceNotImported, noPathForInject, noPathForIOCSync, unknownClassMethod, unknownConstructorMethod, unknownSuperClass, unknownType, wrongConstructorArgs, wrongMethodArgs, observeRequiresFirstArgumentIsField, observeRequiresFirstArgumentIsNotM } from './lib/utils/Diagnostics';
+import { addClassFieldsNotFoundOnSetOrGet, addIOCNoTypeSupplied, addIOCWrongArgs, noCallsInAsXXXAllowed, functionNotImported, IOCClassNotInScope, namespaceNotImported, noPathForInject, noPathForIOCSync, unknownClassMethod, unknownConstructorMethod, unknownSuperClass, unknownType, wrongConstructorArgs, wrongMethodArgs, observeRequiresFirstArgumentIsField, observeRequiresFirstArgumentIsNotM, noCallsInStubObjectAllowed, incompatibleExpressionInStubOject } from './lib/utils/Diagnostics';
 import { getAllAnnotations, getAllFields, getAllMethods, makeASTFunction } from './lib/utils/Utils';
 import { getSGMembersLookup } from './SGApi';
 import { DependencyGraph } from 'brighterscript/dist/DependencyGraph';
@@ -128,6 +128,7 @@ export class MaestroPlugin implements CompilerPlugin {
         config.processXMLFiles = config.processXMLFiles ?? true;
         config.updateAsFunctionCalls = config.updateAsFunctionCalls ?? true;
         config.updateObserveCalls = config.updateObserveCalls ?? true;
+        config.updateStubObjectCalls = config.updateStubObjectCalls ?? true;
 
         config.paramStripExceptions = config.paramStripExceptions ?? ['onKeyEvent'];
         config.applyStrictToAllClasses = config.applyStrictToAllClasses ?? true;
@@ -261,6 +262,39 @@ export class MaestroPlugin implements CompilerPlugin {
                                     // eslint-disable-next-line @typescript-eslint/dot-notation
                                     file['diagnostics'].push({
                                         ...noCallsInAsXXXAllowed(error.functionName),
+                                        range: error.range,
+                                        file: file
+                                    });
+
+                                } else {
+                                    console.error('could not update asXXX function call, due to unexpected error', error);
+                                }
+                            }
+                        } else if (name === 'stubObject') {
+                            try {
+                                let arg0 = callExpression.args[0];
+                                if (isDottedGetExpression(arg0)) {
+
+                                    let value = arg0;
+                                    this.getStringPathFromDottedGet(value);
+                                    this.getRootValue(value);
+                                } else if (isVariableExpression(arg0)) {
+                                    console.log('ff');
+                                    //TODO - check this is valid
+                                } else {
+                                    // eslint-disable-next-line @typescript-eslint/dot-notation
+                                    file['diagnostics'].push({
+                                        ...incompatibleExpressionInStubOject(),
+                                        range: arg0.range,
+                                        file: file
+                                    });
+
+                                }
+                            } catch (error) {
+                                if (error.message === 'unsupportedValue') {
+                                    // eslint-disable-next-line @typescript-eslint/dot-notation
+                                    file['diagnostics'].push({
+                                        ...noCallsInStubObjectAllowed(error.functionName),
                                         range: error.range,
                                         file: file
                                     });
@@ -479,6 +513,40 @@ export class MaestroPlugin implements CompilerPlugin {
                                     console.error('could not update asXXX function call, due to unexpected error', error);
                                 }
                             }
+                        } else if (name === 'stubObject') {
+                            // try {
+                            let value = callExpression.args.shift();
+                            if (isDottedGetExpression(value)) {
+                                // so(m.node, args) -> mc_setPath(m, "node")
+                                // so(m.node.field, args) -> mc_setPath(m, "node.field")
+                                // so(m.authManager.user, args) -> mc_setPath(m, "authManager. user", args)
+                                //split out the parts and do a set, with the path expression
+                                let parts = this.getStringPartsFromDottedGet(value);
+
+                                //the rootValue is the variable we will set...
+                                let rootValue = this.getRootValue(value);
+                                if (isVariableExpression(rootValue) && rootValue.name.text === 'm') {
+                                    //we are s straight forward set path
+                                    name = `mc_stubPath`;
+                                    let stubId = parts[parts.length - 1];
+                                    let stringPath = this.getStringPathFromDottedGetParts(parts);
+                                    //stubPath(root, path, id, otherargs)
+                                    //BRON_AST_EDIT_HERE
+                                    callExpression.callee.name.text = name;
+                                    callExpression.args.unshift(createStringLiteral(stubId));
+                                    callExpression.args.unshift(stringPath);
+                                    callExpression.args.unshift(rootValue);
+                                }
+                            } else {
+                                //stubObject(node) -> node = mc_stubObject({}, otherArgs)
+                                //do a new setExpression for a local var
+                                // to createPath with the args
+                            }
+                            // } catch (error) {
+                            //     if (error.message !== 'unsupportedValue') {
+                            //         console.error('could not update stubObject function call, due to unexpected error', error);
+                            //     }
+                            // }
                         }
                     }
                 }
@@ -530,7 +598,17 @@ export class MaestroPlugin implements CompilerPlugin {
 
         return root;
     }
+
     private getStringPathFromDottedGet(value: DottedGetExpression) {
+        let parts = this.getStringPartsFromDottedGet(value);
+        return createStringLiteral(parts.join('.'));
+    }
+
+    private getStringPathFromDottedGetParts(parts: string[] = undefined) {
+        return createStringLiteral(parts.join('.'));
+    }
+
+    private getStringPartsFromDottedGet(value: DottedGetExpression) {
         let parts = [this.getPathValuePartAsString(value)];
         let root;
         root = value.obj;
@@ -543,7 +621,7 @@ export class MaestroPlugin implements CompilerPlugin {
             }
             root = root.obj;
         }
-        return createStringLiteral(parts.reverse().join('.'));
+        return parts.reverse();
     }
 
     private getWrongAsXXXFunctionPartError(expr: Expression) {

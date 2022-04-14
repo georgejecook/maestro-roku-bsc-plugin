@@ -391,3 +391,21 @@ export function observeRequiresFirstArgumentIsNotM() {
         severity: DiagnosticSeverity.Error
     };
 }
+
+export function noCallsInStubObjectAllowed(functionName: string) {
+    return {
+        message: `Cannot call function inside a stubObject expression. Function called: "${functionName}"`,
+        code: `MSTO${1062}`,
+        severity: DiagnosticSeverity.Error
+    };
+
+}
+
+export function incompatibleExpressionInStubOject() {
+    return {
+        message: `Incompatible expression in stubObject call. You can use this function like "stubObject(aThing)" or "stubObject(aThing.field)" or "stubObject(m.aThing)"`,
+        code: `MSTO${1062}`,
+        severity: DiagnosticSeverity.Error
+    };
+
+}
