@@ -434,6 +434,7 @@ export class MaestroPlugin implements CompilerPlugin {
                         let callE = new CallExpression(
                             new DottedGetExpression(
                                 ds.obj,
+                                // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
                                 createIdentifier('setField', ds.range).name,
                                 createToken(TokenKind.Dot, '.', ds.range)),
                             createToken(TokenKind.LeftParen, '(', ds.range),
@@ -816,9 +817,11 @@ export class MaestroPlugin implements CompilerPlugin {
         let filesSearched = new Set<BscFile>();
         //TODO -needs ALL known SG functions!
         for (const file of scope.getAllFiles()) {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
             if (isXmlFile(file) || filesSearched.has(file)) {
                 continue;
             }
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
             filesSearched.add(file);
             for (let cs of file.parser.references.classStatements) {
                 for (let s of [...cs.fields]) {
@@ -834,9 +837,11 @@ export class MaestroPlugin implements CompilerPlugin {
         let filesSearched = new Set<BscFile>();
         //TODO -needs ALL known SG functions!
         for (const file of scope.getAllFiles()) {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
             if (isXmlFile(file) || filesSearched.has(file)) {
                 continue;
             }
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
             filesSearched.add(file);
             for (let cs of file.parser.references.classStatements) {
                 let hasNew = false;
