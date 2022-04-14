@@ -50,6 +50,7 @@ export default class ReflectionUtil {
                     return ${name}`;
             }
             codeText += '\n end if';
+            //BRON_AST_EDIT_HERE
             func.func.body.statements[1] = new RawCodeStatement(codeText);
         }
     }
@@ -64,6 +65,7 @@ export default class ReflectionUtil {
                 text += ` "${name}": true \n`;
             }
             text += '}';
+            //BRON_AST_EDIT_HERE
             func.func.body.statements.push(new RawCodeStatement(`return ${text}`));
         }
     }

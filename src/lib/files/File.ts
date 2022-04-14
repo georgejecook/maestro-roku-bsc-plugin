@@ -132,6 +132,7 @@ export class File {
             this.vmClassName = xmlFile.ast.component?.getAttribute('vm')?.value?.text;
 
             if (this.vmClassName) {
+                //BRON_AST_EDIT_HERE
                 // eslint-disable-next-line @typescript-eslint/no-confusing-void-expression
                 xmlFile.ast.component?.setAttribute('vm', undefined);
                 xmlFile.needsTranspiled = true;

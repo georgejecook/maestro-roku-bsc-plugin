@@ -70,6 +70,7 @@ export default class NodeClassUtil {
                         }
                         mFile.nodeClasses.set(file.pathAbsolute, nodeClass);
                         nodeClasses.push(nodeClass);
+                        //BRON_AST_EDIT_HERE
                         // eslint-disable-next-line @typescript-eslint/dot-notation
                         cs['_isNodeClass'] = true;
                     } else {
@@ -109,7 +110,7 @@ export default class NodeClassUtil {
   return instance
 end function
 `;
-
+        //BRON_AST_EDIT_HERE
         let brsFile = this.fileFactory.addFile(program, `source/roku_modules/maestro/tests/TestUtils.brs`, codeText);
         brsFile.parser.invalidateReferences();
     }
