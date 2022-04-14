@@ -83,33 +83,19 @@ let zapp = {
         '/home/george/hope/open-source/rooibos/bsc-plugin/dist/plugin.js',
         '/home/george/hope/open-source/maestro/roku-log-bsc-plugin/dist/plugin.js'
     ],
-    'ignore': ['maestro-roku-bsc-plugin'],
-    'rokuLog': {
-        'strip': false,
-        'insertPkgPath': true,
-        'removeComments': true
-    },
     'rooibos': {
-        'tags': ['!integration', '!deprecated', '!fixme'],
-        'showOnlyFailures': true,
-        'catchCrashes': true,
-        'lineWidth': 70,
-        'failFast': false
+        'isRecordingCodeCoverage': false,
+        'testsFilePattern': null
     },
     'maestro': {
         'nodeClasses': {
             'buildForIDE': false,
-            'generateTestUtils': true
+            'generateTestUtils': false
         },
-        'excludeFilters': ['**/roku_modules/**/*', '**/rooibos-roku/**/*'],
-        'buildTimeImports': {
-            'IAuthProvider': [],
-            'IEntitlementsProvider': [],
-            'IBookmarksProvider': [],
-            'IPlayerAnalytics': [],
-            'IAnalytics': [],
-            'IBootstrapPlugin': []
-        },
+        'excludeFilters': [
+            '**/roku_modules/**/*',
+            '**/rooibos-roku/**/*'
+        ],
         'mvvm': {
             'insertXmlBindingsEarly': false,
             'createCodeBehindFilesWhenNeeded': false,
@@ -117,11 +103,42 @@ let zapp = {
             'callCreateVMMethodInInit': false,
             'callCreateNodeVarsInInit': true
         },
+        'buildTimeImports': {
+            'IAuthProvider': [
+                'pkg:/source/zapp_oauth_plugin/ZappOauthPlugin.bs',
+                'pkg:/source/AdobeAccessEnabler/AdobePrimetimeAuthPlugin.bs',
+                'pkg:/source/cleeng_auth_provider/CleengAuthPlugin.bs'
+            ],
+            'IEntitlementsProvider': [
+                'pkg:/source/cleeng_entitlements_plugin/CleengEntitlementsPlugin.bs'
+            ],
+            'IBookmarksProvider': [],
+            'IPlayerAnalytics': [
+                'pkg:/source/google_analytics_roku/GoogleAnalyticsPlugin.bs'
+            ],
+            'IAnalytics': [
+                'pkg:/source/google_analytics_roku/GoogleAnalyticsPlugin.bs'
+            ],
+            'IBootstrapPlugin': []
+        },
         'reflection': {
             'generateReflectionFunctions': true,
-            'excludeFilters': ['**/roku_modules/**/*', '**/*.spec.bs']
+            'excludeFilters': [
+                '**/roku_modules/**/*',
+                '**/*.spec.bs'
+            ]
+        },
+        'extraValidation': {
+            'doExtraValidation': true,
+            'doExtraImportValidation': false
         }
-    }
+    },
+    'rokuLog': {
+        'strip': false,
+        'insertPkgPath': true,
+        'removeComments': true
+    },
+    'sourceMap': true
 };
 let z41 = {
     'rootDir': '/home/george/hope/applicaster/4-1/zapp-roku-app/src',
@@ -703,10 +720,10 @@ let nbaLatest = {
 let programBuilder = new ProgramBuilder();
 programBuilder.run(
     // swv
-    // zapp
+    zapp
     // maestro
     // corco
-    nbaLatest
+    // nbaLatest
     // nba
     // z41
     // maestroSample
