@@ -1063,7 +1063,7 @@ export class MaestroPlugin implements CompilerPlugin {
                                                 file: file
                                             });
                                         } else {
-                                            let arg0 = ce.args.shift() as DottedGetExpression;
+                                            let arg0 = ce.args[0];
                                             if (isVariableExpression(arg0.obj) && arg0.obj.name.text === 'm') {
                                                 // eslint-disable-next-line @typescript-eslint/dot-notation
                                                 file['diagnostics'].push({
