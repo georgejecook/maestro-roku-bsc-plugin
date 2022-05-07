@@ -251,7 +251,7 @@ function numberExpressionToValue(expr: LiteralExpression, operator = '') {
 
 export function createImportStatement(pkgPath: string, range: brighterscript.Range) {
     let importToken = brighterscript.createToken(brighterscript.TokenKind.Import, 'import', range);
-    let filePathToken = brighterscript.createToken(brighterscript.TokenKind.SourceFilePathLiteral, `"${pkgPath}"`, range);
+    let filePathToken = brighterscript.createToken(brighterscript.TokenKind.SourceFilePathLiteral, `"${sanitizePkgPath(pkgPath)}"`, range);
     return new brighterscript.ImportStatement(importToken, filePathToken);
 }
 
@@ -263,7 +263,7 @@ export function addImport(file: BrsFile, pkgPath: string) {
         file.parser.invalidateReferences();
         file.ownScriptImports.push({
             pkgPath: pkgPath,
-            text: `import "${pkgPath}"`,
+            text: `import "${sanitizePkgPath(pkgPath)}"`,
             sourceFile: file
         });
         //re-attach the dependency graph which tells the xml file this has changed
@@ -273,5 +273,17 @@ export function addImport(file: BrsFile, pkgPath: string) {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         file.attachDependencyGraph(dg);
     }
-
 }
+
+/**
+ * Handles replacing windows `\` with `/`. Also handles v0->v1 compatibility by prepending `pkg:/` if missing
+ * @param pkgPath the full pkgPath of a file (with or without `pkg:/`). This MUST NOT be a relative path
+ */
+export function sanitizePkgPath(pkgPath: string) {
+    pkgPath = pkgPath.replace(/[\\/]+/g, '/');
+    if (!pkgPath.startsWith('pkg:/')) {
+        pkgPath = `pkg:/${pkgPath}`;
+    }
+    return pkgPath;
+}
+
