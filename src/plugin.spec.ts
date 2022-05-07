@@ -302,7 +302,7 @@ describe('MaestroPlugin', () => {
             let diagnostics = program.getDiagnostics();
             expect(diagnostics).to.be.empty;
             let a = getContents('components/comp.brs');
-            let b = trimLeading(`'import "components/comp.bs"
+            let b = trimLeading(`'import "pkg:/components/comp.bs"
             function __myVM_builder()
             instance = {}
             instance.new = sub()
