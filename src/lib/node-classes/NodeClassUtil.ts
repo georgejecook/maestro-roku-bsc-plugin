@@ -19,11 +19,11 @@ export default class NodeClassUtil {
     }
 
     public addFile(file: BrsFile, mFile: File) {
-        for (let nodeClass of this.fileMap.nodeClassesByPath.get(file.pathAbsolute) || []) {
-            this.fileMap.nodeClasses.delete(nodeClass.name);
-            mFile.nodeClasses.delete(nodeClass.name);
+        for (let nodeClass of this.fileMap.nodeClassesByPath[file.pathAbsolute] || []) {
+            delete this.fileMap.nodeClasses[nodeClass.name];
+            delete mFile.nodeClasses[nodeClass.name];
         }
-        this.fileMap.nodeClassesByPath.delete(file.pathAbsolute);
+        delete this.fileMap.nodeClassesByPath[file.pathAbsolute];
 
         for (let cs of file.parser.references.classStatements) {
             let annotation = cs.annotations?.find((a) => a.name.toLowerCase() === 'task' || a.name.toLowerCase() === 'node');
@@ -39,7 +39,7 @@ export default class NodeClassUtil {
                 if (args.length < 2 || !nodeName || !extendsName) {
                     addNodeClassBadDeclaration(file, '', annotation.range.start.line, annotation.range.start.character + 1);
                     console.log(' bad class in ', file.pkgPath);
-                } else if (this.fileMap.nodeClasses.has(nodeName)) {
+                } else if (this.fileMap.nodeClasses[nodeName]) {
                     addNodeClassDuplicateName(file, nodeName, annotation.range.start.line, annotation.range.start.character + 1);
                     console.log(' duplicate node in ', file.pkgPath);
                 } else {
@@ -62,11 +62,11 @@ export default class NodeClassUtil {
                     if (isValid) {
                         //is valid
                         let nodeClass = new NodeClass(nodeType, file, cs, nodeName, extendsName, annotation, this.fileMap, lazyAnnotation !== undefined, waitInitAnnotation !== undefined);
-                        this.fileMap.nodeClasses.set(nodeClass.generatedNodeName, nodeClass);
-                        let nodeClasses = this.fileMap.nodeClassesByPath.get(file.pathAbsolute);
+                        this.fileMap.nodeClasses[nodeClass.generatedNodeName] = nodeClass;
+                        let nodeClasses = this.fileMap.nodeClassesByPath[file.pathAbsolute];
                         if (!nodeClasses) {
                             nodeClasses = [];
-                            this.fileMap.nodeClassesByPath.set(file.pathAbsolute, nodeClasses);
+                            this.fileMap.nodeClassesByPath[file.pathAbsolute] = nodeClasses;
                         }
                         mFile.nodeClasses.set(file.pathAbsolute, nodeClass);
                         nodeClasses.push(nodeClass);
@@ -93,7 +93,7 @@ export default class NodeClassUtil {
 
   if false
     ? "maestro nodeclass test-utils"`;
-        for (let nc of [...this.fileMap.nodeClasses.values()]) {
+        for (let nc of Object.values(this.fileMap.nodeClasses)) {
             codeText += `\n    else if name = "${nc.classStatement.getName(ParseMode.BrightScript).toLowerCase()}"
     'bs:disable-next-line
     instance = __${nc.classStatement.getName(ParseMode.BrightScript)}_builder()

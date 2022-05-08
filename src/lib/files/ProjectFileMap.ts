@@ -10,30 +10,30 @@ import type { NodeClass } from '../node-classes/NodeClass';
 export class ProjectFileMap {
 
     constructor() {
-        this.allFiles = new Map<string, File>();
-        this.allXMLComponentFiles = new Map<string, File>();
+        this.allFiles = {};
+        this.allXMLComponentFiles = {};
         this.allClassNames = new Set<string>();
     }
 
-    public allClasses = new Map<string, ClassStatement>();
+    public allClasses: Record<string, ClassStatement> = {};
     public allClassNames: Set<string>;
-    public allClassFiles = new Map<string, File>();
-    public allXMLComponentFiles: Map<string, File>;
-    public allFiles: Map<string, File>;
-    public nodeClasses = new Map<string, NodeClass>();
-    public nodeClassesByPath = new Map<string, NodeClass[]>();
+    public allClassFiles = {};
+    public allXMLComponentFiles: Record<string, File>;
+    public allFiles: Record<string, File>;
+    public nodeClasses: Record<string, NodeClass> = {};
+    public nodeClassesByPath: Record<string, NodeClass[]> = {};
     public pathsByNamespace: Record<string, Record<string, boolean>> = {};
 
     get XMLComponentNames(): string[] {
-        return [...this.allXMLComponentFiles.keys()];
+        return Object.keys(this.allXMLComponentFiles);
     }
 
     get files(): File[] {
-        return [...this.allFiles.values()];
+        return Object.values(this.allFiles);
     }
 
     get classNames(): string[] {
-        return [...this.allClassNames.values()];
+        return Object.values(this.allClassNames);
     }
 
     public validComps = new Set<string>(
@@ -100,10 +100,10 @@ export class ProjectFileMap {
 
     public addXMLComponent(file: File) {
         if (file.fileType === FileType.Xml) {
-            if (!this.allXMLComponentFiles.has(file.componentName) || file.fullPath === this.allXMLComponentFiles.get(file.componentName).fullPath) {
-                this.allXMLComponentFiles.set(file.componentName, file);
+            if (!this.allXMLComponentFiles[file.componentName] || file.fullPath === this.allXMLComponentFiles[file.componentName].fullPath) {
+                this.allXMLComponentFiles[file.componentName] = file;
             } else {
-                const duplicateFile = this.allXMLComponentFiles.get(file.componentName);
+                const duplicateFile = this.allXMLComponentFiles[file.componentName];
                 addProjectFileMapErrorDuplicateXMLComp(file, duplicateFile.fullPath);
             }
         }
@@ -112,8 +112,8 @@ export class ProjectFileMap {
     public addClass(classStatement: ClassStatement, mFile: File) {
         let className = classStatement.getName(ParseMode.BrighterScript);
         this.allClassNames.add(className);
-        this.allClassFiles.set(className, mFile);
-        this.allClasses.set(className, classStatement);
+        this.allClassFiles[className] = mFile;
+        this.allClasses[className] = classStatement;
         mFile.classNames.add(className);
     }
     public addNamespaces(file: BrsFile) {
@@ -130,9 +130,9 @@ export class ProjectFileMap {
     }
 
     public removeClass(name: string) {
-        this.allClassNames.delete(name);
-        this.allClassFiles.delete(name);
-        this.allClasses.delete(name);
+        delete this.allClassNames[name];
+        delete this.allClassFiles[name];
+        delete this.allClasses[name];
     }
 
     public removeFileClasses(file: File) {
@@ -144,12 +144,12 @@ export class ProjectFileMap {
 
     public removeFile(file: File) {
         this.removeFileClasses(file);
-        this.allFiles.delete(file.fullPath);
+        delete this.allFiles[file.fullPath];
     }
 
     public getFileForClass(className: string) {
-        if (this.allClasses.has(className)) {
-            return this.allClassFiles.get(className);
+        if (this.allClasses[className]) {
+            return this.allClassFiles[className];
         }
         return undefined;
     }
@@ -159,13 +159,13 @@ export class ProjectFileMap {
         if (isBrsFile(file.bscFile)) {
             this.addNamespaces(file.bscFile);
         }
-        this.allFiles.set(file.fullPath, file);
+        this.allFiles[file.fullPath] = file;
     }
 
     public addBscFiles(files: Record<string, BrsFile | XmlFile>) {
         for (let filePath in files) {
             let bscFile = files[filePath];
-            let file = this.allFiles.get(bscFile.pathAbsolute);
+            let file = this.allFiles[bscFile.pathAbsolute];
             if (file) {
                 file.bscFile = bscFile;
             }
