@@ -459,10 +459,10 @@ export class NodeClass {
 
     public getClassHierarchy(className: string, fileMap: ProjectFileMap): ClassStatement[] {
         let items = [];
-        let parent = fileMap.allClasses.get(className);
+        let parent = fileMap.allClasses[className];
         while (parent) {
             items.push(parent);
-            parent = fileMap.allClasses.get(parent.parentClassName?.getName(ParseMode.BrighterScript));
+            parent = fileMap.allClasses[parent.parentClassName?.getName(ParseMode.BrighterScript)];
         }
         return items;
     }
@@ -470,7 +470,7 @@ export class NodeClass {
     public validateBaseComponent(builder: ProgramBuilder, fileMap: ProjectFileMap) {
         let comp = builder.program.getComponent(this.extendsName.toLowerCase());
 
-        if (!(comp?.file?.componentName?.text === this.extendsName || fileMap.validComps.has(this.extendsName) || fileMap.nodeClasses.has(this.extendsName))) {
+        if (!(comp?.file?.componentName?.text === this.extendsName || fileMap.validComps.has(this.extendsName) || fileMap.nodeClasses[this.extendsName])) {
             addNodeClassNoExtendNodeFound(this.file, this.name, this.extendsName, this.annotation.range.start.line, this.annotation.range.start.character);
         }
     }

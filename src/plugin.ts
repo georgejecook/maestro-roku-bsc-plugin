@@ -178,7 +178,7 @@ export class MaestroPlugin implements CompilerPlugin {
 
     afterFileParse(file: (BrsFile | XmlFile)): void {
         // console.log('MAESTRO afp-----', file.pathAbsolute);
-        let mFile = this.fileMap.allFiles.get(file.pathAbsolute);
+        let mFile = this.fileMap.allFiles[file.pathAbsolute];
         if (!mFile) {
             mFile = this.fileMap.createFile(file);
         }
@@ -226,7 +226,7 @@ export class MaestroPlugin implements CompilerPlugin {
             return;
         }
         // console.log('MAESTRO running stf.....');
-        let compFile = this.fileMap.allFiles.get(file.pathAbsolute);
+        let compFile = this.fileMap.allFiles[file.pathAbsolute];
         if (this.maestroConfig.processXMLFiles) {
 
             if (compFile?.fileType === FileType.Xml && compFile?.vmClassName) {
@@ -281,7 +281,7 @@ export class MaestroPlugin implements CompilerPlugin {
         if (this.maestroConfig.processXMLFiles) {
             for (let filePath of [...this.dirtyCompFilePaths.values()]) {
                 // console.time('Validate bindings');
-                let file = this.fileMap.allFiles.get(filePath);
+                let file = this.fileMap.allFiles[filePath];
                 file.bscFile = this.builder.program.getFileByPathAbsolute(filePath);
                 file.resetDiagnostics();
                 this.bindingProcessor.validateBindings(file);
@@ -295,7 +295,7 @@ export class MaestroPlugin implements CompilerPlugin {
 
         if (!this.maestroConfig.nodeClasses.buildForIDE) {
             console.time('Build node classes');
-            for (let nc of [...this.fileMap.nodeClasses.values()]) {
+            for (let nc of Object.values(this.fileMap.nodeClasses)) {
                 nc.generateCode(this.fileFactory, this.builder.program, this.fileMap, false);
             }
             if (this.maestroConfig.nodeClasses.generateTestUtils) {
@@ -330,7 +330,7 @@ export class MaestroPlugin implements CompilerPlugin {
         if (this.maestroConfig.extraValidation.doExtraValidation) {
             console.time('Do additional validations');
             for (let f of [...this.mFilesToValidate.values()]) {
-                let mFile = this.fileMap.allFiles.get(f.pathAbsolute);
+                let mFile = this.fileMap.allFiles[f.pathAbsolute];
                 if (mFile && this.shouldDoExtraValidationsOnFile(f)) {
                     this.checkMReferences(mFile);
                     this.doExtraValidations(f);
@@ -341,7 +341,7 @@ export class MaestroPlugin implements CompilerPlugin {
             this.mFilesToValidate.clear();
             console.time('Validate node classes');
             for (let filePath of [...this.dirtyNodeClassPaths.values()]) {
-                for (let nc of this.fileMap.nodeClassesByPath.get(filePath)) {
+                for (let nc of this.fileMap.nodeClassesByPath[filePath]) {
                     if (this.shouldDoExtraValidationsOnFile(nc.file)) {
                         nc.validate();
                         nc.validateBaseComponent(this.builder, this.fileMap);
@@ -356,7 +356,7 @@ export class MaestroPlugin implements CompilerPlugin {
     getCompFilesThatHaveFileInScope(file: BscFile): File[] {
         let compFiles = [];
         let lowerPath = file.pkgPath.toLowerCase();
-        for (let compFile of [...this.fileMap.allFiles.values()].filter((f) => f.fileType === FileType.Xml && f.vmClassName)) {
+        for (let compFile of Object.values(this.fileMap.allFiles).filter((f) => f.fileType === FileType.Xml && f.vmClassName)) {
             let xmlFile = compFile.bscFile as XmlFile;
             if (xmlFile.getAllDependencies().includes(lowerPath)) {
                 compFiles.push(compFile);
@@ -447,7 +447,7 @@ export class MaestroPlugin implements CompilerPlugin {
             }
             this.updateAsFunctionCalls(event.file);
         }
-        for (let nc of this.fileMap.nodeClasses.values()) {
+        for (let nc of Object.values(this.fileMap.nodeClasses)) {
             nc.replacePublicMFieldRefs(this.fileMap);
         }
     }
@@ -585,7 +585,7 @@ export class MaestroPlugin implements CompilerPlugin {
 
             for (let entry of entries) {
                 if (isXmlFile(entry.file)) {
-                    let mFile = this.fileMap.allFiles.get(entry.file.pathAbsolute);
+                    let mFile = this.fileMap.allFiles[entry.file.pathAbsolute];
                     // eslint-disable-next-line @typescript-eslint/dot-notation
                     if (mFile.isValid) {
                         //it's a binding file

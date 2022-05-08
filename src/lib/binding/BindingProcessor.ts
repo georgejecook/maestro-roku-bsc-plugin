@@ -292,7 +292,7 @@ export class BindingProcessor {
 
             } else {
 
-                file.bindingClass = this.fileMap.allClasses.get(file.vmClassName);
+                file.bindingClass = this.fileMap.allClasses[file.vmClassName];
 
                 if (!file.bindingClass) {
                     addXmlBindingVMClassNotFound(file);

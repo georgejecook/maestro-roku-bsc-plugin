@@ -77,7 +77,7 @@ export function getAlternateFileNames(fileName: string): string[] {
 
 export function getAssociatedFile(file: BrsFile | XmlFile, fileMap: ProjectFileMap): File | undefined {
     for (let filePath of getAlternateFileNames(file.pathAbsolute)) {
-        let mFile = fileMap.allFiles.get(filePath);
+        let mFile = fileMap.allFiles[filePath];
         if (mFile) {
             return mFile;
         }
@@ -181,7 +181,7 @@ export function getAllFields(fileMap: ProjectFileMap, cs: ClassStatement, vis?: 
                 result[field.name.text.toLowerCase()] = field;
             }
         }
-        cs = cs.parentClassName ? fileMap.allClasses.get(cs.parentClassName.getName(brighterscript.ParseMode.BrighterScript).replace(/_/g, '.')) : null;
+        cs = cs.parentClassName ? fileMap.allClasses[cs.parentClassName.getName(brighterscript.ParseMode.BrighterScript).replace(/_/g, '.')] : null;
     }
 
     return result;
@@ -195,7 +195,7 @@ export function getAllMethods(fileMap: ProjectFileMap, cs: ClassStatement, vis?:
                 result[method.name.text.toLowerCase()] = method;
             }
         }
-        cs = cs.parentClassName ? fileMap.allClasses.get(cs.parentClassName.getName(brighterscript.ParseMode.BrighterScript).replace(/_/g, '.')) : null;
+        cs = cs.parentClassName ? fileMap.allClasses[cs.parentClassName.getName(brighterscript.ParseMode.BrighterScript).replace(/_/g, '.')] : null;
     }
 
     return result;
@@ -209,7 +209,7 @@ export function getAllAnnotations(fileMap: ProjectFileMap, cs: ClassStatement) {
                 result[annotation.name.toLowerCase()] = true;
             }
         }
-        cs = cs.parentClassName ? fileMap.allClasses.get(cs.parentClassName.getName(brighterscript.ParseMode.BrighterScript).replace(/_/g, '.')) : null;
+        cs = cs.parentClassName ? fileMap.allClasses[cs.parentClassName.getName(brighterscript.ParseMode.BrighterScript).replace(/_/g, '.')] : null;
     }
 
     return result;
