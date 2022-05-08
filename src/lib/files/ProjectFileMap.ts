@@ -1,5 +1,5 @@
-import type { BrsFile, BscFile, ClassStatement, XmlFile } from 'brighterscript';
-import { ParseMode } from 'brighterscript';
+import type { BrsFile, BscFile, ClassStatement, NamespaceStatement, XmlFile } from 'brighterscript';
+import { ParseMode, isBrsFile } from 'brighterscript';
 
 import { File } from './File';
 import { FileType } from './FileType';
@@ -22,6 +22,7 @@ export class ProjectFileMap {
     public allFiles: Map<string, File>;
     public nodeClasses = new Map<string, NodeClass>();
     public nodeClassesByPath = new Map<string, NodeClass[]>();
+    public pathsByNamespace: Record<string, Record<string, boolean>> = {};
 
     get XMLComponentNames(): string[] {
         return [...this.allXMLComponentFiles.keys()];
@@ -115,6 +116,18 @@ export class ProjectFileMap {
         this.allClasses.set(className, classStatement);
         mFile.classNames.add(className);
     }
+    public addNamespaces(file: BrsFile) {
+
+        for (let ns of file.parser.references.namespaceStatements) {
+            let nsName = ns.getName(ParseMode.BrighterScript).toLowerCase();
+            let paths = this.pathsByNamespace[nsName];
+            if (!paths) {
+                paths = {};
+            }
+            paths[file.pkgPath.toLowerCase().replace('.d.bs', '.bs')] = true;
+            this.pathsByNamespace[nsName] = paths;
+        }
+    }
 
     public removeClass(name: string) {
         this.allClassNames.delete(name);
@@ -143,6 +156,9 @@ export class ProjectFileMap {
 
     public addFile(file: File) {
         this.removeFile(file);
+        if (isBrsFile(file.bscFile)) {
+            this.addNamespaces(file.bscFile);
+        }
         this.allFiles.set(file.fullPath, file);
     }
 
