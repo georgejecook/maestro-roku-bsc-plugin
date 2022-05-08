@@ -1097,9 +1097,9 @@ export class MaestroPlugin implements CompilerPlugin {
         return false;
     }
     private isNamespaceImported(ns: NamespaceContainer, importedPkgPaths: string[]) {
-        let p = ns.file.pkgPath.toLowerCase().replace('.d.bs', '.bs');
+        let nsPathLookup = this.fileMap.pathsByNamespace[ns.fullName.toLowerCase()];
         for (let s of importedPkgPaths) {
-            if (p === s) {
+            if (nsPathLookup?.[s]) {
                 return true;
             }
         }

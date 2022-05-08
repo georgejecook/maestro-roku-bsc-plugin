@@ -559,101 +559,38 @@ let maestroSample = {
     'retainStagingFolder': true
 };
 
-// let nba = {
-//     'rootDir': '/home/george/hope/nba/nba-roku/src',
-//     'stagingFolderPath': 'build',
-//     'plugins': [
-//         '/home/george/hope/open-source/maestro/maestro-roku-bsc-plugin/dist/plugin.js',
-//         '/home/george/hope/open-source/rooibos/bsc-plugin/dist/plugin.js'
-//     ],
-//     'files': [
-//         'manifest',
-//         'source/**/*.*',
-//         'images/**/*.*',
-//         'sounds/**/*.*',
-//         'sounds/*.*',
-//         'fonts/**/*.*',
-//         'meta/**/*.*',
-//         'components/**/*.*',
-//         { 'src': '../src-dev/source/**/*.*', 'dest': 'source' }
-//     ],
-//     'autoImportComponentScript': true,
-//     'createPackage': false,
-//     'diagnosticFilters': [
-//         {
-//             'src': '**/roku_modules/**/*.*'
-//         },
-//         {
-//             'src': '**/RALETrackerTask.*'
-//         },
-//         {
-//             'src': '**/*spec.bs',
-//             'codes': ['LINT3011']
-//         },
-//         {
-//             'src': '**/bitmovinAnalytics/**/*.*'
-//         },
-//         {
-//             'src': '**/bitmovinPlayer/**/*.*'
-//         },
-//         {
-//             'src': '**/mediakind/**/*.*'
-//         }
-//     ],
-//     'maestro': {
-//         'excludeFilters': [
-//             '**/roku_modules/**/*',
-//             '**/roku_modules/**/*',
-//             '**/rooibos/**/*',
-//             '**/bitmovinAnalytics/**/*.*',
-//             '**/bitmovinPlayer/**/*.*',
-//             '**/mediakind/**/*.*',
-//             '**/NewRelicAgent/**/*.*',
-//             '**/NewRelicAgent.brs'
-//         ],
-//         'buildForIDE': false,
-//         'extraValidation': {
-//             'doExtraValidation': true,
-//             'doExtraImportValidation': true
-//         }
-//     },
-//     'rooibos': {
-//         'isRecordingCodeCoverage': false,
-//         'testsFilePattern': null
-//     },
-//     'rokuLog': {
-//         'strip': false,
-//         'insertPkgPath': true,
-//         'removeComments': true
-//     },
-//     'logLevel': 'error',
-//     'retainStagingFolder': true
-// };
 
-
-let nbaLatest = {
-    'rootDir': '/home/george/hope/nba/nba-roku/src',
+let robot = {
     'stagingFolderPath': 'build',
+    'rootDir': '/home/george/hope/tw/roku-robot/src',
+    'extends': '/home/george/hope/tw/roku-robot/bsconfig.json',
     'files': [
         '!**/*.i8n.json',
         'manifest',
         'source/**/*.*',
         'images/**/*.*',
         'sounds/**/*.*',
-        'sounds/*.*',
         'fonts/**/*.*',
-        'meta/**/*.*',
         'components/**/*.*',
-        { 'src': '../src-dev/source/**/*.*', 'dest': 'source' }
+        'meta/**/*.*',
+        { 'src': '../src-dev/meta/**/*.*', 'dest': 'meta' },
+        { 'src': '../src-dev/source/**/*.*', 'dest': 'source' },
+        { 'src': '../src-dev/images/**/*.*', 'dest': 'images' },
+        '!**/*.spec.bs'
     ],
-    'autoImportComponentScript': true,
-    'createPackage': false,
+    'plugins': [
+        '/home/george/hope/open-source/maestro/maestro-roku-bsc-plugin/dist/plugin.js',
+        '/home/george/hope/open-source/rooibos/bsc-plugin/dist/plugin.js'
+    ],
     'diagnosticFilters': [
         {
             'src': '**/roku_modules/**/*.*'
         },
         {
-            'src': '**/rooibos/**/*.*'
+            'src': 'node_modules/**/*.*'
+        },
+        {
+            'src': '**/maestro/**/*.*'
         },
         {
             'src': '**/RALETrackerTask.*'
@@ -662,37 +599,14 @@ let nbaLatest = {
             'src': '**/*spec.bs',
             'codes': ['LINT3011']
         },
-        {
-            'src': '**/bitmovinAnalytics/**/*.*'
-        },
-        {
-            'src': '**/bitmovinPlayer/**/*.*'
-        },
-        {
-            'src': '**/mediakind/**/*.*'
-        },
-        {
-            'src': '**/NewRelicAgent/**/*.*'
-        },
-        {
-            'src': '**/NewRelicAgent.brs'
-        }
-    ],
-    'plugins': [
-        '/home/george/hope/open-source/maestro/maestro-roku-bsc-plugin/dist/plugin.js',
-        '/home/george/hope/open-source/maestro/roku-log-bsc-plugin/dist/plugin.js',
-        '/home/george/hope/open-source/rooibos/bsc-plugin/dist/plugin.js'
+        1128
     ],
     'maestro': {
         'excludeFilters': [
+            '**/RALETrackerTask.*',
             '**/roku_modules/**/*',
             '**/node_modules/**/*',
-            '**/rooibos/**/*',
-            '**/bitmovinAnalytics/**/*.*',
-            '**/bitmovinPlayer/**/*.*',
-            '**/mediakind/**/*.*',
-            '**/NewRelicAgent/**/*.*',
-            '**/NewRelicAgent.brs'
+            '**/rooibos/**/*'
         ],
         'buildForIDE': false,
         'extraValidation': {
@@ -717,10 +631,12 @@ let nbaLatest = {
     }
 };
 
+
 let programBuilder = new ProgramBuilder();
 programBuilder.run(
     // swv
-    zapp
+    // zapp
+    robot
     // maestro
     // corco
     // nbaLatest
