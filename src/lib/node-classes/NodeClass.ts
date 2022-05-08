@@ -3,7 +3,7 @@ import type { AnnotationExpression, BrsFile, ClassFieldStatement, ClassMethodSta
 import { isCallExpression, isNewExpression, TokenKind, isClassMethodStatement, ParseMode, createVisitor, isVariableExpression, WalkMode, FunctionStatement, isAALiteralExpression, isArrayLiteralExpression, isIntegerType, isLiteralExpression, isLiteralNumber, isLongIntegerType, isUnaryExpression } from 'brighterscript';
 import { TranspileState } from 'brighterscript/dist/parser/TranspileState';
 import type { ProjectFileMap } from '../files/ProjectFileMap';
-import { expressionToString, expressionToValue } from '../Utils';
+import { expressionToString, expressionToValue, sanitizePkgPath } from '../Utils';
 import { addNodeClassCallbackNotDefined, addNodeClassCallbackNotFound, addNodeClassCallbackWrongParams, addNodeClassFieldNoFieldType, addNodeClassNoExtendNodeFound, addNodeClassUnknownClassType, addTooManyPublicParams } from '../utils/Diagnostics';
 import type { FileFactory } from '../utils/FileFactory';
 import { RawCodeStatement } from '../utils/RawCodeStatement';
@@ -344,8 +344,7 @@ export class NodeClass {
         if (!isIDEBuild) {
             //update node fields, in case of them being present in base classes
             this.nodeFields = this.getNodeFields(this.file, this.classStatement, fileMap);
-
-            let source = `import "pkg:/${this.file.pkgPath}"\n`;
+            let source = `import "${sanitizePkgPath(this.file.pkgPath)}"\n`;
 
             let initBody = ``;
             let otherFunctionsText = ``;
