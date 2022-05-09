@@ -33,7 +33,7 @@ export class ProjectFileMap {
     }
 
     get classNames(): string[] {
-        return Object.values(this.allClassNames);
+        return [...this.allClassNames.values()];
     }
 
     public validComps = new Set<string>(
