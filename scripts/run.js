@@ -76,7 +76,10 @@ let zapp = {
         {
             'src': '**/*spec.bs',
             'codes': ['LINT3011']
-        }
+        },
+        1129,
+        1128
+
     ],
     'plugins': [
         '/home/george/hope/open-source/maestro/maestro-roku-bsc-plugin/dist/plugin.js',
@@ -635,8 +638,8 @@ let robot = {
 let programBuilder = new ProgramBuilder();
 programBuilder.run(
     // swv
-    // zapp
-    robot
+    zapp
+    // robot
     // maestro
     // corco
     // nbaLatest

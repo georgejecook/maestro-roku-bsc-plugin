@@ -944,8 +944,8 @@ describe('MaestroPlugin', () => {
                     m.top.num = 2
                     m.top.numFloat = 2.5
                     m.top.arr = [
-                        1,
-                        2,
+                        1
+                        2
                         3
                     ]
                     m.top.aa = {
