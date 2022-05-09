@@ -1,6 +1,6 @@
 {
     "name": "maestro-roku-bsc-plugin",
-    "version": "0.21.4",
+    "version": "0.21.5",
     "description": "Visual studio plugin for maestro brightscript development",
     "files": [
         "dist/**/!(*.spec.*)*",
