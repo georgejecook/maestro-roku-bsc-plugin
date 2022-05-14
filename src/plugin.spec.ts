@@ -435,7 +435,7 @@ describe('MaestroPlugin', () => {
         });
     });
 
-    describe.only('stripParamTypes', () => {
+    describe('stripParamTypes', () => {
         it('removes parameter types when enabled', async () => {
             plugin.afterProgramCreate(program);
 
