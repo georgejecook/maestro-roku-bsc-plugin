@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-confusing-void-expression */
-import type { BrsFile, BsDiagnostic, ClassFieldStatement, ClassStatement } from 'brighterscript';
+import type { BrsFile, BsDiagnostic, ClassFieldStatement, ClassStatement, FunctionStatement } from 'brighterscript';
 import { DiagnosticSeverity, Program, ProgramBuilder, util } from 'brighterscript';
 import { expect } from 'chai';
 import { MaestroPlugin } from './plugin';
@@ -435,7 +435,69 @@ describe('MaestroPlugin', () => {
         });
     });
 
+    describe.only('stripParamTypes', () => {
+        it('removes parameter types when enabled', async () => {
+            plugin.afterProgramCreate(program);
+
+            plugin.maestroConfig.stripParamTypes = true;
+
+            const file = program.setFile<BrsFile>('source/util.bs', `
+                function printMessage(message as string) as boolean
+                    print message
+                    return true
+                end function
+                function onkeyevent(evt as object) as void
+                end function
+            `);
+            await builder.transpile();
+            expect(
+                getContents('source/util.brs')
+            ).to.eql(undent`
+                function printMessage(message) as dynamic
+                    print message
+                    return true
+                end function
+
+                function onkeyevent(evt) as void
+                end function
+            `);
+            //the param should still be in the AST
+            const stmt = file.ast.statements[0] as FunctionStatement;
+            expect(stmt.func.parameters[0].asToken).to.exist;
+            expect(stmt.func.parameters[0].typeToken).to.exist;
+            expect(stmt.func.returnTypeToken).to.exist;
+            expect(stmt.func.returnType?.toTypeString()).to.eql('boolean');
+        });
+
+        it('leaves parameter types when disabled', async () => {
+            plugin.afterProgramCreate(program);
+
+            plugin.maestroConfig.stripParamTypes = false;
+
+            program.setFile('source/util.bs', `
+                function printMessage(message as string) as void
+                    print message
+                end function
+
+                function onkeyevent(evt as object) as void
+                end function
+            `);
+            await builder.transpile();
+            expect(
+                getContents('source/util.brs')
+            ).to.eql(undent`
+                function printMessage(message as string) as void
+                    print message
+                end function
+
+                function onkeyevent(evt as object) as void
+                end function
+            `);
+        });
+    });
+
     describe('general tests', () => {
+
 
         it('does not manipulate xml files that are in default ignored folders (roku_modules)', async () => {
             plugin.afterProgramCreate(program);

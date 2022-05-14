@@ -435,17 +435,16 @@ export class MaestroPlugin implements CompilerPlugin {
                 this.updateObserveCalls(cs, event.file);
             }
             if (this.maestroConfig.stripParamTypes) {
-                for (let fs of event.file.parser.references.functionExpressions) {
-                    if (fs.returnType && !isVoidType(fs.returnType) && !isDynamicType(fs.returnType)) {
-                        //BRON_AST_EDIT_HERE
-                        const name = fs.functionStatement?.name?.text ?? fs.parentFunction?.functionStatement?.name?.text;
-                        if (!this.maestroConfig.paramStripExceptions.includes(name)) {
-                            fs.returnType = new DynamicType();
+                for (let func of event.file.parser.references.functionExpressions) {
+                    if (func.returnType && !isVoidType(func.returnType) && !isDynamicType(func.returnType)) {
+                        const name = func.functionStatement?.name?.text ?? func.parentFunction?.functionStatement?.name?.text?.toLowerCase();
+                        if (!this.maestroConfig.paramStripExceptions.find(x => x.toLowerCase() === name)) {
+                            event.editor.setProperty(func, 'returnType', new DynamicType());
                         }
                     }
-                    for (let param of fs.parameters) {
-                        //BRON_AST_EDIT_HERE
-                        param.asToken = null;
+                    for (let param of func.parameters) {
+                        event.editor.setProperty(param, 'asToken', undefined);
+                        event.editor.setProperty(param, 'typeToken', undefined);
                     }
                 }
             }
