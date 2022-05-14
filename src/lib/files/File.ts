@@ -48,10 +48,10 @@ export class File {
     public nodeClasses = new Map<string, NodeClass>();
 
     get parentXmlFile(): XmlFile | undefined {
-        return this.fileMap.allXMLComponentFiles.get(this.parentComponentName)?.bscFile as XmlFile;
+        return this.fileMap.allXMLComponentFiles[this.parentComponentName]?.bscFile as XmlFile;
     }
     get parentFile(): File | undefined {
-        return this.fileMap.allXMLComponentFiles.get(this.parentComponentName);
+        return this.fileMap.allXMLComponentFiles[this.parentComponentName];
     }
 
     get fileType(): FileType {
@@ -84,7 +84,7 @@ export class File {
             bindings = bindings.concat(this.bindings);
         }
         if (this.parentXmlFile) {
-            let parentFile = this.fileMap.allFiles.get(this.parentXmlFile.pathAbsolute);
+            let parentFile = this.fileMap.allFiles[this.parentXmlFile.pathAbsolute];
             return parentFile?.getAllParentBindings(bindings);
         } else {
             return bindings;
@@ -98,7 +98,7 @@ export class File {
             addSetItems(ids, this.tagIds);
         }
         if (this.parentXmlFile) {
-            let parentFile = this.fileMap.allFiles.get(this.parentXmlFile.pathAbsolute);
+            let parentFile = this.fileMap.allFiles[this.parentXmlFile.pathAbsolute];
             return parentFile?.getAllParentTagIds(ids);
         } else {
             return ids;
@@ -112,7 +112,7 @@ export class File {
             addSetItems(ids, this.fieldIds);
         }
         if (this.parentXmlFile) {
-            let parentFile = this.fileMap.allFiles.get(this.parentXmlFile.pathAbsolute);
+            let parentFile = this.fileMap.allFiles[this.parentXmlFile.pathAbsolute];
             return parentFile?.getAllParentFieldIds(ids);
         } else {
             return ids;
@@ -192,7 +192,7 @@ export class File {
             for (let method of cs.methods) {
                 result[method.name.text.toLowerCase()] = true;
             }
-            cs = cs.parentClassName ? this.fileMap.allClasses.get(cs.parentClassName.getName(ParseMode.BrighterScript).replace(/_/g, '.')) : null;
+            cs = cs.parentClassName ? this.fileMap.allClasses[cs.parentClassName.getName(ParseMode.BrighterScript).replace(/_/g, '.')] : null;
         }
 
         return result;
@@ -201,10 +201,10 @@ export class File {
     public getParents(): ClassStatement[] {
         if (!this.parents || this.parents.length === 0) {
             this.parents = [];
-            let next = this.bindingClass.parentClassName ? this.fileMap.allClasses.get(this.bindingClass.parentClassName.getName(ParseMode.BrighterScript).replace(/_/g, '.')) : null;
+            let next = this.bindingClass.parentClassName ? this.fileMap.allClasses[this.bindingClass.parentClassName.getName(ParseMode.BrighterScript).replace(/_/g, '.')] : null;
             while (next) {
                 this.parents.push(next);
-                next = next.parentClassName ? this.fileMap.allClasses.get(next.parentClassName.getName(ParseMode.BrighterScript).replace(/_/g, '.')) : null;
+                next = next.parentClassName ? this.fileMap.allClasses[next.parentClassName.getName(ParseMode.BrighterScript).replace(/_/g, '.')] : null;
             }
         }
 

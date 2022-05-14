@@ -76,40 +76,29 @@ let zapp = {
         {
             'src': '**/*spec.bs',
             'codes': ['LINT3011']
-        }
+        },
+        1129,
+        1128
+
     ],
     'plugins': [
         '/home/george/hope/open-source/maestro/maestro-roku-bsc-plugin/dist/plugin.js',
         '/home/george/hope/open-source/rooibos/bsc-plugin/dist/plugin.js',
         '/home/george/hope/open-source/maestro/roku-log-bsc-plugin/dist/plugin.js'
     ],
-    'ignore': ['maestro-roku-bsc-plugin'],
-    'rokuLog': {
-        'strip': false,
-        'insertPkgPath': true,
-        'removeComments': true
-    },
     'rooibos': {
-        'tags': ['!integration', '!deprecated', '!fixme'],
-        'showOnlyFailures': true,
-        'catchCrashes': true,
-        'lineWidth': 70,
-        'failFast': false
+        'isRecordingCodeCoverage': false,
+        'testsFilePattern': null
     },
     'maestro': {
         'nodeClasses': {
             'buildForIDE': false,
-            'generateTestUtils': true
+            'generateTestUtils': false
         },
-        'excludeFilters': ['**/roku_modules/**/*', '**/rooibos-roku/**/*'],
-        'buildTimeImports': {
-            'IAuthProvider': [],
-            'IEntitlementsProvider': [],
-            'IBookmarksProvider': [],
-            'IPlayerAnalytics': [],
-            'IAnalytics': [],
-            'IBootstrapPlugin': []
-        },
+        'excludeFilters': [
+            '**/roku_modules/**/*',
+            '**/rooibos-roku/**/*'
+        ],
         'mvvm': {
             'insertXmlBindingsEarly': false,
             'createCodeBehindFilesWhenNeeded': false,
@@ -117,11 +106,42 @@ let zapp = {
             'callCreateVMMethodInInit': false,
             'callCreateNodeVarsInInit': true
         },
+        'buildTimeImports': {
+            'IAuthProvider': [
+                'pkg:/source/zapp_oauth_plugin/ZappOauthPlugin.bs',
+                'pkg:/source/AdobeAccessEnabler/AdobePrimetimeAuthPlugin.bs',
+                'pkg:/source/cleeng_auth_provider/CleengAuthPlugin.bs'
+            ],
+            'IEntitlementsProvider': [
+                'pkg:/source/cleeng_entitlements_plugin/CleengEntitlementsPlugin.bs'
+            ],
+            'IBookmarksProvider': [],
+            'IPlayerAnalytics': [
+                'pkg:/source/google_analytics_roku/GoogleAnalyticsPlugin.bs'
+            ],
+            'IAnalytics': [
+                'pkg:/source/google_analytics_roku/GoogleAnalyticsPlugin.bs'
+            ],
+            'IBootstrapPlugin': []
+        },
         'reflection': {
             'generateReflectionFunctions': true,
-            'excludeFilters': ['**/roku_modules/**/*', '**/*.spec.bs']
+            'excludeFilters': [
+                '**/roku_modules/**/*',
+                '**/*.spec.bs'
+            ]
+        },
+        'extraValidation': {
+            'doExtraValidation': true,
+            'doExtraImportValidation': false
         }
-    }
+    },
+    'rokuLog': {
+        'strip': false,
+        'insertPkgPath': true,
+        'removeComments': true
+    },
+    'sourceMap': true
 };
 let z41 = {
     'rootDir': '/home/george/hope/applicaster/4-1/zapp-roku-app/src',
@@ -542,101 +562,38 @@ let maestroSample = {
     'retainStagingFolder': true
 };
 
-// let nba = {
-//     'rootDir': '/home/george/hope/nba/nba-roku/src',
-//     'stagingFolderPath': 'build',
-//     'plugins': [
-//         '/home/george/hope/open-source/maestro/maestro-roku-bsc-plugin/dist/plugin.js',
-//         '/home/george/hope/open-source/rooibos/bsc-plugin/dist/plugin.js'
-//     ],
-//     'files': [
-//         'manifest',
-//         'source/**/*.*',
-//         'images/**/*.*',
-//         'sounds/**/*.*',
-//         'sounds/*.*',
-//         'fonts/**/*.*',
-//         'meta/**/*.*',
-//         'components/**/*.*',
-//         { 'src': '../src-dev/source/**/*.*', 'dest': 'source' }
-//     ],
-//     'autoImportComponentScript': true,
-//     'createPackage': false,
-//     'diagnosticFilters': [
-//         {
-//             'src': '**/roku_modules/**/*.*'
-//         },
-//         {
-//             'src': '**/RALETrackerTask.*'
-//         },
-//         {
-//             'src': '**/*spec.bs',
-//             'codes': ['LINT3011']
-//         },
-//         {
-//             'src': '**/bitmovinAnalytics/**/*.*'
-//         },
-//         {
-//             'src': '**/bitmovinPlayer/**/*.*'
-//         },
-//         {
-//             'src': '**/mediakind/**/*.*'
-//         }
-//     ],
-//     'maestro': {
-//         'excludeFilters': [
-//             '**/roku_modules/**/*',
-//             '**/roku_modules/**/*',
-//             '**/rooibos/**/*',
-//             '**/bitmovinAnalytics/**/*.*',
-//             '**/bitmovinPlayer/**/*.*',
-//             '**/mediakind/**/*.*',
-//             '**/NewRelicAgent/**/*.*',
-//             '**/NewRelicAgent.brs'
-//         ],
-//         'buildForIDE': false,
-//         'extraValidation': {
-//             'doExtraValidation': true,
-//             'doExtraImportValidation': true
-//         }
-//     },
-//     'rooibos': {
-//         'isRecordingCodeCoverage': false,
-//         'testsFilePattern': null
-//     },
-//     'rokuLog': {
-//         'strip': false,
-//         'insertPkgPath': true,
-//         'removeComments': true
-//     },
-//     'logLevel': 'error',
-//     'retainStagingFolder': true
-// };
 
-
-let nbaLatest = {
-    'rootDir': '/home/george/hope/nba/nba-roku/src',
+let robot = {
     'stagingFolderPath': 'build',
+    'rootDir': '/home/george/hope/tw/roku-robot/src',
+    'extends': '/home/george/hope/tw/roku-robot/bsconfig.json',
     'files': [
         '!**/*.i8n.json',
         'manifest',
         'source/**/*.*',
         'images/**/*.*',
         'sounds/**/*.*',
-        'sounds/*.*',
         'fonts/**/*.*',
-        'meta/**/*.*',
         'components/**/*.*',
-        { 'src': '../src-dev/source/**/*.*', 'dest': 'source' }
+        'meta/**/*.*',
+        { 'src': '../src-dev/meta/**/*.*', 'dest': 'meta' },
+        { 'src': '../src-dev/source/**/*.*', 'dest': 'source' },
+        { 'src': '../src-dev/images/**/*.*', 'dest': 'images' },
+        '!**/*.spec.bs'
     ],
-    'autoImportComponentScript': true,
-    'createPackage': false,
+    'plugins': [
+        '/home/george/hope/open-source/maestro/maestro-roku-bsc-plugin/dist/plugin.js',
+        '/home/george/hope/open-source/rooibos/bsc-plugin/dist/plugin.js'
+    ],
     'diagnosticFilters': [
         {
             'src': '**/roku_modules/**/*.*'
         },
         {
-            'src': '**/rooibos/**/*.*'
+            'src': 'node_modules/**/*.*'
+        },
+        {
+            'src': '**/maestro/**/*.*'
         },
         {
             'src': '**/RALETrackerTask.*'
@@ -645,37 +602,14 @@ let nbaLatest = {
             'src': '**/*spec.bs',
             'codes': ['LINT3011']
         },
-        {
-            'src': '**/bitmovinAnalytics/**/*.*'
-        },
-        {
-            'src': '**/bitmovinPlayer/**/*.*'
-        },
-        {
-            'src': '**/mediakind/**/*.*'
-        },
-        {
-            'src': '**/NewRelicAgent/**/*.*'
-        },
-        {
-            'src': '**/NewRelicAgent.brs'
-        }
-    ],
-    'plugins': [
-        '/home/george/hope/open-source/maestro/maestro-roku-bsc-plugin/dist/plugin.js',
-        '/home/george/hope/open-source/maestro/roku-log-bsc-plugin/dist/plugin.js',
-        '/home/george/hope/open-source/rooibos/bsc-plugin/dist/plugin.js'
+        1128
     ],
     'maestro': {
         'excludeFilters': [
+            '**/RALETrackerTask.*',
             '**/roku_modules/**/*',
             '**/node_modules/**/*',
-            '**/rooibos/**/*',
-            '**/bitmovinAnalytics/**/*.*',
-            '**/bitmovinPlayer/**/*.*',
-            '**/mediakind/**/*.*',
-            '**/NewRelicAgent/**/*.*',
-            '**/NewRelicAgent.brs'
+            '**/rooibos/**/*'
         ],
         'buildForIDE': false,
         'extraValidation': {
@@ -700,13 +634,15 @@ let nbaLatest = {
     }
 };
 
+
 let programBuilder = new ProgramBuilder();
 programBuilder.run(
     // swv
-    // zapp
+    zapp
+    // robot
     // maestro
     // corco
-    nbaLatest
+    // nbaLatest
     // nba
     // z41
     // maestroSample

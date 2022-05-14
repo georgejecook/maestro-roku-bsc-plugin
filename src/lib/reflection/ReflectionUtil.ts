@@ -71,7 +71,7 @@ export default class ReflectionUtil {
     }
 
     public addFile(file: BrsFile) {
-        let mFile = this.fileMap.allFiles.get(file.pathAbsolute);
+        let mFile = this.fileMap.allFiles[file.pathAbsolute];
         this.fileMap.removeFileClasses(mFile);
         for (let cs of file.parser.references.classStatements) {
             this.fileMap.addClass(cs, mFile);

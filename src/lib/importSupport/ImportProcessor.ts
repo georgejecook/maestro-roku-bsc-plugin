@@ -48,12 +48,8 @@ export default class ImportProcessor {
             //BRON_AST_EDIT_HERE
             file.parser.ast.statements = file.parser.ast.statements.filter((el) => !statementsToRemove.includes(el));
             file.parser.ast.statements = statementsToAdd.concat(file.parser.ast.statements);
-            file.parser.invalidateReferences();
             file.parser.ast.statements = file.parser.ast.statements.filter((el) => !statementsToRemove.includes(el));
-            file.ownScriptImports = [];
-            //FIXME - remove this when Bron updates bsc
-            // eslint-disable-next-line @typescript-eslint/dot-notation
-            file['registerImports']?.();
+            file.parser.invalidateReferences();
         }
     }
 }
