@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-confusing-void-expression */
-import type { BrsFile, BsDiagnostic } from 'brighterscript';
+import type { BrsFile, BsDiagnostic, ClassFieldStatement, ClassStatement } from 'brighterscript';
 import { DiagnosticSeverity, Program, ProgramBuilder, util } from 'brighterscript';
 import { expect } from 'chai';
 import { MaestroPlugin } from './plugin';
@@ -1110,7 +1110,6 @@ describe('MaestroPlugin', () => {
             let cs = classFile.parser.references.classStatements[0];
             expect(cs.body.length === 3);
             expect(cs.fields.length === 2);
-            expect(cs.memberMap['__className'].name.text === '__className');
             expect(
                 getContents('source/myClass.brs')
             ).to.eql(undent`
@@ -1159,6 +1158,8 @@ describe('MaestroPlugin', () => {
                     return instance
                 end function
             `);
+            //field should not exist (it only exists during transpile)
+            expect(cs.memberMap['__className']).not.to.exist;
         });
 
         it('does not add __classname if in parent class', async () => {
@@ -1177,7 +1178,6 @@ describe('MaestroPlugin', () => {
             let cs = classFile.parser.references.classStatements[0];
             expect(cs.body.length === 3);
             expect(cs.fields.length === 2);
-            expect(cs.memberMap['__className'].name.text === '__className');
             expect(
                 getContents('source/myClass.brs')
             ).to.eql(undent`
@@ -1200,6 +1200,7 @@ describe('MaestroPlugin', () => {
                     instance.new = sub()
                         m.super0_new()
                         m.title2 = invalid
+                        m.__className = "ClassB"
                     end sub
                     return instance
                 end function
@@ -1209,6 +1210,8 @@ describe('MaestroPlugin', () => {
                     return instance
                 end function
             `);
+            //field should not exist (it only exists during transpile)
+            expect(cs.memberMap['__className']).not.to.exist;
         });
 
         describe('extra validation', () => {
@@ -1522,6 +1525,7 @@ describe('MaestroPlugin', () => {
                         instance.super0_new = instance.new
                         instance.new = sub()
                             m.super0_new()
+                            m.__className = "ChildVM"
                         end sub
                         instance.doStuff = function()
                             m.setField("fieldA", "val1")
@@ -1640,6 +1644,7 @@ describe('MaestroPlugin', () => {
                         instance.super0_new = instance.new
                         instance.new = sub()
                             m.super0_new()
+                            m.__className = "ChildVM"
                         end sub
                         return instance
                     end function
@@ -2285,7 +2290,7 @@ describe('MaestroPlugin', () => {
 
         it('converts as calls in class functions', async () => {
             plugin.afterProgramCreate(program);
-            program.setFile('source/comp.bs', `
+            const file = program.setFile<BrsFile>('source/comp.bs', `
                 class Comp
                     private json
                     function classMethod()
@@ -2327,6 +2332,12 @@ describe('MaestroPlugin', () => {
                     return instance
                 end function
             `);
+
+            //verify the ast edit was undone after transpile
+            const klass = file.ast.statements[0] as ClassStatement;
+            expect(
+                klass.body.find(x => (x as ClassFieldStatement)?.name?.text.toLowerCase() === '__classname')
+            ).not.to.exist;
         });
     });
 

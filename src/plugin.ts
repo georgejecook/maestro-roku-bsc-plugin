@@ -399,27 +399,28 @@ export class MaestroPlugin implements CompilerPlugin {
         if (isBrsFile(event.file) && this.shouldParseFile(event.file)) {
             let classes = event.file.parser.references.classStatements;
             for (let cs of classes) {
+                //force bsc to add an empty `new` method before doing ast edits
+                // eslint-disable-next-line @typescript-eslint/dot-notation
+                cs['ensureConstructorFunctionExists']?.();
                 //do class updates in here
                 let fieldMap = getAllFields(this.fileMap, cs);
                 let id = createToken(TokenKind.Identifier, '__classname', cs.range);
                 // eslint-disable-next-line @typescript-eslint/dot-notation
                 if (!fieldMap['__classname']) {
-                    //BRON_AST_EDIT_HERE
                     let p = createToken(TokenKind.Public, 'public', cs.range);
                     let a = createToken(TokenKind.As, 'as', cs.range);
                     let s = createToken(TokenKind.String, 'string', cs.range);
 
                     let classNameStatement = new ClassFieldStatement(p, id, a, s, createToken(TokenKind.Equal, '=', cs.range), createStringLiteral('"' + cs.getName(ParseMode.BrighterScript), cs.range));
-                    cs.body.push(classNameStatement);
-                    cs.fields.push(classNameStatement);
-                    cs.memberMap.__className = classNameStatement;
+                    event.editor.addToArray(cs.body, cs.body.length, classNameStatement);
+                    event.editor.addToArray(cs.fields, cs.fields.length, classNameStatement);
+                    event.editor.setProperty(cs.memberMap, '__className', classNameStatement);
                 } else {
                     //this is more complicated, have to add this to the constructor
                     let s = new RawCodeStatement(`m.__className = "${cs.getName(ParseMode.BrighterScript)}"`, event.file, cs.range);
-                    //BRON_AST_EDIT_HERE
                     let constructor = cs.memberMap.new as ClassMethodStatement;
                     if (constructor) {
-                        constructor.func.body.statements.push(s);
+                        event.editor.addToArray(constructor.func.body.statements, constructor.func.body.statements.length, s);
                     } else {
                         //have to create a constructor, with same args as parent..
                         // console.log('TBD: create a constructor to inject for ', cs.name.text);
