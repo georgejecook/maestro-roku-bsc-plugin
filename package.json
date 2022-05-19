@@ -114,7 +114,7 @@
         "cli": "npm run compile && npm unlink && npm link",
         "test": "nyc mocha",
         "test:nocover": "mocha",
-        "coverage": "nyc report --reporter=text-lcov > coverage.lcov && codecov",
+        "publish-coverage": "nyc report --reporter=text-lcov | coveralls",
         "publish-npm": "npm run test && npm publish",
         "publish-npm:beta": "npm run test && npm publish --tag=beta",
         "local": "ts-node scripts/install-local.js",
