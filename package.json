@@ -21,7 +21,7 @@
     "devDependencies": {
         "@deboxsoft/cpx": "^1.5.0",
         "@types/chai": "^4.2.12",
-        "@types/mocha": "^8.0.3",
+        "@types/mocha": "^9.1.1",
         "@types/node": "^14.14.16",
         "@typescript-eslint/eslint-plugin": "^4.4.1",
         "@typescript-eslint/parser": "^4.4.1",
@@ -34,7 +34,7 @@
         "fs-extra": "^9.1.0",
         "lodash": "^4.17.20",
         "minimatch": "^3.0.4",
-        "mocha": "^10.0.0",
+        "mocha": "9.2.2",
         "nyc": "^15.1.0",
         "rimraf": "^3.0.2",
         "sax": "^1.2.4",
