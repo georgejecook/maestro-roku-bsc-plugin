@@ -6,25 +6,23 @@ import {
     ExpressionStatement,
     createVisitor,
     WalkMode,
-    ClassFieldStatement,
     createStringLiteral,
     createToken,
     ParseMode,
     TokenKind,
     isBrsFile,
     isXmlFile,
-    VariableExpression,
     isDottedGetExpression,
-    DottedSetStatement,
     isVoidType,
     isDynamicType,
     isNewExpression,
-    isLiteralString,
     isIndexedGetExpression,
     isExpression,
     isLiteralExpression,
     isCallExpression,
-    isCallfuncExpression
+    isCallfuncExpression,
+    FieldStatement,
+    createMethodStatement
 } from 'brighterscript';
 import type {
     BrsFile,
@@ -39,14 +37,9 @@ import type {
     CallableContainerMap,
     FunctionStatement,
     Statement,
-    ClassMethodStatement
-    ,
-    BeforeFileTranspileEvent
-    ,
-    Expression
-    ,
-    FunctionExpression,
-    CallfuncExpression
+    BeforeFileTranspileEvent,
+    Expression,
+    MethodStatement
 } from 'brighterscript';
 
 import { ProjectFileMap } from './lib/files/ProjectFileMap';
@@ -69,6 +62,7 @@ import { DependencyGraph } from 'brighterscript/dist/DependencyGraph';
 import { debug } from 'node:console';
 import { DynamicType } from 'brighterscript/dist/types/DynamicType';
 import { isStringLiteral } from 'typescript';
+import type { AstEditor } from 'brighterscript/dist/astUtils/AstEditor';
 
 type Writeable<T> = { -readonly [P in keyof T]: T[P] };
 interface FunctionInfo {
@@ -398,41 +392,52 @@ export class MaestroPlugin implements CompilerPlugin {
         }
         if (isBrsFile(event.file) && this.shouldParseFile(event.file)) {
             let classes = event.file.parser.references.classStatements;
-            for (let cs of classes) {
+            for (let classStatement of classes) {
                 //force bsc to add an empty `new` method before doing ast edits
                 // eslint-disable-next-line @typescript-eslint/dot-notation
-                cs['ensureConstructorFunctionExists']?.();
+                classStatement['ensureConstructorFunctionExists']?.();
                 //do class updates in here
-                let fieldMap = getAllFields(this.fileMap, cs);
-                let id = createToken(TokenKind.Identifier, '__classname', cs.range);
+                let fieldMap = getAllFields(this.fileMap, classStatement);
                 // eslint-disable-next-line @typescript-eslint/dot-notation
                 if (!fieldMap['__classname']) {
-                    let p = createToken(TokenKind.Public, 'public', cs.range);
-                    let a = createToken(TokenKind.As, 'as', cs.range);
-                    let s = createToken(TokenKind.String, 'string', cs.range);
-
-                    let classNameStatement = new ClassFieldStatement(p, id, a, s, createToken(TokenKind.Equal, '=', cs.range), createStringLiteral('"' + cs.getName(ParseMode.BrighterScript), cs.range));
-                    event.editor.addToArray(cs.body, cs.body.length, classNameStatement);
-                    event.editor.addToArray(cs.fields, cs.fields.length, classNameStatement);
-                    event.editor.setProperty(cs.memberMap, '__className', classNameStatement);
+                    let classNameStatement = new FieldStatement(
+                        createToken(TokenKind.Public, 'public', classStatement.range),
+                        createToken(TokenKind.Identifier, '__classname', classStatement.range),
+                        createToken(TokenKind.As, 'as', classStatement.range),
+                        createToken(TokenKind.String, 'string', classStatement.range),
+                        createToken(TokenKind.Equal, '=', classStatement.range),
+                        createStringLiteral('"' + classStatement.getName(ParseMode.BrighterScript), classStatement.range)
+                    );
+                    event.editor.arrayPush(classStatement.body, classNameStatement);
+                    event.editor.arrayPush(classStatement.fields, classNameStatement);
+                    event.editor.setProperty(classStatement.memberMap, '__className', classNameStatement);
                 } else {
                     //this is more complicated, have to add this to the constructor
-                    let s = new RawCodeStatement(`m.__className = "${cs.getName(ParseMode.BrighterScript)}"`, event.file, cs.range);
-                    let constructor = cs.memberMap.new as ClassMethodStatement;
-                    if (constructor) {
-                        event.editor.addToArray(constructor.func.body.statements, constructor.func.body.statements.length, s);
-                    } else {
-                        //have to create a constructor, with same args as parent..
-                        // console.log('TBD: create a constructor to inject for ', cs.name.text);
+                    let s = new RawCodeStatement(`m.__className = "${classStatement.getName(ParseMode.BrighterScript)}"`, event.file, classStatement.range);
+                    let constructor = classStatement.memberMap.new as MethodStatement;
+
+                    //if there's no constructor, add one
+                    if (!constructor) {
+                        constructor = createMethodStatement('new', TokenKind.Sub);
+                        //TODO handle injecting a `super` call for child classes (and handle parent constructor arguments somehow...)
+                        // constructor.func.body.statements.push(
+                        //     new ExpressionStatement(
+                        //         createCall(
+                        //             createVariableExpression('super')
+                        //         )
+                        //     )
+                        // );
+                        event.editor.arrayUnshift(classStatement.body, constructor);
                     }
+                    event.editor.arrayPush(constructor.func.body.statements, s);
                 }
-                let allClassAnnotations = getAllAnnotations(this.fileMap, cs);
+                let allClassAnnotations = getAllAnnotations(this.fileMap, classStatement);
                 // eslint-disable-next-line @typescript-eslint/dot-notation
                 if (allClassAnnotations['usesetfield']) {
-                    this.updateFieldSets(cs);
+                    this.updateFieldSets(classStatement);
                 }
-                this.injectIOCCode(cs, event.file);
-                this.updateObserveCalls(cs, event.file);
+                this.injectIOCCode(classStatement, event.file);
+                this.updateObserveCalls(classStatement, event.file);
             }
             if (this.maestroConfig.stripParamTypes) {
                 for (let func of event.file.parser.references.functionExpressions) {
@@ -448,16 +453,16 @@ export class MaestroPlugin implements CompilerPlugin {
                     }
                 }
             }
-            this.updateAsFunctionCalls(event.file);
+            this.updateAsFunctionCalls(event);
         }
         for (let nc of Object.values(this.fileMap.nodeClasses)) {
             nc.replacePublicMFieldRefs(this.fileMap);
         }
     }
 
-    private updateAsFunctionCalls(file: BrsFile) {
+    private updateAsFunctionCalls(event: BeforeFileTranspileEvent) {
         if (this.maestroConfig.updateAsFunctionCalls) {
-            for (let functionScope of file.functionScopes) {
+            for (let functionScope of event.file.functionScopes) {
 
                 // event.file.functionCalls
                 for (let callExpression of functionScope.func.callExpressions) {
@@ -466,14 +471,13 @@ export class MaestroPlugin implements CompilerPlugin {
                         let name = callExpression.callee.name.text;
                         if (regex.test(name)) {
                             try {
-                                let value = callExpression.args.shift() as DottedGetExpression;
+                                let value = event.editor.arrayShift(callExpression.args) as DottedGetExpression;
                                 let stringPath = this.getStringPathFromDottedGet(value);
                                 name = `mc_get${name.match(regex)[1]}`;
-                                //BRON_AST_EDIT_HERE
-                                callExpression.callee.name.text = name;
-                                callExpression.args.unshift(stringPath);
+                                event.editor.setProperty(callExpression.callee.name, 'text', name);
+                                event.editor.arrayUnshift(callExpression.args, stringPath);
                                 let rootValue = this.getRootValue(value);
-                                callExpression.args.unshift(rootValue);
+                                event.editor.arrayUnshift(callExpression.args, rootValue);
                             } catch (error) {
                                 if (error.message !== 'unsupportedValue') {
                                     console.error('could not update asXXX function call, due to unexpected error', error);
@@ -530,6 +534,7 @@ export class MaestroPlugin implements CompilerPlugin {
 
         return root;
     }
+
     private getStringPathFromDottedGet(value: DottedGetExpression) {
         let parts = [this.getPathValuePartAsString(value)];
         let root;
@@ -760,7 +765,7 @@ export class MaestroPlugin implements CompilerPlugin {
             if (annotation) {
                 let args = annotation.getArguments();
                 //BRON_AST_EDIT_HERE
-                let wf = f as Writeable<ClassFieldStatement>;
+                let wf = f as Writeable<FieldStatement>;
                 if (annotation.name === 'inject') {
                     if (args.length < 1) {
                         // eslint-disable-next-line @typescript-eslint/dot-notation

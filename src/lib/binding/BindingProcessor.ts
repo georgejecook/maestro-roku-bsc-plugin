@@ -145,6 +145,7 @@ export class BindingProcessor {
         //we have to reparse the xml each time we do this..
         let fileContents: SourceObj = {
             pathAbsolute: file.fullPath,
+            srcPath: file.fullPath,
             source: file.bscFile.fileContents
         };
 
@@ -166,6 +167,7 @@ export class BindingProcessor {
             //we have to reparse the xml each time we do this..
             let fileContents: SourceObj = {
                 pathAbsolute: file.fullPath,
+                srcPath: file.fullPath,
                 source: file.bscFile.fileContents
             };
             file.bscFile.parse(fileContents.source);

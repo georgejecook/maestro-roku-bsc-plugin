@@ -1,6 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-confusing-void-expression */
-import type { BrsFile, BsDiagnostic, ClassFieldStatement, ClassStatement, FunctionStatement } from 'brighterscript';
+import type { BrsFile, BsDiagnostic, CallExpression, ClassFieldStatement, ClassStatement, FunctionStatement, PrintStatement } from 'brighterscript';
 import { DiagnosticSeverity, Program, ProgramBuilder, util } from 'brighterscript';
 import { expect } from 'chai';
 import { MaestroPlugin } from './plugin';
@@ -9,7 +7,6 @@ import { standardizePath as s } from './lib/Utils';
 import * as fsExtra from 'fs-extra';
 import * as path from 'path';
 import undent from 'undent';
-import { trimLeading } from './lib/utils/testHelpers.spec';
 
 let tmpPath = s`${process.cwd()}/tmp`;
 let _rootDir = s`${tmpPath}/rootDir`;
@@ -2269,6 +2266,30 @@ describe('MaestroPlugin', () => {
                     print m.items.show(fw_asNode(items[0].item))
                 end function
             `);
+        });
+
+        it('transpiles simple asXXX call', async () => {
+            plugin.afterProgramCreate(program);
+            const file = program.setFile<BrsFile>('source/comp.bs', `
+                function testFunc()
+                    print asBoolean(m.value)
+                end function
+            `);
+            program.validate();
+            await builder.transpile();
+            //ignore diagnostics - need to import core
+
+            expect(
+                getContents('source/comp.brs')
+            ).to.eql(undent`
+                function testFunc()
+                    print mc_getBoolean(m, "value")
+                end function
+            `);
+
+            //ensure the ast is not edited after transpile
+            const stmt = ((file.ast.statements[0] as FunctionStatement).func.body.statements[0] as PrintStatement).expressions[0] as CallExpression;
+            expect(stmt.args).to.be.lengthOf(1);
         });
 
         it('fails validations if a method invocation is present in an as call', () => {
