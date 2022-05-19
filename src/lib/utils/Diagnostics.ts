@@ -391,3 +391,18 @@ export function observeRequiresFirstArgumentIsNotM() {
         severity: DiagnosticSeverity.Error
     };
 }
+
+export function observeFunctionNameNotFound(funcName: string, fieldName: string) {
+    return {
+        message: `m.observe with unknown function ${funcName}, when observing field: ${fieldName}`,
+        code: `MSTO${1062}`,
+        severity: DiagnosticSeverity.Error
+    };
+}
+export function observeFunctionNameWrongArgs(funcName: string, nodeName: string, fieldName: string, sendMode: string, expectedArgs: number, actualArgs: number) {
+    return {
+        message: `m.observe function ${funcName} should have ${expectedArgs} args when observing ${nodeName}.${fieldName}, with sendMode ${sendMode}. Function expects ${actualArgs} args`,
+        code: `MSTO${1063}`,
+        severity: DiagnosticSeverity.Error
+    };
+}
