@@ -40,17 +40,15 @@ import type {
     FunctionStatement,
     Statement,
     BeforeFileTranspileEvent,
-    Expression,
-    MethodStatement
+    Expression
+    ,
+    ClassMethodStatement
 } from 'brighterscript';
-
 import { ProjectFileMap } from './lib/files/ProjectFileMap';
 import type { MaestroConfig } from './lib/files/MaestroConfig';
-
 import { BindingProcessor } from './lib/binding/BindingProcessor';
 import type { File } from './lib/files/File';
 import * as minimatch from 'minimatch';
-
 import { FileType } from './lib/files/FileType';
 import ImportProcessor from './lib/importSupport/ImportProcessor';
 import ReflectionUtil from './lib/reflection/ReflectionUtil';
@@ -58,13 +56,9 @@ import { FileFactory } from './lib/utils/FileFactory';
 import NodeClassUtil from './lib/node-classes/NodeClassUtil';
 import { RawCodeStatement } from './lib/utils/RawCodeStatement';
 import { addClassFieldsNotFoundOnSetOrGet, addIOCNoTypeSupplied, addIOCWrongArgs, noCallsInAsXXXAllowed, functionNotImported, IOCClassNotInScope, namespaceNotImported, noPathForInject, noPathForIOCSync, unknownClassMethod, unknownConstructorMethod, unknownSuperClass, unknownType, wrongConstructorArgs, wrongMethodArgs, observeRequiresFirstArgumentIsField, observeRequiresFirstArgumentIsNotM, observeFunctionNameNotFound, observeFunctionNameWrongArgs } from './lib/utils/Diagnostics';
-import { getAllAnnotations, getAllFields, getAllMethods, makeASTFunction } from './lib/utils/Utils';
+import { getAllAnnotations, getAllFields } from './lib/utils/Utils';
 import { getSGMembersLookup } from './SGApi';
-import { DependencyGraph } from 'brighterscript/dist/DependencyGraph';
-import { debug } from 'node:console';
 import { DynamicType } from 'brighterscript/dist/types/DynamicType';
-import { isStringLiteral } from 'typescript';
-import type { AstEditor } from 'brighterscript/dist/astUtils/AstEditor';
 
 type Writeable<T> = { -readonly [P in keyof T]: T[P] };
 interface FunctionInfo {
@@ -412,7 +406,7 @@ export class MaestroPlugin implements CompilerPlugin {
                 } else {
                     //this is more complicated, have to add this to the constructor
                     let s = new RawCodeStatement(`m.__className = "${classStatement.getName(ParseMode.BrighterScript)}"`, event.file, classStatement.range);
-                    let constructor = classStatement.memberMap.new as MethodStatement;
+                    let constructor = classStatement.memberMap.new as ClassMethodStatement;
 
                     //if there's no constructor, add one
                     if (!constructor) {

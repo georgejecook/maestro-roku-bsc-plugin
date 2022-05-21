@@ -1,4 +1,4 @@
-import type { BrsFile, BsDiagnostic, CallExpression, ClassFieldStatement, ClassStatement, ExpressionStatement, FunctionStatement, MethodStatement, PrintStatement } from 'brighterscript';
+import type { BrsFile, BsDiagnostic, CallExpression, ClassFieldStatement, ClassMethodStatement, ClassStatement, ExpressionStatement, FunctionStatement, PrintStatement } from 'brighterscript';
 import { DiagnosticSeverity, Program, ProgramBuilder, util } from 'brighterscript';
 import { expect } from 'chai';
 import { MaestroPlugin } from './plugin';
@@ -2781,7 +2781,7 @@ describe('MaestroPlugin', () => {
             `);
 
             //ensure the ast is not edited after transpile
-            const expression = (((file.ast.statements[0] as ClassStatement).body[0] as MethodStatement).func.body.statements[0] as ExpressionStatement).expression as CallExpression;
+            const expression = (((file.ast.statements[0] as ClassStatement).body[0] as ClassMethodStatement).func.body.statements[0] as ExpressionStatement).expression as CallExpression;
             expect(expression.args).to.be.lengthOf(2);
         });
     });

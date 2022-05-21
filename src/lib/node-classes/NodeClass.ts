@@ -1,7 +1,5 @@
-/* eslint-disable @typescript-eslint/no-confusing-void-expression */
-import type { AnnotationExpression, BrsFile, ClassFieldStatement, ClassMethodStatement, ClassStatement, FunctionParameterExpression, Program, ProgramBuilder, XmlFile } from 'brighterscript';
-import { isCallExpression, isNewExpression, TokenKind, isClassMethodStatement, ParseMode, createVisitor, isVariableExpression, WalkMode, FunctionStatement, isAALiteralExpression, isArrayLiteralExpression, isIntegerType, isLiteralExpression, isLiteralNumber, isLongIntegerType, isUnaryExpression } from 'brighterscript';
-import { TranspileState } from 'brighterscript/dist/parser/TranspileState';
+import type { AnnotationExpression, BrsFile, ClassFieldStatement, ClassMethodStatement, ClassStatement, FunctionParameterExpression, Program, XmlFile } from 'brighterscript';
+import { isNewExpression, TokenKind, isClassMethodStatement, ParseMode, createVisitor, isVariableExpression, WalkMode, isAALiteralExpression, isArrayLiteralExpression, isIntegerType, isLiteralExpression, isLiteralNumber, isLongIntegerType, isUnaryExpression } from 'brighterscript';
 import type { ProjectFileMap } from '../files/ProjectFileMap';
 import { expressionToString, expressionToValue, sanitizePkgPath } from '../Utils';
 import { addNodeClassCallbackNotDefined, addNodeClassCallbackNotFound, addNodeClassCallbackWrongParams, addNodeClassFieldNoFieldType, addNodeClassNoExtendNodeFound, addNodeClassUnknownClassType, addTooManyPublicParams } from '../utils/Diagnostics';

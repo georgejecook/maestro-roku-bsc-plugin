@@ -1,4 +1,4 @@
-import type { BrsFile, BscFile, XmlFile } from 'brighterscript';
+import type { BrsFile, XmlFile } from 'brighterscript';
 import { isBrsFile, isXmlFile, DiagnosticSeverity, Range } from 'brighterscript';
 import type Binding from '../binding/Binding';
 

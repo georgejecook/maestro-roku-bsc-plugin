@@ -1,11 +1,11 @@
-import type { BrsFile, ProgramBuilder, FunctionStatement, Program } from 'brighterscript';
+import type { BrsFile, FunctionStatement, Program } from 'brighterscript';
 import { ParseMode } from 'brighterscript';
 import type { ProjectFileMap } from '../files/ProjectFileMap';
 import type { File } from '../files/File';
 import { addNodeClassBadDeclaration, addNodeClassDuplicateName, addNodeClassNoExtendNodeFound, addNodeClassWrongNewSignature } from '../utils/Diagnostics';
 import type { FileFactory } from '../utils/FileFactory';
 
-import { NodeClass, NodeClassType, NodeField } from './NodeClass';
+import { NodeClass, NodeClassType } from './NodeClass';
 
 /*
 Crude brighterscript class processor

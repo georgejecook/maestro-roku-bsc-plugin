@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-import type { BsConfig, FileResolver } from 'brighterscript';
 import * as fs from 'fs-extra';
 import * as path from 'path';
 
