@@ -2127,6 +2127,174 @@ describe('MaestroPlugin', () => {
 
     });
 
+    describe.only('auto inject m into namespace function call support', () => {
+        beforeEach(() => {
+            plugin.maestroConfig.updateAsFunctionCalls = true;
+        });
+
+        it('does nothing if the function is not marked with @injectLocalM ', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                namespace test.ns
+                    function nsFunc(name, mTarget = invalid)
+                    end function
+                end namespace
+                function main()
+                    a = test.ns.nsFunc("hello")
+                    print test.ns.nsFunc("hello")
+                end function
+            `);
+            program.validate();
+            await builder.transpile();
+            //ignore diagnostics - need to import core
+
+            expect(
+                getContents('source/comp.brs')
+            ).to.eql(undent`
+                function test_ns_nsFunc(name, mTarget = invalid)
+                end function
+
+                function main()
+                    a = test_ns_nsFunc("hello")
+                    print test_ns_nsFunc("hello")
+                end function
+            `);
+        });
+
+        it('does nothing if the function is @injectLocalM; but all args are present', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                namespace test.ns
+                    @injectLocalM
+                    function nsFunc(name, mTarget = invalid)
+                    end function
+                end namespace
+                function main()
+                    a = test.ns.nsFunc("hello", {})
+                    print test.ns.nsFunc("hello", {})
+                end function
+            `);
+            program.validate();
+            await builder.transpile();
+            //ignore diagnostics - need to import core
+
+            expect(
+                getContents('source/comp.brs')
+            ).to.eql(undent`
+                function test_ns_nsFunc(name, mTarget = invalid)
+                end function
+
+                function main()
+                    a = test_ns_nsFunc("hello", {})
+                    print test_ns_nsFunc("hello", {})
+                end function
+            `);
+        });
+
+        it('injects m, @injectLocalM is present', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                namespace test.ns
+                    @injectLocalM
+                    function nsFunc(name, mTarget = invalid)
+                    end function
+                end namespace
+                function main()
+                    a = test.ns.nsFunc("hello")
+                    print test.ns.nsFunc("hello")
+                end function
+            `);
+            program.validate();
+            await builder.transpile();
+            //ignore diagnostics - need to import core
+
+            expect(
+                getContents('source/comp.brs')
+            ).to.eql(undent`
+                function test_ns_nsFunc(name, mTarget = invalid)
+                end function
+
+                function main()
+                    a = test_ns_nsFunc("hello", m)
+                    print test_ns_nsFunc("hello", m)
+                end function
+            `);
+        });
+
+        it('adds default values, if function has more params', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                namespace test.ns
+                    @injectLocalM
+                    function nsFunc(name, arg1 = "mark", arg2 = invalid, arg3 = [], arg4 = 123, mTarget = invalid)
+                    end function
+                end namespace
+                function main()
+                    a = test.ns.nsFunc("oh hi")
+                    print test.ns.nsFunc("oh hi")
+                    a = test.ns.nsFunc("oh hi", "lisa")
+                    print test.ns.nsFunc("oh hi", "lisa")
+                    print test.ns.nsFunc("oh hi", "lisa", ["first"])
+                end function
+            `);
+            program.validate();
+            await builder.transpile();
+            //ignore diagnostics - need to import core
+
+            expect(
+                getContents('source/comp.brs')
+            ).to.eql(undent`
+                function test_ns_nsFunc(name, arg1 = "mark", arg2 = invalid, arg3 = [], arg4 = 123, mTarget = invalid)
+                end function
+
+                function main()
+                    a = test_ns_nsFunc("oh hi", "mark", invalid, [], 123, m)
+                    print test_ns_nsFunc("oh hi", "mark", invalid, [], 123, m)
+                    a = test_ns_nsFunc("oh hi", "lisa", invalid, [], 123, m)
+                    print test_ns_nsFunc("oh hi", "lisa", invalid, [], 123, m)
+                    print test_ns_nsFunc("oh hi", "lisa", [
+                        "first"
+                    ], [], 123, m)
+                end function
+            `);
+        });
+        it.only('works for function expression calls', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                namespace test.ns
+                    @injectLocalM
+                    function nsFunc(name, arg1 = "mark", arg2 = invalid, arg3 = [], arg4 = 123, mTarget = invalid)
+                    end function
+                    function printThing(text)
+                    end function
+                end namespace
+                function main()
+                    a = m.toStr(test.ns.nsFunc("oh hi"))
+                    print m.toStr(test.ns.nsFunc("oh hi"))
+                    test.ns.printThing(test.ns.nsFunc("oh hi"))
+                end function
+            `);
+            program.validate();
+            await builder.transpile();
+            //ignore diagnostics - need to import core
+
+            expect(
+                getContents('source/comp.brs')
+            ).to.eql(undent`
+                function test_ns_nsFunc(name, arg1 = "mark", arg2 = invalid, arg3 = [], arg4 = 123, mTarget = invalid)
+                end function
+
+                function test_ns_printThing(text)
+                end function
+
+                function main()
+                    a = m.toStr(test_ns_nsFunc("oh hi", "mark", invalid, [], 123, m))
+                    print m.toStr(test_ns_nsFunc("oh hi", "mark", invalid, [], 123, m))
+                    test_ns_printThing(test_ns_nsFunc("oh hi", "mark", invalid, [], 123, m))
+                end function
+            `);
+        });
+    });
     describe('as support', () => {
         beforeEach(() => {
             plugin.maestroConfig.updateAsFunctionCalls = true;

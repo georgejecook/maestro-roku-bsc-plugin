@@ -25,7 +25,9 @@ import {
     isLiteralExpression,
     isCallExpression,
     isCallfuncExpression,
-    isClassMethodStatement
+    isClassMethodStatement,
+    createInvalidLiteral,
+    createVariableExpression
 } from 'brighterscript';
 import type {
     BrsFile,
@@ -447,6 +449,7 @@ export class MaestroPlugin implements CompilerPlugin {
                 }
             }
             this.updateAsFunctionCalls(event.file);
+            this.autoInjectNamespaceFunctionCalls(event.file);
         }
         for (let nc of Object.values(this.fileMap.nodeClasses)) {
             nc.replacePublicMFieldRefs(this.fileMap);
@@ -478,6 +481,49 @@ export class MaestroPlugin implements CompilerPlugin {
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+
+    private autoInjectNamespaceFunctionCalls(file: BrsFile) {
+        if (this.maestroConfig.updateAsFunctionCalls && Object.keys(this.fileMap.allAutoInjectedNamespaceMethods).length > 0) {
+            for (let functionScope of file.functionScopes) {
+
+                // event.file.functionCalls
+                for (let callExpression of functionScope.func.callExpressions) {
+                    //1. get the namespace
+                    //2. check if all params are called
+                    //3. if tag
+                    //4.   get defaults for missing params
+                    //5.   add m
+
+
+                    try {
+                        let dg = callExpression.callee as DottedGetExpression;
+                        let fullPathName = this.getAllDottedGetParts(dg).join('.');
+
+                        let nsFunc = this.fileMap.allAutoInjectedNamespaceMethods[fullPathName];
+
+                        console.log(nsFunc);
+                        //is a namespace?
+                        if (nsFunc && callExpression.args.length < nsFunc.func.parameters.length) {
+                            for (let i = callExpression.args.length; i < nsFunc.func.parameters.length - 1; i++) {
+                                let param = nsFunc.func.parameters[i];
+                                if (param.defaultValue) {
+                                    callExpression.args.push(param.defaultValue);
+                                } else {
+                                    callExpression.args.push(createInvalidLiteral());
+                                }
+                            }
+                            callExpression.args.push(createVariableExpression('m'));
+                        }
+                    } catch (error) {
+                        if (error.message !== 'unsupportedValue') {
+                            console.error('could not update asXXX function call, due to unexpected error', error);
+                        }
+                    }
+
                 }
             }
         }
