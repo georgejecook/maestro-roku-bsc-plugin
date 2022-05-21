@@ -2127,7 +2127,7 @@ describe('MaestroPlugin', () => {
 
     });
 
-    describe.only('auto inject m into namespace function call support', () => {
+    describe('auto inject m into namespace function call support', () => {
         beforeEach(() => {
             plugin.maestroConfig.updateAsFunctionCalls = true;
         });
