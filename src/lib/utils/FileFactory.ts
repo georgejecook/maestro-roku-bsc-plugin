@@ -25,12 +25,11 @@ export class FileFactory {
         }
     }
 
-    public addFile<T extends BscFile>(projectPath: string, contents: string) {
+    public addFile<T extends BscFile>(destPath: string, contents: string) {
         try {
-            return this.program.setFile<T>({ src: path.resolve(projectPath), dest: projectPath }, contents);
+            return this.program.setFile<T>({ src: path.resolve(destPath), dest: destPath }, contents);
         } catch (error) {
-            console.error(`Error adding framework file: ${projectPath} : ${error.message}`);
+            console.error(`Error adding framework file: ${destPath} : ${error.message}`);
         }
     }
-
 }
