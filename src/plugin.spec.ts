@@ -2541,6 +2541,96 @@ describe('MaestroPlugin', () => {
             expect(d[5].code).to.equal('MSTO1059');
         });
 
+        it('gives diagnostics when observe function does not exist', () => {
+            plugin.maestroConfig.extraValidation.doExtraValidation = true;
+            plugin.maestroConfig.extraValidation.doExtraImportValidation = true;
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+            class Comp
+            private json
+            function classMethod()
+            m.observe(node.field, m.callbackFunction)
+            end function
+            end class
+            `);
+            program.validate();
+            let d = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error && d.code !== 'MSTO1040' && d.code !== 1001);
+            expect(d).to.have.lengthOf(1);
+            expect(d[0].code).to.equal('MSTO1062');
+        });
+        it('gives diagnostics when observe function does takes wrong number of params - no param function', () => {
+            plugin.maestroConfig.extraValidation.doExtraValidation = true;
+            plugin.maestroConfig.extraValidation.doExtraImportValidation = true;
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                class Comp
+                    private json
+                    function classMethod()
+                        m.observe(node.field, m.callbackFunction)
+                        m.observe(node.field, m.callbackFunction, "both")
+                        m.observe(node.field, m.callbackFunction, "node")
+                        m.observe(node.field, m.callbackFunction, "value")
+                    end function
+                    function callbackFunction()
+                    end function
+                end class
+            `);
+            program.validate();
+            let d = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error && d.code !== 'MSTO1040' && d.code !== 1001);
+            expect(d).to.have.lengthOf(4);
+            expect(d[0].code).to.equal('MSTO1063');
+            expect(d[1].code).to.equal('MSTO1063');
+            expect(d[2].code).to.equal('MSTO1063');
+            expect(d[3].code).to.equal('MSTO1063');
+        });
+        it('gives diagnostics when observe function does takes wrong number of params - 1 param function', () => {
+            plugin.maestroConfig.extraValidation.doExtraValidation = true;
+            plugin.maestroConfig.extraValidation.doExtraImportValidation = true;
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                class Comp
+                    private json
+                    function classMethod()
+                        m.observe(node.field, m.callbackFunction)
+                        m.observe(node.field, m.callbackFunction, "both")
+                        m.observe(node.field, m.callbackFunction, "node")
+                        m.observe(node.field, m.callbackFunction, "value")
+                    end function
+                    function callbackFunction(value)
+                    end function
+                end class
+            `);
+            program.validate();
+            let d = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error && d.code !== 'MSTO1040' && d.code !== 1001);
+            expect(d).to.have.lengthOf(1);
+            expect(d[0].code).to.equal('MSTO1063');
+        });
+        it('gives diagnostics when observe function does takes wrong number of params - 2 param function', () => {
+            plugin.maestroConfig.extraValidation.doExtraValidation = true;
+            plugin.maestroConfig.extraValidation.doExtraImportValidation = true;
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                class Comp
+                    private json
+                    function classMethod()
+                        m.observe(node.field, m.callbackFunction)
+                        m.observe(node.field, m.callbackFunction, "both")
+                        m.observe(node.field, m.callbackFunction, "node")
+                        m.observe(node.field, m.callbackFunction, "value")
+                    end function
+                    function callbackFunction(value, node)
+                    end function
+                end class
+            `);
+            program.validate();
+            let d = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error && d.code !== 'MSTO1040' && d.code !== 1001);
+            expect(d).to.have.lengthOf(3);
+            expect(d[0].code).to.equal('MSTO1063');
+            expect(d[0].code).to.equal('MSTO1063');
+            expect(d[0].code).to.equal('MSTO1063');
+        });
+
+
         it('converts observe calls in class functions when validations are enabled', async () => {
             plugin.maestroConfig.extraValidation.doExtraValidation = true;
             plugin.maestroConfig.extraValidation.doExtraImportValidation = true;
@@ -2566,6 +2656,8 @@ describe('MaestroPlugin', () => {
                         m.unobserve(m.getNode().field, m.callbackFunction)
                         m.unobserve(m.getNode("id").field, m.callbackFunction)
                         m.unobserve(getNode("id").field, m.callbackFunction)
+                    end function
+                    function callbackFunction(value)
                     end function
                 end class
             `);
@@ -2603,6 +2695,8 @@ describe('MaestroPlugin', () => {
                         m.unobserveNodeField(m.getNode(), "field", m.callbackFunction)
                         m.unobserveNodeField(m.getNode("id"), "field", m.callbackFunction)
                         m.unobserveNodeField(getNode("id"), "field", m.callbackFunction)
+                    end function
+                    instance.callbackFunction = function(value)
                     end function
                     return instance
                 end function

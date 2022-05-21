@@ -22,7 +22,9 @@ import {
     isCallExpression,
     isCallfuncExpression,
     FieldStatement,
-    createMethodStatement
+    createMethodStatement,
+    isMethodStatement,
+    isLiteralString
 } from 'brighterscript';
 import type {
     BrsFile,
@@ -55,7 +57,7 @@ import ReflectionUtil from './lib/reflection/ReflectionUtil';
 import { FileFactory } from './lib/utils/FileFactory';
 import NodeClassUtil from './lib/node-classes/NodeClassUtil';
 import { RawCodeStatement } from './lib/utils/RawCodeStatement';
-import { addClassFieldsNotFoundOnSetOrGet, addIOCNoTypeSupplied, addIOCWrongArgs, noCallsInAsXXXAllowed, functionNotImported, IOCClassNotInScope, namespaceNotImported, noPathForInject, noPathForIOCSync, unknownClassMethod, unknownConstructorMethod, unknownSuperClass, unknownType, wrongConstructorArgs, wrongMethodArgs, observeRequiresFirstArgumentIsField, observeRequiresFirstArgumentIsNotM } from './lib/utils/Diagnostics';
+import { addClassFieldsNotFoundOnSetOrGet, addIOCNoTypeSupplied, addIOCWrongArgs, noCallsInAsXXXAllowed, functionNotImported, IOCClassNotInScope, namespaceNotImported, noPathForInject, noPathForIOCSync, unknownClassMethod, unknownConstructorMethod, unknownSuperClass, unknownType, wrongConstructorArgs, wrongMethodArgs, observeRequiresFirstArgumentIsField, observeRequiresFirstArgumentIsNotM, observeFunctionNameNotFound, observeFunctionNameWrongArgs } from './lib/utils/Diagnostics';
 import { getAllAnnotations, getAllFields, getAllMethods, makeASTFunction } from './lib/utils/Utils';
 import { getSGMembersLookup } from './SGApi';
 import { DependencyGraph } from 'brighterscript/dist/DependencyGraph';
@@ -1082,17 +1084,51 @@ export class MaestroPlugin implements CompilerPlugin {
                                             });
                                         } else {
                                             let arg0 = ce.args[0];
-                                            if (isVariableExpression(arg0.obj) && arg0.obj.name.text === 'm') {
+                                            let objectName = isVariableExpression(arg0.obj) ? arg0.obj.name.text : '';
+                                            let fieldName;
+                                            let name;
+                                            if (isDottedGetExpression(ce.args[1]) && isVariableExpression(ce.args[1].obj)) {
+                                                fieldName = ce.args[1].obj.name.text;
+                                                name = ce.args[1].name.text;
+                                            }
+                                            if (objectName === 'm') {
                                                 // eslint-disable-next-line @typescript-eslint/dot-notation
                                                 file['diagnostics'].push({
                                                     ...observeRequiresFirstArgumentIsNotM(),
                                                     range: ce.range,
                                                     file: file
                                                 });
+                                            } else if (fieldName) {
+                                                let memberStatement = cs.memberMap[name.toLowerCase()];
+                                                if (isMethodStatement(memberStatement)) {
+                                                    let numArgs = memberStatement.func.parameters.length;
+                                                    let sendMode = isLiteralString(ce.args[2]) ? ce.args[2].token.text : '"value"';
+                                                    let expectedArgs = 0;
+                                                    if (sendMode === '"none"') {
+                                                        expectedArgs = 0;
+                                                    } else if (sendMode === '"value"' || sendMode === '"node"') {
+                                                        expectedArgs = 1;
+                                                    } else {
+                                                        expectedArgs = 2;
+                                                    }
+                                                    if (numArgs !== expectedArgs) {
+                                                        // eslint-disable-next-line @typescript-eslint/dot-notation
+                                                        file['diagnostics'].push({
+                                                            ...observeFunctionNameWrongArgs(name, objectName, fieldName, sendMode, expectedArgs, numArgs),
+                                                            range: ce.range,
+                                                            file: file
+                                                        });
+                                                    }
+                                                } else {
+                                                    // eslint-disable-next-line @typescript-eslint/dot-notation
+                                                    file['diagnostics'].push({
+                                                        ...observeFunctionNameNotFound(name, objectName),
+                                                        range: ce.range,
+                                                        file: file
+                                                    });
+                                                }
                                             }
-
                                         }
-
                                     }
                                 }
                             }
