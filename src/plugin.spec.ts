@@ -58,7 +58,7 @@ describe('MaestroPlugin', () => {
                 'IAuthProvider': ['pkg:/source/AuthManager.bs']
             }
         };
-        plugin.beforeProgramCreate(builder);
+        plugin.afterProgramCreate(program);
         program.setFile('manifest', ``);
     });
 

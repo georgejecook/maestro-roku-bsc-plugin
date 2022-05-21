@@ -96,7 +96,7 @@ export class MaestroPlugin implements CompilerPlugin {
     public reflectionUtil: ReflectionUtil;
     public importProcessor: ImportProcessor;
     public nodeClassUtil: NodeClassUtil;
-    public builder: ProgramBuilder;
+    public program: Program;
     public isFrameworkAdded = false;
     public maestroConfig: MaestroConfig;
     private mFilesToValidate = new Map<string, BrsFile>();
@@ -155,24 +155,20 @@ export class MaestroPlugin implements CompilerPlugin {
         return config;
     }
 
-    beforeProgramCreate(builder: ProgramBuilder): void {
+    afterProgramCreate(program: Program): void {
+        this.program = program;
         if (!this.fileMap) {
             this.fileMap = new ProjectFileMap();
-            this.fileFactory = new FileFactory(this.builder);
-            this.maestroConfig = this.getConfig(builder.options as any);
+            this.fileFactory = new FileFactory(program);
+            this.maestroConfig = this.getConfig(program.options as any);
             this.bindingProcessor = new BindingProcessor(this.fileMap, this.fileFactory, this.maestroConfig);
-            this.reflectionUtil = new ReflectionUtil(this.fileMap, builder, this.maestroConfig);
-
+            this.reflectionUtil = new ReflectionUtil(this.fileMap, program, this.maestroConfig);
             this.importProcessor = new ImportProcessor(this.maestroConfig);
-            this.nodeClassUtil = new NodeClassUtil(this.fileMap, builder, this.fileFactory);
-            this.builder = builder;
+            this.nodeClassUtil = new NodeClassUtil(this.fileMap, this.fileFactory);
         }
-    }
-
-    afterProgramCreate(program: Program): void {
         // console.log('MAESTRO apc-----');
         if (!this.isFrameworkAdded) {
-            this.fileFactory.addFrameworkFiles(program);
+            this.fileFactory.addFrameworkFiles();
             this.isFrameworkAdded = true;
         }
     }
@@ -192,16 +188,16 @@ export class MaestroPlugin implements CompilerPlugin {
             return;
         }
         if (isBrsFile(file)) {
-            this.importProcessor.processDynamicImports(file, this.builder.program);
+            this.importProcessor.processDynamicImports(file, this.program);
             this.reflectionUtil.addFile(file);
             if (this.shouldParseFile(file)) {
                 this.nodeClassUtil.addFile(file, mFile);
                 if (this.maestroConfig.nodeClasses.buildForIDE) {
                     for (let nc of [...mFile.nodeClasses.values()]) {
-                        nc.generateCode(this.fileFactory, this.builder.program, this.fileMap, this.maestroConfig.nodeClasses.buildForIDE);
+                        nc.generateCode(this.fileFactory, this.program, this.fileMap, this.maestroConfig.nodeClasses.buildForIDE);
                     }
                     if (this.maestroConfig.nodeClasses.generateTestUtils) {
-                        this.nodeClassUtil.generateTestCode(this.builder.program);
+                        this.nodeClassUtil.generateTestCode(this.program);
                     }
                 }
                 if (mFile.nodeClasses.size > 0) {
@@ -283,12 +279,12 @@ export class MaestroPlugin implements CompilerPlugin {
             for (let filePath of [...this.dirtyCompFilePaths.values()]) {
                 // console.time('Validate bindings');
                 let file = this.fileMap.allFiles[filePath];
-                file.bscFile = this.builder.program.getFileByPathAbsolute(filePath);
+                file.bscFile = this.program.getFileByPathAbsolute(filePath);
                 file.resetDiagnostics();
                 this.bindingProcessor.validateBindings(file);
                 if (this.maestroConfig.mvvm.insertXmlBindingsEarly && file.isValid) {
                     console.log('adding xml transpiled code for ', file.bscFile.pkgPath);
-                    this.bindingProcessor.generateCodeForXMLFile(file, this.builder.program);
+                    this.bindingProcessor.generateCodeForXMLFile(file, this.program);
                 }
                 // console.timeEnd('Validate bindings');
             }
@@ -297,10 +293,10 @@ export class MaestroPlugin implements CompilerPlugin {
         if (!this.maestroConfig.nodeClasses.buildForIDE) {
             console.time('Build node classes');
             for (let nc of Object.values(this.fileMap.nodeClasses)) {
-                nc.generateCode(this.fileFactory, this.builder.program, this.fileMap, false);
+                nc.generateCode(this.fileFactory, this.program, this.fileMap, false);
             }
             if (this.maestroConfig.nodeClasses.generateTestUtils) {
-                this.nodeClassUtil.generateTestCode(this.builder.program);
+                this.nodeClassUtil.generateTestCode(this.program);
             }
             console.timeEnd('Build node classes');
         }
@@ -311,7 +307,7 @@ export class MaestroPlugin implements CompilerPlugin {
     //note this is moved because of changes in how the bsc plugin system worked
     //TODO - revisit and see if there's some other tidying up we can do in here
     afterProgramValidate2(program: Program) {
-        for (let f of Object.values(this.builder.program.files)) {
+        for (let f of Object.values(this.program.files)) {
             if (f.pkgPath.startsWith('components/maestro/generated')) {
                 (f as any).diagnostics = [];
                 if (isXmlFile(f)) {
@@ -322,7 +318,7 @@ export class MaestroPlugin implements CompilerPlugin {
             }
         }
 
-        let runtimeFile = this.builder.program.getFile<BrsFile>('source/roku_modules/maestro/reflection/Reflection.brs');
+        let runtimeFile = this.program.getFile<BrsFile>('source/roku_modules/maestro/reflection/Reflection.brs');
         if (runtimeFile) {
             // eslint-disable-next-line @typescript-eslint/dot-notation
             runtimeFile['diagnostics'] = [];
@@ -345,7 +341,7 @@ export class MaestroPlugin implements CompilerPlugin {
                 for (let nc of this.fileMap.nodeClassesByPath[filePath]) {
                     if (this.shouldDoExtraValidationsOnFile(nc.file)) {
                         nc.validate();
-                        nc.validateBaseComponent(this.builder, this.fileMap);
+                        nc.validateBaseComponent(this.fileMap);
                     }
                 }
             }
@@ -884,7 +880,7 @@ export class MaestroPlugin implements CompilerPlugin {
         //ensure we have all lookups
         let scopeNamespaces = new Map<string, NamespaceContainer>();
         let classMethodLookup: Record<string, FunctionInfo | boolean> = {};
-        for (let scope of this.builder.program.getScopesForFile(file)) {
+        for (let scope of this.program.getScopesForFile(file)) {
             let scopeMap = this.getNamespaceLookup(scope);
             scopeNamespaces = new Map<string, NamespaceContainer>([...Array.from(scopeMap.entries())]);
             classMethodLookup = { ...this.buildClassMethodLookup(scope), ...classMethodLookup };

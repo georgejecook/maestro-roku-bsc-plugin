@@ -414,12 +414,12 @@ export class NodeClass {
                 source += this.getNodeBrsCode(members);
             }
 
-            this.brsFile = fileFactory.addFile(program, this.bsPath, source);
+            this.brsFile = fileFactory.addFile(this.bsPath, source);
             this.brsFile.parser.invalidateReferences();
         }
         let xmlText = this.type === NodeClassType.task ? this.getNodeTaskFileXmlText(this) : this.getNodeFileXmlText(this, members, program);
 
-        this.xmlFile = fileFactory.addFile(program, this.xmlPath, xmlText);
+        this.xmlFile = fileFactory.addFile(this.xmlPath, xmlText);
         this.xmlFile.parser.invalidateReferences();
     }
 
@@ -467,8 +467,8 @@ export class NodeClass {
         return items;
     }
 
-    public validateBaseComponent(builder: ProgramBuilder, fileMap: ProjectFileMap) {
-        let comp = builder.program.getComponent(this.extendsName.toLowerCase());
+    public validateBaseComponent(fileMap: ProjectFileMap) {
+        let comp = this.file.program.getComponent(this.extendsName.toLowerCase());
 
         if (!(comp?.file?.componentName?.text === this.extendsName || fileMap.validComps.has(this.extendsName) || fileMap.nodeClasses[this.extendsName])) {
             addNodeClassNoExtendNodeFound(this.file, this.name, this.extendsName, this.annotation.range.start.line, this.annotation.range.start.character);

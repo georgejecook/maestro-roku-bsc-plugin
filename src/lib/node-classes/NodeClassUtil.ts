@@ -13,7 +13,6 @@ Crude brighterscript class processor
 export default class NodeClassUtil {
     constructor(
         public fileMap: ProjectFileMap,
-        public builder: ProgramBuilder,
         public fileFactory: FileFactory
     ) {
     }
@@ -110,7 +109,7 @@ export default class NodeClassUtil {
 end function
 `;
 
-        let brsFile = this.fileFactory.addFile(program, `source/roku_modules/maestro/tests/TestUtils.brs`, codeText);
+        let brsFile = this.fileFactory.addFile(`source/roku_modules/maestro/tests/TestUtils.brs`, codeText);
         brsFile.parser.invalidateReferences();
     }
 }
