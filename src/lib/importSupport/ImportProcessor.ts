@@ -1,10 +1,8 @@
 
 import type { BrsFile, Program } from 'brighterscript';
 import { createToken, TokenKind, ImportStatement } from 'brighterscript';
-
 import type { MaestroConfig } from '../files/MaestroConfig';
-
-import { addBuildTimeErrorImportMissingKey, addBuildTimeErrorImportMissingPkg } from '../utils/Diagnostics';
+import { addBuildTimeErrorImportMissingKey } from '../utils/Diagnostics';
 
 /**
  * Manages build imports

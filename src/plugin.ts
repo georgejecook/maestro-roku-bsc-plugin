@@ -13,9 +13,7 @@ import {
     TokenKind,
     isBrsFile,
     isXmlFile,
-    VariableExpression,
     isDottedGetExpression,
-    DottedSetStatement,
     isVoidType,
     isDynamicType,
     isNewExpression,
@@ -40,23 +38,15 @@ import type {
     CallableContainerMap,
     FunctionStatement,
     Statement,
-    ClassMethodStatement
-    ,
-    BeforeFileTranspileEvent
-    ,
+    ClassMethodStatement,
+    BeforeFileTranspileEvent,
     Expression
-    ,
-    FunctionExpression,
-    CallfuncExpression
 } from 'brighterscript';
-
 import { ProjectFileMap } from './lib/files/ProjectFileMap';
 import type { MaestroConfig } from './lib/files/MaestroConfig';
-
 import { BindingProcessor } from './lib/binding/BindingProcessor';
 import type { File } from './lib/files/File';
 import * as minimatch from 'minimatch';
-
 import { FileType } from './lib/files/FileType';
 import ImportProcessor from './lib/importSupport/ImportProcessor';
 import ReflectionUtil from './lib/reflection/ReflectionUtil';
@@ -64,12 +54,9 @@ import { FileFactory } from './lib/utils/FileFactory';
 import NodeClassUtil from './lib/node-classes/NodeClassUtil';
 import { RawCodeStatement } from './lib/utils/RawCodeStatement';
 import { addClassFieldsNotFoundOnSetOrGet, addIOCNoTypeSupplied, addIOCWrongArgs, noCallsInAsXXXAllowed, functionNotImported, IOCClassNotInScope, namespaceNotImported, noPathForInject, noPathForIOCSync, unknownClassMethod, unknownConstructorMethod, unknownSuperClass, unknownType, wrongConstructorArgs, wrongMethodArgs, observeRequiresFirstArgumentIsField, observeRequiresFirstArgumentIsNotM, observeFunctionNameNotFound, observeFunctionNameWrongArgs } from './lib/utils/Diagnostics';
-import { getAllAnnotations, getAllFields, getAllMethods, makeASTFunction } from './lib/utils/Utils';
+import { getAllAnnotations, getAllFields } from './lib/utils/Utils';
 import { getSGMembersLookup } from './SGApi';
-import { DependencyGraph } from 'brighterscript/dist/DependencyGraph';
-import { debug } from 'node:console';
 import { DynamicType } from 'brighterscript/dist/types/DynamicType';
-import { isStringLiteral } from 'typescript';
 
 type Writeable<T> = { -readonly [P in keyof T]: T[P] };
 interface FunctionInfo {

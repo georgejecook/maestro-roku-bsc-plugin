@@ -1,5 +1,5 @@
 import type { BrsFile, BscFile, BsDiagnostic, ClassFieldStatement, ClassMethodStatement, ClassStatement, XmlFile } from 'brighterscript';
-import { ParseMode, TokenKind, isClassFieldStatement, isClassMethodStatement } from 'brighterscript';
+import { ParseMode, TokenKind, isClassMethodStatement } from 'brighterscript';
 
 import * as path from 'path';
 

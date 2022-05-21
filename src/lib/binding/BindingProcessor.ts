@@ -3,7 +3,6 @@ import type {
     IfStatement,
     BrsFile,
     XmlFile,
-    SourceObj,
     Program,
     TranspileObj
 } from 'brighterscript';
@@ -18,14 +17,14 @@ import {
     addXmlBindingParentHasDuplicateField,
     addXmlBindingVMClassNotFound
 } from '../utils/Diagnostics';
-import { createRange, makeASTFunction } from '../utils/Utils';
+import { makeASTFunction } from '../utils/Utils';
 import type Binding from './Binding';
 import { BindingType } from './BindingType';
 import { XMLTag } from './XMLTag';
 import { RawCodeStatement } from '../utils/RawCodeStatement';
-import type { SGAttribute, SGComponent, SGNode, SGTag } from 'brighterscript/dist/parser/SGTypes';
+import type { SGComponent, SGNode, SGTag } from 'brighterscript/dist/parser/SGTypes';
 import { SGScript } from 'brighterscript/dist/parser/SGTypes';
-import { addImport, createIfStatement, createImportStatement } from '../Utils';
+import { addImport } from '../Utils';
 import type { FileFactory } from '../utils/FileFactory';
 import type { DependencyGraph } from 'brighterscript/dist/DependencyGraph';
 
@@ -352,9 +351,6 @@ export class BindingProcessor {
 
         if (func) {
             let ifStatement = func.func.body.statements[0] as IfStatement;
-            let nodeIds = [
-                ...new Set(bindings.filter((b) => !b.isTopBinding).map((b) => b.nodeId))
-            ];
 
             for (let binding of bindings) {
                 ifStatement.thenBranch.statements.push(new RawCodeStatement(binding.getInitText(), file, binding.range));
@@ -383,9 +379,6 @@ export class BindingProcessor {
 
         if (func) {
             let ifStatement = func.func.body.statements[0] as IfStatement;
-            let nodeIds = [
-                ...new Set(bindings.filter((b) => !b.isTopBinding).map((b) => b.nodeId))
-            ];
 
             for (let binding of bindings) {
                 ifStatement.thenBranch.statements.push(new RawCodeStatement(binding.getStaticText(), file, binding.range));
@@ -451,19 +444,4 @@ export class BindingProcessor {
             end function
         `;
     }
-
-    private getFunctionInParents(file: File, name: string) {
-        let fs;
-        while (file) {
-
-            fs = (file.associatedFile?.bscFile as BrsFile).parser.references.functionStatementLookup.get('createVM');
-            if (fs) {
-                return fs;
-            }
-            file = file.parentFile;
-        }
-        return undefined;
-    }
-
-
 }

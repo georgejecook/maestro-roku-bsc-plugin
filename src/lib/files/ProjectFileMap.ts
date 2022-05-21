@@ -1,4 +1,4 @@
-import type { BrsFile, BscFile, ClassStatement, NamespaceStatement, XmlFile } from 'brighterscript';
+import type { BrsFile, BscFile, ClassStatement, XmlFile } from 'brighterscript';
 import { ParseMode, isBrsFile } from 'brighterscript';
 
 import { File } from './File';
