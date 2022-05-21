@@ -493,14 +493,11 @@ export class MaestroPlugin implements CompilerPlugin {
     private updateObserveCalls(cs: ClassStatement, event: BeforeFileTranspileEvent) {
         if (this.maestroConfig.updateObserveCalls) {
             for (let method of cs.methods) {
-
-                // event.file.functionCalls
                 for (let callExpression of method.func.callExpressions) {
                     if (isDottedGetExpression(callExpression.callee) && isDottedGetExpression(callExpression.args[0])) {
                         let [, name] = /^(observe|unobserve)$/i.exec(callExpression.callee.name.text) ?? [];
                         if (name) {
                             try {
-                                //BRON_AST_EDIT_HERE
                                 const arg0 = event.editor.arrayShift(callExpression.args) as DottedGetExpression;
                                 event.editor.arrayUnshift(callExpression.args, createStringLiteral(arg0.name.text));
                                 event.editor.arrayUnshift(callExpression.args, arg0.obj);
