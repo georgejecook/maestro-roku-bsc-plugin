@@ -1,10 +1,7 @@
-import type { BrsFile, ProgramBuilder, FunctionStatement, BscFile } from 'brighterscript';
+import type { BrsFile, FunctionStatement, BscFile, Program } from 'brighterscript';
 import type { MaestroConfig } from '../files/MaestroConfig';
-
 import type { ProjectFileMap } from '../files/ProjectFileMap';
-
 import { RawCodeStatement } from '../utils/RawCodeStatement';
-
 import * as minimatch from 'minimatch';
 
 /*
@@ -13,13 +10,13 @@ Crude brighterscript class processor
 export default class ReflectionUtil {
     constructor(
         public fileMap: ProjectFileMap,
-        public builder: ProgramBuilder,
+        public program: Program,
         public maestroConfig: MaestroConfig
     ) {
     }
 
     public updateRuntimeFile() {
-        let runtimeFile = this.builder.program.getFile<BrsFile>('source/roku_modules/maestro/reflection/Reflection.brs');
+        let runtimeFile = this.program.getFile<BrsFile>('source/roku_modules/maestro/reflection/Reflection.brs');
         if (runtimeFile) {
             runtimeFile.needsTranspiled = true;
             this.updateClassLookupFunction(runtimeFile);
@@ -88,6 +85,4 @@ export default class ReflectionUtil {
         }
         return true;
     }
-
 }
-

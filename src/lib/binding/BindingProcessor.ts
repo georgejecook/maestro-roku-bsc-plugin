@@ -142,15 +142,9 @@ export class BindingProcessor {
         }
         file.resetBindings();
 
-        //we have to reparse the xml each time we do this..
-        let fileContents: SourceObj = {
-            pathAbsolute: file.fullPath,
-            srcPath: file.fullPath,
-            source: file.bscFile.fileContents
-        };
-
         let xmlFile = file.bscFile as XmlFile;
-        xmlFile.parse(fileContents.source);
+        //we have to reparse the xml each time we do this..
+        xmlFile.parse(file.bscFile.fileContents);
         // eslint-disable-next-line @typescript-eslint/no-confusing-void-expression
         xmlFile.ast.component?.setAttribute('vm', undefined);
         xmlFile.needsTranspiled = true;
@@ -165,12 +159,7 @@ export class BindingProcessor {
             file.resetBindings();
 
             //we have to reparse the xml each time we do this..
-            let fileContents: SourceObj = {
-                pathAbsolute: file.fullPath,
-                srcPath: file.fullPath,
-                source: file.bscFile.fileContents
-            };
-            file.bscFile.parse(fileContents.source);
+            file.bscFile.parse(file.bscFile.fileContents);
             this.processElementsForTagIds(file);
             if (file.tagIds.size > 0) {
                 this.addFindNodeVarsMethodForFile(file);
