@@ -2258,7 +2258,7 @@ describe('MaestroPlugin', () => {
                 end function
             `);
         });
-        it.only('works for function expression calls', async () => {
+        it('works for function expression calls', async () => {
             plugin.afterProgramCreate(program);
             program.setFile('source/comp.bs', `
                 namespace test.ns
