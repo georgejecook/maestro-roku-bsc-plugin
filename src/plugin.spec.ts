@@ -1,4 +1,4 @@
-import type { BrsFile, BsDiagnostic, CallExpression, ClassFieldStatement, ClassStatement, FunctionStatement, PrintStatement } from 'brighterscript';
+import type { BrsFile, BsDiagnostic, CallExpression, ClassFieldStatement, ClassStatement, ExpressionStatement, FunctionStatement, MethodStatement, PrintStatement } from 'brighterscript';
 import { DiagnosticSeverity, Program, ProgramBuilder, util } from 'brighterscript';
 import { expect } from 'chai';
 import { MaestroPlugin } from './plugin';
@@ -2618,9 +2618,8 @@ describe('MaestroPlugin', () => {
             plugin.maestroConfig.extraValidation.doExtraValidation = false;
             plugin.maestroConfig.extraValidation.doExtraImportValidation = false;
             plugin.afterProgramCreate(program);
-            program.setFile('source/comp.bs', `
+            const file = program.setFile<BrsFile>('source/comp.bs', `
                 class Comp
-                    private json
                     function classMethod()
                         m.observe(node.field, m.callbackFunction)
                         m.observe(m.node.field, m.callbackFunction)
@@ -2640,6 +2639,7 @@ describe('MaestroPlugin', () => {
                         m.unobserve(m.getNode("id").field, m.callbackFunction)
                         m.unobserve(getNode("id").field, m.callbackFunction)
                     end function
+                    private json
                 end class
             `);
             program.validate();
@@ -2685,6 +2685,10 @@ describe('MaestroPlugin', () => {
                     return instance
                 end function
             `);
+
+            //ensure the ast is not edited after transpile
+            const expression = (((file.ast.statements[0] as ClassStatement).body[0] as MethodStatement).func.body.statements[0] as ExpressionStatement).expression as CallExpression;
+            expect(expression.args).to.be.lengthOf(2);
         });
     });
 

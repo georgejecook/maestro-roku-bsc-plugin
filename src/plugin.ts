@@ -437,7 +437,7 @@ export class MaestroPlugin implements CompilerPlugin {
                     this.updateFieldSets(classStatement);
                 }
                 this.injectIOCCode(classStatement, event.file);
-                this.updateObserveCalls(classStatement, event.file);
+                this.updateObserveCalls(classStatement, event);
             }
             if (this.maestroConfig.stripParamTypes) {
                 for (let func of event.file.parser.references.functionExpressions) {
@@ -490,24 +490,21 @@ export class MaestroPlugin implements CompilerPlugin {
         }
     }
 
-    private updateObserveCalls(cs: ClassStatement, file: BrsFile) {
+    private updateObserveCalls(cs: ClassStatement, event: BeforeFileTranspileEvent) {
         if (this.maestroConfig.updateObserveCalls) {
             for (let method of cs.methods) {
 
                 // event.file.functionCalls
                 for (let callExpression of method.func.callExpressions) {
-                    let regex = /^(observe|unobserve)$/i;
                     if (isDottedGetExpression(callExpression.callee) && isDottedGetExpression(callExpression.args[0])) {
-                        let name = callExpression.callee.name.text;
-                        if (regex.test(name)) {
+                        let [, name] = /^(observe|unobserve)$/i.exec(callExpression.callee.name.text) ?? [];
+                        if (name) {
                             try {
                                 //BRON_AST_EDIT_HERE
-                                let arg0 = callExpression.args[0];
-                                let functionName = arg0.name.text;
-                                arg0 = callExpression.args.shift() as DottedGetExpression;
-                                callExpression.args.unshift(createStringLiteral(functionName));
-                                callExpression.args.unshift(arg0.obj);
-                                callExpression.callee.name.text = `${name.match(regex)[1]}NodeField`;
+                                const arg0 = event.editor.arrayShift(callExpression.args) as DottedGetExpression;
+                                event.editor.arrayUnshift(callExpression.args, createStringLiteral(arg0.name.text));
+                                event.editor.arrayUnshift(callExpression.args, arg0.obj);
+                                event.editor.setProperty(callExpression.callee.name, 'text', `${name}NodeField`);
                             } catch (error) {
                                 if (error.message !== 'unsupportedValue') {
                                     console.error('could not update asXXX function call, due to unexpected error', error);
