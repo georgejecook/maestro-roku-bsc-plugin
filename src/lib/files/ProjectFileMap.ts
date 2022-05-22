@@ -1,5 +1,6 @@
-import type { BrsFile, BscFile, ClassStatement, XmlFile } from 'brighterscript';
-import { ParseMode, isBrsFile } from 'brighterscript';
+import type { BrsFile, BscFile, ClassStatement, FunctionStatement, XmlFile } from 'brighterscript';
+import { isFunctionStatement } from 'brighterscript';
+import * as brighterscript from 'brighterscript';
 
 import { File } from './File';
 import { FileType } from './FileType';
@@ -23,6 +24,7 @@ export class ProjectFileMap {
     public nodeClasses: Record<string, NodeClass> = {};
     public nodeClassesByPath: Record<string, NodeClass[]> = {};
     public pathsByNamespace: Record<string, Record<string, boolean>> = {};
+    public allAutoInjectedNamespaceMethods: Record<string, FunctionStatement> = {};
 
     get XMLComponentNames(): string[] {
         return Object.keys(this.allXMLComponentFiles);
@@ -110,7 +112,7 @@ export class ProjectFileMap {
     }
 
     public addClass(classStatement: ClassStatement, mFile: File) {
-        let className = classStatement.getName(ParseMode.BrighterScript);
+        let className = classStatement.getName(brighterscript.ParseMode.BrighterScript);
         this.allClassNames.add(className);
         this.allClassFiles[className] = mFile;
         this.allClasses[className] = classStatement;
@@ -119,13 +121,18 @@ export class ProjectFileMap {
     public addNamespaces(file: BrsFile) {
 
         for (let ns of file.parser.references.namespaceStatements) {
-            let nsName = ns.getName(ParseMode.BrighterScript).toLowerCase();
+            let nsName = ns.getName(brighterscript.ParseMode.BrighterScript).toLowerCase();
             let paths = this.pathsByNamespace[nsName];
             if (!paths) {
                 paths = {};
             }
             paths[file.pkgPath.toLowerCase().replace('.d.bs', '.bs')] = true;
             this.pathsByNamespace[nsName] = paths;
+            for (let func of ns.body.statements) {
+                if (isFunctionStatement(func) && func.annotations?.find((a) => a.name === 'injectLocalM')) {
+                    this.allAutoInjectedNamespaceMethods[`${nsName}.${func.name.text}`] = func;
+                }
+            }
         }
     }
 
@@ -156,7 +163,7 @@ export class ProjectFileMap {
 
     public addFile(file: File) {
         this.removeFile(file);
-        if (isBrsFile(file.bscFile)) {
+        if (brighterscript.isBrsFile(file.bscFile)) {
             this.addNamespaces(file.bscFile);
         }
         this.allFiles[file.fullPath] = file;
