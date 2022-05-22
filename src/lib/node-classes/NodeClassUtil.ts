@@ -1,11 +1,11 @@
-import type { BrsFile, ProgramBuilder, FunctionStatement, Program } from 'brighterscript';
+import type { BrsFile, FunctionStatement, Program } from 'brighterscript';
 import { ParseMode } from 'brighterscript';
 import type { ProjectFileMap } from '../files/ProjectFileMap';
 import type { File } from '../files/File';
 import { addNodeClassBadDeclaration, addNodeClassDuplicateName, addNodeClassNoExtendNodeFound, addNodeClassWrongNewSignature } from '../utils/Diagnostics';
 import type { FileFactory } from '../utils/FileFactory';
 
-import { NodeClass, NodeClassType, NodeField } from './NodeClass';
+import { NodeClass, NodeClassType } from './NodeClass';
 
 /*
 Crude brighterscript class processor
@@ -13,7 +13,6 @@ Crude brighterscript class processor
 export default class NodeClassUtil {
     constructor(
         public fileMap: ProjectFileMap,
-        public builder: ProgramBuilder,
         public fileFactory: FileFactory
     ) {
     }
@@ -110,7 +109,7 @@ export default class NodeClassUtil {
 end function
 `;
 
-        let brsFile = this.fileFactory.addFile(program, `source/roku_modules/maestro/tests/TestUtils.brs`, codeText);
+        let brsFile = this.fileFactory.addFile(`source/roku_modules/maestro/tests/TestUtils.brs`, codeText);
         brsFile.parser.invalidateReferences();
     }
 }

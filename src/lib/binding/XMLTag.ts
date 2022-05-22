@@ -1,17 +1,15 @@
 import type { File } from '../files/File';
 import Binding from './Binding';
 import { BindingSendMode, BindingType } from './BindingType';
-
-import { addXmlBindingCantParseFunctionCall, addXMLTagErrorCorruptXMLElement,
+import {
+    addXMLTagErrorCorruptXMLElement,
     addXMLTagErrorCouldMissingEndBrackets,
     addXMLTagErrorCouldNotParseBinding,
-    addXMLTagErrorCouldNotParseBindingBadPart,
     addXMLTagErrorCouldNotParseBindingTransformFunctionForField,
-    addXMLTagErrorCouldNotParseIsFiringOnceForField as addXMLTagErrorCouldNotParseBindingSettings } from '../utils/Diagnostics';
+    addXMLTagErrorCouldNotParseIsFiringOnceForField as addXMLTagErrorCouldNotParseBindingSettings
+} from '../utils/Diagnostics';
 import type { Range } from 'brighterscript';
 import type { SGTag } from 'brighterscript/dist/parser/SGTypes';
-import { BindingProperties } from './BindingProperties';
-
 
 export class XMLTag {
     constructor(xmlTag: SGTag, file: File, isTopTag: boolean) {
@@ -49,12 +47,9 @@ export class XMLTag {
                 let value = attribute.value.text;
                 let matches = staticRegex.exec(value);
                 matches = matches || regex.exec(value);
-                const colRegex = new RegExp('^((?: *|\\t*)' + attribute + '(?: *|\\t*)=(?: *|\\t*)*(?:"|\'))', 'gim');
-                let col = attribute.value.range.start.character;
                 const bindingText = matches && matches.length > 2 ? matches[2] : null;
                 const bindingStartType = matches && matches.length > 1 ? matches[1] : null;
                 const bindingEndType = matches && matches.length > 3 ? matches[3] : null;
-                col += bindingStartType ? bindingStartType.length + 1 : 0;
                 let mode = this.getBindingMode(bindingStartType, bindingEndType);
 
                 if (bindingText) {

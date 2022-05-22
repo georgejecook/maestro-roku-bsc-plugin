@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-confusing-void-expression */
 import type { BrsFile, BsDiagnostic } from 'brighterscript';
 import { DiagnosticSeverity, Program, ProgramBuilder, util } from 'brighterscript';
 import { expect } from 'chai';
@@ -9,7 +7,6 @@ import { standardizePath as s } from './lib/Utils';
 import * as fsExtra from 'fs-extra';
 import * as path from 'path';
 import undent from 'undent';
-import { trimLeading } from './lib/utils/testHelpers.spec';
 
 let tmpPath = s`${process.cwd()}/tmp`;
 let _rootDir = s`${tmpPath}/rootDir`;
@@ -58,7 +55,7 @@ describe('MaestroPlugin', () => {
                 'IAuthProvider': ['pkg:/source/AuthManager.bs']
             }
         };
-        plugin.beforeProgramCreate(builder);
+        plugin.afterProgramCreate(program);
         program.setFile('manifest', ``);
     });
 

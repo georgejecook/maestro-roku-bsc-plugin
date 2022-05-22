@@ -1,5 +1,5 @@
 import type { BrsFile, BscFile, ClassStatement, FunctionStatement, XmlFile } from 'brighterscript';
-import { isFunctionStatement, NamespaceStatement } from 'brighterscript';
+import { isFunctionStatement } from 'brighterscript';
 import * as brighterscript from 'brighterscript';
 
 import { File } from './File';

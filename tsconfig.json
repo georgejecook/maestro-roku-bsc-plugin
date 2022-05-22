@@ -6,6 +6,7 @@
     "rootDir": "src",
     "outDir": "./dist",
     "strictNullChecks": false,
+    "noUnusedLocals": true,
     "forceConsistentCasingInFileNames": true,
     "preserveConstEnums": true,
     "allowJs": false,

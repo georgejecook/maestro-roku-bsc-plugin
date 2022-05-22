@@ -1,11 +1,11 @@
-import type { BrsFile, Program, ProgramBuilder, XmlFile } from 'brighterscript';
+import type { BscFile, Program } from 'brighterscript';
 
 import * as path from 'path';
 import * as fs from 'fs-extra';
 
 export class FileFactory {
     constructor(
-        public builder: ProgramBuilder
+        public program: Program
     ) {
     }
     public ignoredFilePaths = [];
@@ -15,22 +15,21 @@ export class FileFactory {
 
     public sourcePath = path.join(__dirname, '../framework');
 
-    public addFrameworkFiles(program: Program) {
+    public addFrameworkFiles() {
         for (let fileName in this.frameworkFiles) {
             let sourcePath = path.resolve(path.join(this.sourcePath, fileName));
             let fileContents = fs.readFileSync(sourcePath, 'utf8');
             let destPath = this.frameworkFiles[fileName];
             // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-            this.addFile(program, destPath, fileContents);
+            this.addFile(destPath, fileContents);
         }
     }
 
-    public addFile(program, projectPath: string, contents: string) {
+    public addFile<T extends BscFile>(destPath: string, contents: string) {
         try {
-            return program.addOrReplaceFile({ src: path.resolve(projectPath), dest: projectPath }, contents);
+            return this.program.setFile<T>({ src: path.resolve(destPath), dest: destPath }, contents);
         } catch (error) {
-            console.error(`Error adding framework file: ${projectPath} : ${error.message}`);
+            console.error(`Error adding framework file: ${destPath} : ${error.message}`);
         }
     }
-
 }
