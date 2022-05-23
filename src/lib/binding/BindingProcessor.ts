@@ -43,18 +43,29 @@ export class BindingProcessor {
         ) {
             throw new Error('was given a non-xml file');
         }
+        //In this situation, only the xml file exists. We need to generate the codebehind file
         if (!file.associatedFile && file.vmClassName) {
             if (this.config.mvvm.createCodeBehindFilesWhenNeeded) {
 
                 if (entry) {
                     let vmFile = this.fileMap.getFileForClass(file.vmClassName);
                     if (vmFile) {
-                        //BRON_AST_EDIT_HERE
-                        let xmlFile = file.bscFile as XmlFile;
+                        //BRON_AST_EDIT_HERE (all of this can happen beforeProgramTranspile).
+                        let xmlFile = file.bscFile as XmlFile; //the user created this file
                         // eslint-disable-next-line @typescript-eslint/dot-notation
                         let dg = program['dependencyGraph'] as DependencyGraph;
+                        //TODO update astEditor to allow us to call arbitrary code to add/remove from dep graph
                         dg.addDependency(xmlFile.dependencyGraphKey, vmFile.bscFile.dependencyGraphKey);
-                        xmlFile.ast.component.scripts.push(this.createSGScript(xmlFile.pkgPath.replace('.xml', '.brs')));
+                        //do it like this
+                        editor.addChange(() => {
+                            dg.addDependency(xmlFile.dependencyGraphKey, vmFile.bscFile.dependencyGraphKey);
+                        }, () => {
+                            dg.removeDependency(xmlFile.dependencyGraphKey, vmFile.bscFile.dependencyGraphKey);
+                        });
+                        editor.addToArray(
+                            xmlFile.ast.component.scripts.push(this.createSGScript(xmlFile.pkgPath.replace('.xml', '.brs')));
+                        )
+                        //writing this file might be fine...long term we should add the ability to put arbirary text files that just get written as-is.
                         fsExtra.outputFileSync(entry.outputPath.replace('.xml', '.brs'), this.getCodeBehindText(file, vmFile.bscFile as BrsFile));
                     } else {
                         console.error('missing vm file ' + file.vmClassName);
@@ -64,6 +75,8 @@ export class BindingProcessor {
                     console.error('cannot generated codebehind file transpile without entry');
                 }
             }
+
+            //the user defined a codebehind file.
         } else {
             (file.bscFile as XmlFile).parser.invalidateReferences();
             this.addFindNodeVarsMethodForFile(file);
@@ -106,7 +119,6 @@ export class BindingProcessor {
         let bindings = file.bindings.concat(file.getAllParentBindings());
         if (bindings.length > 0) {
             //TODO convert to pure AST
-            //BRON_AST_EDIT_HERE
             let bindingInitStatement = this.getBindingInitMethod(
                 bindings.filter(
                     (b) => b.properties.type !== BindingType.static &&
@@ -157,6 +169,7 @@ export class BindingProcessor {
         if (file.associatedFile) {
             file.resetBindings();
 
+            //TODO George, why do you need to do this???
             //we have to reparse the xml each time we do this..
             file.bscFile.parse(file.bscFile.fileContents);
             this.processElementsForTagIds(file);
@@ -185,20 +198,20 @@ export class BindingProcessor {
     private addInitCreateNodeVarsCall(file: BrsFile) {
         let initFunc = file.parser.references.functionStatements.find((f) => f.name.text.toLowerCase() === 'init');
         if (initFunc) {
-            //BRON_AST_EDIT_HERE
+            //BRON_AST_EDIT_HERE (could be user-defined file)
             initFunc.func.body.statements.splice(0, 0, new RawCodeStatement(undent`
                 m_createNodeVars()
             `));
         }
         if (!initFunc && this.config.mvvm.callCreateNodeVarsInInit) {
             console.log('init func was not present in ', file.pkgPath, ' adding init function');
-            //BRON_AST_EDIT_HERE
+            //BRON_AST_EDIT_HERE (could be user-defined file)
             let initFunc = makeASTFunction(undent`
                 function init()
                     m_createNodeVars()
                 end function
             `);
-            //BRON_AST_EDIT_HERE
+            //BRON_AST_EDIT_HERE (could be user-defined file)
             file.parser.references.functionStatements.push(initFunc);
             file.parser.references.functionStatementLookup.set('init', initFunc);
             file.parser.ast.statements.push(initFunc);
@@ -311,7 +324,7 @@ export class BindingProcessor {
     private addBindingMethodsForFile(file: File) {
         //TODO - use AST for this.
         let associatedMFile = file.associatedFile.bscFile as BrsFile;
-        //BRON_AST_EDIT_HERE
+        //BRON_AST_EDIT_HERE (could be user-defined file)
         let bindings = file.bindings.concat(file.getAllParentBindings());
         if (bindings.length > 0) {
             //TODO convert to pure AST
@@ -326,12 +339,12 @@ export class BindingProcessor {
             ), file.bscFile as XmlFile);
 
             if (bindingInitStatement) {
-                //BRON_AST_EDIT_HERE
+                //BRON_AST_EDIT_HERE (could be user-defined file)
                 associatedMFile.parser.statements.push(bindingInitStatement);
                 file.associatedFile.isASTChanged = true;
             }
             if (staticBindingStatement) {
-                //BRON_AST_EDIT_HERE
+                //BRON_AST_EDIT_HERE (could be user-defined file)
                 associatedMFile.parser.statements.push(staticBindingStatement);
                 file.associatedFile.isASTChanged = true;
             }
@@ -359,10 +372,8 @@ export class BindingProcessor {
         if (func) {
             let ifStatement = func.func.body.statements[0] as IfStatement;
             for (let binding of bindings) {
-                //BRON_AST_EDIT_HERE
                 ifStatement.thenBranch.statements.push(new RawCodeStatement(binding.getInitText(), file, binding.range));
             }
-            //BRON_AST_EDIT_HERE
             ifStatement.thenBranch.statements.push(
                 new RawCodeStatement(undent`
                     if vm.onBindingsConfigured <> invalid
@@ -385,7 +396,6 @@ export class BindingProcessor {
         `);
 
         if (func) {
-            //BRON_AST_EDIT_HERE
             let ifStatement = func.func.body.statements[0] as IfStatement;
             for (let binding of bindings) {
                 ifStatement.thenBranch.statements.push(new RawCodeStatement(binding.getStaticText(), file, binding.range));
@@ -398,7 +408,7 @@ export class BindingProcessor {
     private addFindNodeVarsMethodForFile(file: File) {
         let createNodeVarsFunction = this.makeASTFunction(this.getNodeVarMethodText(file));
         let brsFile = file.associatedFile.bscFile as BrsFile;
-        //BRON_AST_EDIT_HERE
+        //BRON_AST_EDIT_HERE (user-defined file)
         if (createNodeVarsFunction && file.associatedFile?.bscFile?.parser) {
             brsFile.parser.statements.push(createNodeVarsFunction);
             file.associatedFile.isASTChanged = true;
@@ -429,13 +439,13 @@ export class BindingProcessor {
     private addVMConstructor(file: File) {
         console.log('addVM ', file.fullPath, file.bscFile === undefined);
         console.log('no initialize function, adding one');
-        //BRON_AST_EDIT_HERE
+        //BRON_AST_EDIT_HERE (user-defined code)
         let func = makeASTFunction(this.getVMInitializeText(file));
 
         if (func) {
             let vmFile = this.fileMap.getFileForClass(file.vmClassName);
             if (vmFile) {
-                //BRON_AST_EDIT_HERE
+                //BRON_AST_EDIT_HERE (user-defined code)
                 addImport(file.associatedFile.bscFile as BrsFile, vmFile.bscFile.pkgPath);
                 (file.associatedFile.bscFile as BrsFile).parser.statements.push(func);
                 file.associatedFile.isASTChanged = true;

@@ -43,7 +43,7 @@ export default class ImportProcessor {
         }
 
         if (statementsToRemove.length > 0) {
-            //BRON_AST_EDIT_HERE
+            //BRON_AST_EDIT_HERE (use ast editor...and there's no validations necessary, so we can do this in beforeProgramTranspile/beforeFileTranspile
             file.parser.ast.statements = file.parser.ast.statements.filter((el) => !statementsToRemove.includes(el));
             file.parser.ast.statements = statementsToAdd.concat(file.parser.ast.statements);
             file.parser.ast.statements = file.parser.ast.statements.filter((el) => !statementsToRemove.includes(el));

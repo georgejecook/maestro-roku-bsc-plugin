@@ -24,10 +24,9 @@ export default class ReflectionUtil {
             // eslint-disable-next-line @typescript-eslint/dot-notation
             runtimeFile['diagnostics'] = [];
         }
-
     }
 
-    public updateClassLookupFunction(file: BrsFile) {
+    private updateClassLookupFunction(file: BrsFile) {
         let func = file.ast.statements[0] as FunctionStatement;
         let that = this;
         if (func?.func?.body?.statements.length > 0) {
@@ -47,12 +46,11 @@ export default class ReflectionUtil {
                     return ${name}`;
             }
             codeText += '\n end if';
-            //BRON_AST_EDIT_HERE
             func.func.body.statements[1] = new RawCodeStatement(codeText);
         }
     }
 
-    public updateXMLCompTypesFunction(file: BrsFile) {
+    private updateXMLCompTypesFunction(file: BrsFile) {
         let func = file.ast.statements[1] as FunctionStatement;
         if (func) {
             let text = '{\n';
@@ -62,7 +60,6 @@ export default class ReflectionUtil {
                 text += ` "${name}": true \n`;
             }
             text += '}';
-            //BRON_AST_EDIT_HERE
             func.func.body.statements.push(new RawCodeStatement(`return ${text}`));
         }
     }

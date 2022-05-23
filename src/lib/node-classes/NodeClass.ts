@@ -412,12 +412,12 @@ export class NodeClass {
                 source += this.getNodeBrsCode(members);
             }
 
-            //BRON_AST_EDIT_HERE
+            //BRON_AST_EDIT_HERE (can happen late...before*Transpile. this is codebehind code that we don't care about validating)
             this.brsFile = fileFactory.addFile(this.bsPath, source);
             this.brsFile.parser.invalidateReferences();
         }
         let xmlText = this.type === NodeClassType.task ? this.getNodeTaskFileXmlText(this) : this.getNodeFileXmlText(this, members, program);
-        //BRON_AST_EDIT_HERE
+        //BRON_AST_EDIT_HERE (this has to happen before validation)
         this.xmlFile = fileFactory.addFile(this.xmlPath, xmlText);
         this.xmlFile.parser.invalidateReferences();
     }
@@ -508,7 +508,7 @@ export class NodeClass {
             DottedGetExpression: (de) => {
                 if (isVariableExpression(de.obj) && de.obj.name.text === 'm' && allTopFields[de.name.text.toLowerCase()]) {
                     try {
-                        //BRON_AST_EDIT_HERE
+                        //BRON_AST_EDIT_HERE (user-defined code, needs replaced in before*transpile)
                         // eslint-disable-next-line
                         (de as any)['obj'] = new RawCodeStatement(`m.top`, this.file, de.range);
                     } catch (e) {
@@ -519,7 +519,7 @@ export class NodeClass {
             DottedSetStatement: (ds) => {
                 if (isVariableExpression(ds.obj) && ds.obj.name.text === 'm' && allTopFields[ds.name.text.toLowerCase()]) {
                     try {
-                        //BRON_AST_EDIT_HERE
+                        //BRON_AST_EDIT_HERE (user-defined code, needs replaced in before*transpile)
                         // eslint-disable-next-line
                         (ds as any)['obj'] = new RawCodeStatement(`m.top`, this.file, ds.range);
                     } catch (e) {
@@ -555,7 +555,6 @@ export class NodeClass {
             let isRootOnly = rootOnly !== undefined || ((observerArgs.length > 2 && observerArgs[1] === true));
             let f = new NodeField(file, bf.cs, field, fieldType, observerAnnotation, alwaysNotify, debounce, !this.knownFieldTypes[fieldType.toLowerCase()], isRootOnly);
             if (observerArgs.length > 0) {
-                //BRON_AST_EDIT_HERE
                 let observerFunc = members.get((observerArgs[0] as string).toLowerCase());
                 if (isClassMethodStatement(observerFunc)) {
                     f.numArgs = observerFunc?.func?.parameters?.length;
