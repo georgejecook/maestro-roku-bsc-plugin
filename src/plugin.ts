@@ -492,7 +492,6 @@ export class MaestroPlugin implements CompilerPlugin {
 
                         let nsFunc = this.fileMap.allAutoInjectedNamespaceMethods[fullPathName];
 
-                        console.log(nsFunc);
                         //is a namespace?
                         if (nsFunc && callExpression.args.length < nsFunc.func.parameters.length) {
                             for (let i = callExpression.args.length; i < nsFunc.func.parameters.length - 1; i++) {
@@ -721,10 +720,7 @@ export class MaestroPlugin implements CompilerPlugin {
 
 
     afterScopeValidate(scope: Scope, files: BscFile[], callables: CallableContainerMap) {
-        if (!this.maestroConfig.extraValidation) {
-            console.log('wtf');
-        }
-        if (!this.maestroConfig.extraValidation.doExtraValidation) {
+        if (!this.maestroConfig?.extraValidation?.doExtraValidation) {
             return;
         }
         //validate the ioc calls
