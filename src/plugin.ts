@@ -25,7 +25,8 @@ import {
     isCallfuncExpression,
     isClassMethodStatement,
     createInvalidLiteral,
-    createVariableExpression
+    createVariableExpression,
+    isFunctionStatement
 } from 'brighterscript';
 import type {
     BrsFile,
@@ -488,21 +489,25 @@ export class MaestroPlugin implements CompilerPlugin {
 
                     try {
                         let dg = callExpression.callee as DottedGetExpression;
-                        let fullPathName = this.getAllDottedGetParts(dg).join('.');
+                        let parts = this.getAllDottedGetParts(dg);
+                        if (parts.length > 1) {
 
-                        let nsFunc = this.fileMap.allAutoInjectedNamespaceMethods[fullPathName];
+                            let fullPathName = this.getAllDottedGetParts(dg).join('.');
 
-                        //is a namespace?
-                        if (nsFunc && callExpression.args.length < nsFunc.func.parameters.length) {
-                            for (let i = callExpression.args.length; i < nsFunc.func.parameters.length - 1; i++) {
-                                let param = nsFunc.func.parameters[i];
-                                if (param.defaultValue) {
-                                    callExpression.args.push(param.defaultValue);
-                                } else {
-                                    callExpression.args.push(createInvalidLiteral());
+                            let nsFunc = this.fileMap.allAutoInjectedNamespaceMethods[fullPathName];
+
+                            //is a namespace?
+                            if (isFunctionStatement(nsFunc) && callExpression.args.length < nsFunc.func.parameters.length) {
+                                for (let i = callExpression.args.length; i < nsFunc.func.parameters.length - 1; i++) {
+                                    let param = nsFunc.func.parameters[i];
+                                    if (param.defaultValue) {
+                                        callExpression.args.push(param.defaultValue);
+                                    } else {
+                                        callExpression.args.push(createInvalidLiteral());
+                                    }
                                 }
+                                callExpression.args.push(createVariableExpression('m'));
                             }
-                            callExpression.args.push(createVariableExpression('m'));
                         }
                     } catch (error) {
                         if (error.message !== 'unsupportedValue') {
