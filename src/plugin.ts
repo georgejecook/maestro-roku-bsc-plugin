@@ -454,7 +454,11 @@ export class MaestroPlugin implements CompilerPlugin {
                                 let stringPath = this.getStringPathFromDottedGet(value);
                                 name = `mc_get${name.match(regex)[1]}`;
                                 callExpression.callee.name.text = name;
-                                callExpression.args.unshift(stringPath);
+                                if (stringPath) {
+                                    callExpression.args.unshift(stringPath);
+                                } else {
+                                    callExpression.args.unshift(createInvalidLiteral());
+                                }
                                 let rootValue = this.getRootValue(value);
                                 callExpression.args.unshift(rootValue);
                             } catch (error) {
@@ -568,7 +572,8 @@ export class MaestroPlugin implements CompilerPlugin {
             }
             root = root.obj;
         }
-        return createStringLiteral(parts.reverse().join('.'));
+        let joinedParts = parts.reverse().join('.');
+        return joinedParts === '' ? undefined : createStringLiteral(joinedParts);
     }
 
     private getWrongAsXXXFunctionPartError(expr: Expression) {
