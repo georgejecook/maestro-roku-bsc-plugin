@@ -653,7 +653,6 @@ export class MaestroPlugin implements CompilerPlugin {
 
     beforePublish(builder: ProgramBuilder, files: FileObj[]) {
         console.time('Update reflection runtime file');
-        //BRON_AST_EDIT_HERE (move to beforeProgramTranspile just to keep it all consistent)
         this.reflectionUtil.updateRuntimeFile();
         console.timeEnd('Update reflection runtime file');
     }
