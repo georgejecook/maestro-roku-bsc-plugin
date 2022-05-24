@@ -57,14 +57,12 @@ export class BindingProcessor {
                         //TODO update astEditor to allow us to call arbitrary code to add/remove from dep graph
                         dg.addDependency(xmlFile.dependencyGraphKey, vmFile.bscFile.dependencyGraphKey);
                         //do it like this
-                        editor.addChange(() => {
-                            dg.addDependency(xmlFile.dependencyGraphKey, vmFile.bscFile.dependencyGraphKey);
-                        }, () => {
-                            dg.removeDependency(xmlFile.dependencyGraphKey, vmFile.bscFile.dependencyGraphKey);
-                        });
-                        editor.addToArray(
-                            xmlFile.ast.component.scripts.push(this.createSGScript(xmlFile.pkgPath.replace('.xml', '.brs')));
-                        )
+                        // editor.addChange(() => {
+                        //     dg.addDependency(xmlFile.dependencyGraphKey, vmFile.bscFile.dependencyGraphKey);
+                        // }, () => {
+                        //     dg.removeDependency(xmlFile.dependencyGraphKey, vmFile.bscFile.dependencyGraphKey);
+                        // });
+                        xmlFile.ast.component.scripts.push(this.createSGScript(xmlFile.pkgPath.replace('.xml', '.brs')));
                         //writing this file might be fine...long term we should add the ability to put arbirary text files that just get written as-is.
                         fsExtra.outputFileSync(entry.outputPath.replace('.xml', '.brs'), this.getCodeBehindText(file, vmFile.bscFile as BrsFile));
                     } else {

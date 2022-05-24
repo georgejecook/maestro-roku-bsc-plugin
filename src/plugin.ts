@@ -23,10 +23,11 @@ import {
     isCallfuncExpression,
     createInvalidLiteral,
     createVariableExpression,
+    isFunctionStatement,
     FieldStatement,
     createMethodStatement,
-    isMethodStatement,
-    isLiteralString
+    isLiteralString,
+    isMethodStatement
 } from 'brighterscript';
 import type {
     BrsFile,
@@ -248,12 +249,11 @@ export class MaestroPlugin implements CompilerPlugin {
                                 this.getRootValue(value);
                             } catch (error) {
                                 if (error.message === 'unsupportedValue') {
-                                    // eslint-disable-next-line @typescript-eslint/dot-notation
-                                    file['diagnostics'].push({
+                                    file.addDiagnostics([{
                                         ...noCallsInAsXXXAllowed(error.functionName),
                                         range: error.range,
                                         file: file
-                                    });
+                                    }]);
 
                                 } else {
                                     console.error('could not update asXXX function call, due to unexpected error', error);
@@ -472,7 +472,11 @@ export class MaestroPlugin implements CompilerPlugin {
                                 let stringPath = this.getStringPathFromDottedGet(value);
                                 name = `mc_get${name.match(regex)[1]}`;
                                 event.editor.setProperty(callExpression.callee.name, 'text', name);
-                                event.editor.arrayUnshift(callExpression.args, stringPath);
+                                if (stringPath) {
+                                    event.editor.arrayUnshift(callExpression.args, stringPath);
+                                } else {
+                                    event.editor.arrayUnshift(callExpression.args, createInvalidLiteral());
+                                }
                                 let rootValue = this.getRootValue(value);
                                 event.editor.arrayUnshift(callExpression.args, rootValue);
                             } catch (error) {
@@ -502,22 +506,25 @@ export class MaestroPlugin implements CompilerPlugin {
 
                     try {
                         let dg = callExpression.callee as DottedGetExpression;
-                        let fullPathName = this.getAllDottedGetParts(dg).join('.');
+                        let parts = this.getAllDottedGetParts(dg);
+                        if (parts.length > 1) {
 
-                        let nsFunc = this.fileMap.allAutoInjectedNamespaceMethods[fullPathName];
+                            let fullPathName = this.getAllDottedGetParts(dg).join('.');
 
-                        console.log(nsFunc);
-                        //is a namespace?
-                        if (nsFunc && callExpression.args.length < nsFunc.func.parameters.length) {
-                            for (let i = callExpression.args.length; i < nsFunc.func.parameters.length - 1; i++) {
-                                let param = nsFunc.func.parameters[i];
-                                if (param.defaultValue) {
-                                    callExpression.args.push(param.defaultValue);
-                                } else {
-                                    callExpression.args.push(createInvalidLiteral());
+                            let nsFunc = this.fileMap.allAutoInjectedNamespaceMethods[fullPathName];
+
+                            //is a namespace?
+                            if (isFunctionStatement(nsFunc) && callExpression.args.length < nsFunc.func.parameters.length) {
+                                for (let i = callExpression.args.length; i < nsFunc.func.parameters.length - 1; i++) {
+                                    let param = nsFunc.func.parameters[i];
+                                    if (param.defaultValue) {
+                                        callExpression.args.push(param.defaultValue);
+                                    } else {
+                                        callExpression.args.push(createInvalidLiteral());
+                                    }
                                 }
+                                callExpression.args.push(createVariableExpression('m'));
                             }
-                            callExpression.args.push(createVariableExpression('m'));
                         }
                     } catch (error) {
                         if (error.message !== 'unsupportedValue') {
@@ -582,7 +589,8 @@ export class MaestroPlugin implements CompilerPlugin {
             }
             root = root.obj;
         }
-        return createStringLiteral(parts.reverse().join('.'));
+        let joinedParts = parts.reverse().join('.');
+        return joinedParts === '' ? undefined : createStringLiteral(joinedParts);
     }
 
     private getWrongAsXXXFunctionPartError(expr: Expression) {
@@ -661,30 +669,22 @@ export class MaestroPlugin implements CompilerPlugin {
     public updateFieldSets(cs: ClassStatement) {
         let fieldMap = getAllFields(this.fileMap, cs, TokenKind.Public);
 
-        const block = {
-            statements: [
-                1,
-                2,
-                3
-            ]
-        };
-
         cs.walk(createVisitor({
-            DottedSetStatement: (ds, parentStatementExpr, ownerObject, keyFromOwnerObject) => {
-                if (isVariableExpression(ds.obj) && ds.obj?.name?.text === 'm') {
-                    let lowerName = ds.name.text.toLowerCase();
+            DottedSetStatement: (dottedSet) => {
+                if (isVariableExpression(dottedSet.obj) && dottedSet.obj?.name?.text === 'm') {
+                    let lowerName = dottedSet.name.text.toLowerCase();
                     if (fieldMap[lowerName]) {
                         //BRON_AST_EDIT_HERE (user-defined stuff)
                         let callE = new CallExpression(
                             new DottedGetExpression(
-                                ds.obj,
-                                createIdentifier('setField', ds.range),
-                                createToken(TokenKind.Dot, '.', ds.range)),
-                            createToken(TokenKind.LeftParen, '(', ds.range),
-                            createToken(TokenKind.RightParen, ')', ds.range),
+                                dottedSet.obj,
+                                createIdentifier('setField', dottedSet.range),
+                                createToken(TokenKind.Dot, '.', dottedSet.range)),
+                            createToken(TokenKind.LeftParen, '(', dottedSet.range),
+                            createToken(TokenKind.RightParen, ')', dottedSet.range),
                             [
-                                createStringLiteral(`"${ds.name.text}"`, ds.range),
-                                ds.value
+                                createStringLiteral(`"${dottedSet.name.text}"`, dottedSet.range),
+                                dottedSet.value
                             ],
                             null);
                         let callS = new ExpressionStatement(callE);
@@ -740,10 +740,7 @@ export class MaestroPlugin implements CompilerPlugin {
 
 
     afterScopeValidate(scope: Scope, files: BscFile[], callables: CallableContainerMap) {
-        if (!this.maestroConfig.extraValidation) {
-            console.log('wtf');
-        }
-        if (!this.maestroConfig.extraValidation.doExtraValidation) {
+        if (!this.maestroConfig?.extraValidation?.doExtraValidation) {
             return;
         }
         //validate the ioc calls
@@ -808,22 +805,20 @@ export class MaestroPlugin implements CompilerPlugin {
                 let wf = f as Writeable<FieldStatement>;
                 if (annotation.name === 'inject') {
                     if (args.length < 1) {
-                        // eslint-disable-next-line @typescript-eslint/dot-notation
-                        file['diagnostics'].push({
+                        file.addDiagnostics([{
                             ...noPathForInject(),
                             range: cs.range,
                             file: file
-                        });
+                        }]);
                         continue;
                     }
                     let syncAnnotation = (f.annotations || []).find((a) => a.name.toLowerCase() === 'sync');
                     if (syncAnnotation && args.length < 2) {
-                        // eslint-disable-next-line @typescript-eslint/dot-notation
-                        file['diagnostics'].push({
+                        file.addDiagnostics([{
                             ...noPathForIOCSync(),
                             range: cs.range,
                             file: file
-                        });
+                        }]);
                         continue;
                     }
                     let args1 = args[0].toString().split('.');
@@ -840,12 +835,11 @@ export class MaestroPlugin implements CompilerPlugin {
                     }
 
                     if (syncAnnotation && !iocPath) {
-                        // eslint-disable-next-line @typescript-eslint/dot-notation
-                        file['diagnostics'].push({
+                        file.addDiagnostics([{
                             ...noPathForIOCSync(),
                             range: cs.range,
                             file: file
-                        });
+                        }]);
                         continue;
                     }
                     if (iocPath) {
@@ -861,12 +855,11 @@ export class MaestroPlugin implements CompilerPlugin {
 
                     if (isNodeClass && (f.accessModifier?.kind === TokenKind.Public)) {
                         if (syncAnnotation) {
-                            // eslint-disable-next-line @typescript-eslint/dot-notation
-                            file['diagnostics'].push({
+                            file.addDiagnostics([{
                                 ...noPathForIOCSync(),
                                 range: cs.range,
                                 file: file
-                            });
+                            }]);
                             continue;
                         }
 
@@ -898,12 +891,11 @@ export class MaestroPlugin implements CompilerPlugin {
                             // (fieldName as string, instanceName as string, path as string, observedPath as string, observedField as string, callback = invalid as function)
 
                             if (!iocPath) {
-                                // eslint-disable-next-line @typescript-eslint/dot-notation
-                                file['diagnostics'].push({
+                                file.addDiagnostics([{
                                     ...noPathForIOCSync(),
                                     range: cs.range,
                                     file: file
-                                });
+                                }]);
                             } else {
                                 //BRON_AST_EDIT_HERE (user-defined)
                                 wf.initialValue = new RawCodeStatement(`m._addIOCObserver("${f.name.text}", "${iocKey}", "${iocPath}", "${observePath}", "${observeField}", ${funcName})`, file, f.range);
@@ -967,23 +959,21 @@ export class MaestroPlugin implements CompilerPlugin {
                 let name = cs.parentClassName.getName(ParseMode.BrighterScript);
                 if (!methodLookup[name]) {
                     // console.log('>> ' + name);
-                    // eslint-disable-next-line @typescript-eslint/dot-notation
-                    file['diagnostics'].push({
+                    file.addDiagnostics([{
                         ...unknownSuperClass(`${name}`),
                         range: cs.range,
                         file: file
-                    });
+                    }]);
                 } else {
                     let member = methodLookup[name] as FunctionInfo;
                     if (typeof member !== 'boolean') {
                         // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
                         if (!this.isImported(member, importedPkgPaths)) {
-                            // eslint-disable-next-line @typescript-eslint/dot-notation
-                            file['diagnostics'].push({
+                            file.addDiagnostics([{
                                 ...unknownSuperClass(`${name}`),
                                 range: cs.range,
                                 file: file
-                            });
+                            }]);
                         }
                     }
                 }
@@ -995,32 +985,29 @@ export class MaestroPlugin implements CompilerPlugin {
                         let name = ne.className.getName(ParseMode.BrighterScript);
                         if (!methodLookup[name]) {
                             // console.log('>> ' + name);
-                            // eslint-disable-next-line @typescript-eslint/dot-notation
-                            file['diagnostics'].push({
+                            file.addDiagnostics([{
                                 ...unknownConstructorMethod(`${name}`, this.name),
                                 range: ne.range,
                                 file: file
-                            });
+                            }]);
                         } else {
                             let member = methodLookup[name] as FunctionInfo;
                             if (typeof member !== 'boolean') {
                                 let numArgs = ne.call.args.length;
                                 if (numArgs < member.minArgs || numArgs > member.maxArgs) {
-                                    // eslint-disable-next-line @typescript-eslint/dot-notation
-                                    file['diagnostics'].push({
+                                    file.addDiagnostics([{
                                         ...wrongConstructorArgs(`${name}`, numArgs, member.minArgs, member.maxArgs),
                                         range: ne.range,
                                         file: file
-                                    });
+                                    }]);
                                 }
                                 // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
                                 if (!this.isImported(member, importedPkgPaths)) {
-                                    // eslint-disable-next-line @typescript-eslint/dot-notation
-                                    file['diagnostics'].push({
+                                    file.addDiagnostics([{
                                         ...unknownConstructorMethod(`${name}`, this.name),
                                         range: ne.range,
                                         file: file
-                                    });
+                                    }]);
                                 }
                             }
                         }
@@ -1044,43 +1031,39 @@ export class MaestroPlugin implements CompilerPlugin {
                             if (!ns) {
                                 //look it up minus the tail
 
-                                // eslint-disable-next-line @typescript-eslint/dot-notation
-                                file['diagnostics'].push({
+                                file.addDiagnostics([{
                                     ...unknownType(`${fullPathName}.${name}`, this.name),
                                     range: ce.range,
                                     file: file
-                                });
+                                }]);
                             } else if (!ns.functionStatements[name.toLowerCase()] && !ns.classStatements[name.toLowerCase()]) {
-                                // eslint-disable-next-line @typescript-eslint/dot-notation
-                                file['diagnostics'].push({
+                                file.addDiagnostics([{
                                     ...unknownType(`${fullPathName}.${name}`, this.name),
                                     range: ce.range,
                                     file: file
-                                });
+                                }]);
                                 // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
                             } else {
                                 let member = ns.functionStatements[name.toLowerCase()];
                                 if (member) {
                                     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
                                     if (this.maestroConfig.extraValidation.doExtraImportValidation && !this.isNamespaceImported(ns, importedPkgPaths)) {
-                                        // eslint-disable-next-line @typescript-eslint/dot-notation
-                                        file['diagnostics'].push({
+                                        file.addDiagnostics([{
                                             ...namespaceNotImported(`${fullPathName}.${name}`),
                                             range: ce.range,
                                             file: file
-                                        });
+                                        }]);
                                     }
                                     let numArgs = ce.args.length;
                                     let minArgs = member.func.parameters.filter((p) => !p.defaultValue).length;
                                     let maxArgs = member.func.parameters.length;
                                     if (numArgs < minArgs || numArgs > maxArgs) {
-                                        // eslint-disable-next-line @typescript-eslint/dot-notation
-                                        file['diagnostics'].push({
+                                        file.addDiagnostics([{
                                             // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
                                             ...wrongMethodArgs(`${name}`, numArgs, minArgs, maxArgs),
                                             range: ce.range,
                                             file: file
-                                        });
+                                        }]);
                                     }
 
                                 }
@@ -1089,44 +1072,40 @@ export class MaestroPlugin implements CompilerPlugin {
                             //is a class method?
                             if (this.maestroConfig.extraValidation.doExtraImportValidation && !methodLookup[name.toLowerCase()]) {
                                 // console.log('>> ' + name.toLowerCase());
-                                // eslint-disable-next-line @typescript-eslint/dot-notation
-                                file['diagnostics'].push({
+                                file.addDiagnostics([{
                                     ...unknownClassMethod(`${name}`, this.name),
                                     range: ce.range,
                                     file: file
-                                });
+                                }]);
                             } else {
                                 let member = methodLookup[name.toLowerCase()] as FunctionInfo;
                                 if (member && typeof member !== 'boolean') {
                                     let numArgs = ce.args.length;
                                     if (numArgs < member.minArgs || numArgs > member.maxArgs) {
-                                        // eslint-disable-next-line @typescript-eslint/dot-notation
-                                        file['diagnostics'].push({
+                                        file.addDiagnostics([{
                                             ...wrongMethodArgs(`${name}`, numArgs, member.minArgs, member.maxArgs),
                                             range: ce.range,
                                             file: file
-                                        });
+                                        }]);
                                     }
                                     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
                                     if (this.maestroConfig.extraValidation.doExtraImportValidation && !this.isImported(member, importedPkgPaths)) {
-                                        // eslint-disable-next-line @typescript-eslint/dot-notation
-                                        file['diagnostics'].push({
+                                        file.addDiagnostics([{
                                             ...functionNotImported(`${name}`),
                                             range: ce.range,
                                             file: file
-                                        });
+                                        }]);
                                     }
                                 }
                                 if (this.maestroConfig.updateObserveCalls) {
                                     //CHECK that first argument of observe function is a dotted get
                                     if (name === 'observe') {
                                         if (!isDottedGetExpression(ce.args[0])) {
-                                            // eslint-disable-next-line @typescript-eslint/dot-notation
-                                            file['diagnostics'].push({
+                                            file.addDiagnostics([{
                                                 ...observeRequiresFirstArgumentIsField(),
                                                 range: ce.range,
                                                 file: file
-                                            });
+                                            }]);
                                         } else {
                                             let arg0 = ce.args[0];
                                             let objectName = isVariableExpression(arg0.obj) ? arg0.obj.name.text : '';
@@ -1137,12 +1116,11 @@ export class MaestroPlugin implements CompilerPlugin {
                                                 name = ce.args[1].name.text;
                                             }
                                             if (objectName === 'm') {
-                                                // eslint-disable-next-line @typescript-eslint/dot-notation
-                                                file['diagnostics'].push({
+                                                file.addDiagnostics([{
                                                     ...observeRequiresFirstArgumentIsNotM(),
                                                     range: ce.range,
                                                     file: file
-                                                });
+                                                }]);
                                             } else if (fieldName) {
                                                 let memberStatement = cs.memberMap[name.toLowerCase()];
                                                 if (isMethodStatement(memberStatement)) {
@@ -1157,20 +1135,18 @@ export class MaestroPlugin implements CompilerPlugin {
                                                         expectedArgs = 2;
                                                     }
                                                     if (numArgs !== expectedArgs) {
-                                                        // eslint-disable-next-line @typescript-eslint/dot-notation
-                                                        file['diagnostics'].push({
+                                                        file.addDiagnostics([{
                                                             ...observeFunctionNameWrongArgs(name, objectName, fieldName, sendMode, expectedArgs, numArgs),
                                                             range: ce.range,
                                                             file: file
-                                                        });
+                                                        }]);
                                                     }
                                                 } else {
-                                                    // eslint-disable-next-line @typescript-eslint/dot-notation
-                                                    file['diagnostics'].push({
+                                                    file.addDiagnostics([{
                                                         ...observeFunctionNameNotFound(name, objectName),
                                                         range: ce.range,
                                                         file: file
-                                                    });
+                                                    }]);
                                                 }
                                             }
                                         }

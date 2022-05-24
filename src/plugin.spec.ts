@@ -2368,6 +2368,7 @@ describe('MaestroPlugin', () => {
             plugin.afterProgramCreate(program);
             program.setFile('source/comp.bs', `
                 function notInClass()
+                    m.expectOnce(asAA(data.Schedules[0].Productions[0]))
                     print asAA(data.Schedules[0].Productions[0])
                     formatJson(asAA(json.user))
                     print(asString(json.user.name, "default name"))
@@ -2387,13 +2388,14 @@ describe('MaestroPlugin', () => {
                 getContents('source/comp.brs')
             ).to.eql(undent`
                 function notInClass()
+                    m.expectOnce(mc_getAA(data, "Schedules.0.Productions.0"))
                     print mc_getAA(data, "Schedules.0.Productions.0")
                     formatJson(mc_getAA(json, "user"))
                     print (mc_getString(json, "user.name", "default name"))
                     if mc_getBoolean(json, "user.favorites.0.isActive")
                         print mc_getInteger(json, "age.0.time.thing.other.this")
                     end if
-                    print m.items.getValue(mc_getArray(items, "", [
+                    print m.items.getValue(mc_getArray(items, invalid, [
                         "none"
                     ]))
                     print m.items.show(mc_getNode(items, "0.item"))
@@ -2533,7 +2535,7 @@ describe('MaestroPlugin', () => {
                     if mc_getBoolean(json, "user.favorites.0.isActive")
                         print mc_getInteger(json, "age.0.time.thing.other.this")
                     end if
-                    print m.items.getValue(mc_getArray(items, ""))
+                    print m.items.getValue(mc_getArray(items, invalid))
                     print m.items.show(mc_getNode(items, "0.item"))
                 end function
             `);
@@ -2572,7 +2574,7 @@ describe('MaestroPlugin', () => {
                         if mc_getBoolean(m, "json.user.favorites.0.isActive")
                             print mc_getInteger(m, "json.age.0.time.thing.other.this")
                         end if
-                        print m.items.getValue(mc_getArray(items, ""))
+                        print m.items.getValue(mc_getArray(items, invalid))
                         print m.items.show(mc_getNode(items, "0.item"))
                     end function
                     return instance
@@ -2589,6 +2591,45 @@ describe('MaestroPlugin', () => {
             expect(
                 klass.body.find(x => (x as ClassFieldStatement)?.name?.text.toLowerCase() === '__classname')
             ).not.to.exist;
+        });
+
+        it('supports simple types', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                function notInClass()
+                    print asAA(data)
+                    print asAA(data, {id:"default"})
+                    formatJson(asAA(json))
+                    print(asString(name))
+                    print(asString(name, "default name"))
+                    if asBoolean(isActive)
+                        print asInteger(numSeconds, -1)
+                    end if
+                    print m.items.getValue(asArray(items))
+                    print m.items.show(asArray(items, ["first]))
+                end function
+            `);
+            program.validate();
+            await builder.transpile();
+            //ignore diagnostics - need to import core
+
+            expect(
+                getContents('source/comp.brs')
+            ).to.eql(undent`
+            function notInClass()
+                print mc_getAA(data, invalid)
+                print mc_getAA(data, invalid, {
+                    id: "default"
+                })
+                formatJson(mc_getAA(json, invalid))
+                print (mc_getString(name, invalid))
+                print (mc_getString(name, invalid, "default name"))
+                if mc_getBoolean(isActive, invalid)
+                    print mc_getInteger(numSeconds, invalid, - 1)
+                end if
+                print m.items.getValue(mc_getArray(items, invalid))
+            end function
+            `);
         });
     });
 
