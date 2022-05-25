@@ -63,7 +63,6 @@ import { getAllAnnotations, getAllFields } from './lib/utils/Utils';
 import { getSGMembersLookup } from './SGApi';
 import { DynamicType } from 'brighterscript/dist/types/DynamicType';
 
-type Writeable<T> = { -readonly [P in keyof T]: T[P] };
 interface FunctionInfo {
     minArgs: number;
     maxArgs: number;
@@ -432,7 +431,7 @@ export class MaestroPlugin implements CompilerPlugin {
                 if (allClassAnnotations['usesetfield']) {
                     this.updateFieldSets(classStatement);
                 }
-                this.injectIOCCode(classStatement, event.file);
+                this.injectIOCCode(classStatement, event);
                 this.updateObserveCalls(classStatement, event);
             }
             if (this.maestroConfig.stripParamTypes) {
@@ -792,17 +791,15 @@ export class MaestroPlugin implements CompilerPlugin {
         }
     }
 
-    private injectIOCCode(cs: ClassStatement, file: BrsFile) {
-
+    private injectIOCCode(cs: ClassStatement, event: BeforeFileTranspileEvent) {
+        const { file } = event;
         // eslint-disable-next-line @typescript-eslint/dot-notation
         let isNodeClass = cs['_isNodeClass'] === true;
 
-        for (let f of cs.fields) {
-            let annotation = (f.annotations || []).find((a) => a.name.toLowerCase() === 'inject' || a.name.toLowerCase() === 'injectclass' || a.name.toLowerCase() === 'createclass');
+        for (let field of cs.fields) {
+            let annotation = (field.annotations || []).find((a) => a.name.toLowerCase() === 'inject' || a.name.toLowerCase() === 'injectclass' || a.name.toLowerCase() === 'createclass');
             if (annotation) {
                 let args = annotation.getArguments();
-                //BRON_AST_EDIT_HERE (user-defined)
-                let wf = f as Writeable<FieldStatement>;
                 if (annotation.name === 'inject') {
                     if (args.length < 1) {
                         file.addDiagnostics([{
@@ -812,7 +809,7 @@ export class MaestroPlugin implements CompilerPlugin {
                         }]);
                         continue;
                     }
-                    let syncAnnotation = (f.annotations || []).find((a) => a.name.toLowerCase() === 'sync');
+                    let syncAnnotation = (field.annotations || []).find((a) => a.name.toLowerCase() === 'sync');
                     if (syncAnnotation && args.length < 2) {
                         file.addDiagnostics([{
                             ...noPathForIOCSync(),
@@ -853,7 +850,7 @@ export class MaestroPlugin implements CompilerPlugin {
                         }
                     }
 
-                    if (isNodeClass && (f.accessModifier?.kind === TokenKind.Public)) {
+                    if (isNodeClass && (field.accessModifier?.kind === TokenKind.Public)) {
                         if (syncAnnotation) {
                             file.addDiagnostics([{
                                 ...noPathForIOCSync(),
@@ -863,16 +860,17 @@ export class MaestroPlugin implements CompilerPlugin {
                             continue;
                         }
 
-                        //BRON_AST_EDIT_HERE (user-defined)
                         if (args.length === 1) {
-                            wf.initialValue = new RawCodeStatement(`__m_setTopField("${f.name.text}", mioc_getInstance("${iocKey}"))`, file, f.range);
+                            //TODO unit test
+                            event.editor.setProperty(field, 'initialValue', new RawCodeStatement(`__m_setTopField("${field.name.text}", mioc_getInstance("${iocKey}"))`, file, field.range));
                         } else if (args.length === 2) {
-                            wf.initialValue = new RawCodeStatement(`__m_setTopField("${f.name.text}", mioc_getInstance("${iocKey}", "${iocPath}"))`, file, f.range);
+                            //TODO unit test
+                            event.editor.setProperty(field, 'initialValue', new RawCodeStatement(`__m_setTopField("${field.name.text}", mioc_getInstance("${iocKey}", "${iocPath}"))`, file, field.range));
                         }
                     } else {
                         //check for observer field in here..
 
-                        let observerAnnotation = (f.annotations || []).find((a) => a.name.toLowerCase() === 'observer');
+                        let observerAnnotation = (field.annotations || []).find((a) => a.name.toLowerCase() === 'observer');
                         if (observerAnnotation || syncAnnotation) {
                             let funcName = 'invalid';
                             if (observerAnnotation) {
@@ -897,41 +895,34 @@ export class MaestroPlugin implements CompilerPlugin {
                                     file: file
                                 }]);
                             } else {
-                                //BRON_AST_EDIT_HERE (user-defined)
-                                wf.initialValue = new RawCodeStatement(`m._addIOCObserver("${f.name.text}", "${iocKey}", "${iocPath}", "${observePath}", "${observeField}", ${funcName})`, file, f.range);
+                                event.editor.setProperty(field, 'initialValue', new RawCodeStatement(`m._addIOCObserver("${field.name.text}", "${iocKey}", "${iocPath}", "${observePath}", "${observeField}", ${funcName})`, file, field.range));
                             }
                         } else {
                             if (!iocPath) {
-                                //BRON_AST_EDIT_HERE (user-defined)
-                                wf.initialValue = new RawCodeStatement(`mioc_getInstance("${iocKey}")`, file, f.range);
+                                event.editor.setProperty(field, 'initialValue', new RawCodeStatement(`mioc_getInstance("${iocKey}")`, file, field.range));
                             } else {
-                                //BRON_AST_EDIT_HERE (user-defined)
-                                wf.initialValue = new RawCodeStatement(`mioc_getInstance("${iocKey}", "${iocPath}")`, file, f.range);
+                                //TODO unit test
+                                event.editor.setProperty(field, 'initialValue', new RawCodeStatement(`mioc_getInstance("${iocKey}", "${iocPath}")`, file, field.range));
                             }
                         }
                     }
                 } else if (annotation.name === 'injectClass') {
-                    //BRON_AST_EDIT_HERE (user-defined)
-                    wf.initialValue = new RawCodeStatement(`mioc_getClassInstance("${args[0].toString()}")`, file, f.range);
+                    event.editor.setProperty(field, 'initialValue', new RawCodeStatement(`mioc_getClassInstance("${args[0].toString()}")`, file, field.range));
                 } else if (annotation.name === 'createClass') {
                     let instanceArgs = [];
                     for (let i = 1; i < args.length - 1; i++) {
-                        //BRON_AST_EDIT_HERE (user-defined)
                         if (args[i]) {
                             instanceArgs.push(args[i].toString());
                         }
                     }
                     if (instanceArgs.length > 0) {
-                        //BRON_AST_EDIT_HERE (user-defined)
-                        wf.initialValue = new RawCodeStatement(`mioc_createClassInstance("${args[0].toString()}", [${instanceArgs.join(',')}])`, file, f.range);
+                        //TODO unit test
+                        event.editor.setProperty(field, 'initialValue', new RawCodeStatement(`mioc_createClassInstance("${args[0].toString()}", [${instanceArgs.join(',')}])`, file, field.range));
                     } else {
-                        //BRON_AST_EDIT_HERE (user-defined)
-                        wf.initialValue = new RawCodeStatement(`mioc_createClassInstance("${args[0].toString()}")`, file, f.range);
-
+                        event.editor.setProperty(field, 'initialValue', new RawCodeStatement(`mioc_createClassInstance("${args[0].toString()}")`, file, field.range));
                     }
                 }
-                //BRON_AST_EDIT_HERE (user-defined)
-                wf.equal = createToken(TokenKind.Equal, '=', f.range);
+                event.editor.setProperty(field, 'equal', createToken(TokenKind.Equal, '=', field.range));
             }
         }
     }

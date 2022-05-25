@@ -1,5 +1,5 @@
-import type { BrsFile, BsDiagnostic, CallExpression, ClassFieldStatement, ClassMethodStatement, ClassStatement, ExpressionStatement, FunctionStatement, PrintStatement } from 'brighterscript';
-import { DiagnosticSeverity, Program, ProgramBuilder, util } from 'brighterscript';
+import type { BrsFile, BsDiagnostic, CallExpression, ClassStatement, ExpressionStatement, FieldStatement, FunctionStatement, MethodStatement, PrintStatement } from 'brighterscript';
+import { DiagnosticSeverity, Program, ProgramBuilder, util, createVisitor, WalkMode } from 'brighterscript';
 import { expect } from 'chai';
 import { MaestroPlugin } from './plugin';
 import PluginInterface from 'brighterscript/dist/PluginInterface';
@@ -1665,7 +1665,7 @@ describe('MaestroPlugin', () => {
             it('allows instantiation of class objects from annotation', async () => {
                 plugin.afterProgramCreate(program);
 
-                program.setFile('source/VM.bs', `
+                const file = program.setFile<BrsFile>('source/VM.bs', `
                     class VM
                         @inject("Entitlements")
                         public fieldA
@@ -1713,6 +1713,17 @@ describe('MaestroPlugin', () => {
                         return instance
                     end function
                 `);
+
+                const fields = [];
+                file.ast.walk(createVisitor({
+                    FieldStatement: (field) => {
+                        fields.push(field);
+                        expect(field.initialValue).not.to.exist;
+                    }
+                }), {
+                    walkMode: WalkMode.visitAll
+                });
+                expect(fields).to.be.lengthOf(3);
             });
 
             it('gives diagnostics when the injection annotations are malformed', async () => {
@@ -1806,7 +1817,7 @@ describe('MaestroPlugin', () => {
             it('allows observing of an injected field', async () => {
                 plugin.afterProgramCreate(program);
 
-                program.setFile('source/VM.bs', `
+                const file = program.setFile<BrsFile>('source/VM.bs', `
                     class MyView
                         @sync
                         @inject("Entitlements", "isLoggedIn")
@@ -1861,6 +1872,18 @@ describe('MaestroPlugin', () => {
                         return instance
                     end function
                 `);
+
+                const fields = [];
+                file.ast.walk(createVisitor({
+                    FieldStatement: (stmt) => {
+                        fields.push(stmt);
+                        expect(stmt.initialValue).not.to.exist;
+                        expect(stmt.equal).not.to.exist;
+                    }
+                }), {
+                    walkMode: WalkMode.visitAll
+                });
+                expect(fields).to.be.lengthOf(6);
             });
         });
     });
@@ -2589,7 +2612,7 @@ describe('MaestroPlugin', () => {
             //verify the ast edit was undone after transpile
             const klass = file.ast.statements[0] as ClassStatement;
             expect(
-                klass.body.find(x => (x as ClassFieldStatement)?.name?.text.toLowerCase() === '__classname')
+                klass.body.find(x => (x as FieldStatement)?.name?.text.toLowerCase() === '__classname')
             ).not.to.exist;
         });
 
@@ -2990,7 +3013,7 @@ describe('MaestroPlugin', () => {
             `);
 
             //ensure the ast is not edited after transpile
-            const expression = (((file.ast.statements[0] as ClassStatement).body[0] as ClassMethodStatement).func.body.statements[0] as ExpressionStatement).expression as CallExpression;
+            const expression = (((file.ast.statements[0] as ClassStatement).body[0] as MethodStatement).func.body.statements[0] as ExpressionStatement).expression as CallExpression;
             expect(expression.args).to.be.lengthOf(2);
         });
     });
