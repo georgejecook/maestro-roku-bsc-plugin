@@ -586,6 +586,8 @@ export class NodeClass {
                 fieldType = 'node';
             } else if (fieldType === 'mc.types.array') {
                 fieldType = 'array';
+            } else if (this.getInterfaceFromFieldType(fieldType)) {
+                fieldType = 'assocarray';
             } else if (!this.knownFieldTypes[fieldType]) {
                 // keep original case
                 fieldType = field.type.text;
@@ -622,6 +624,11 @@ export class NodeClass {
 
         }
         return undefined;
+    }
+
+    getInterfaceFromFieldType(fieldType: string) {
+        let interfaceMap = this.file.program.getFirstScopeForFile(this.file)?.getInterfaceMap();
+        return interfaceMap.get(fieldType.toLowerCase())?.item;
     }
 
 

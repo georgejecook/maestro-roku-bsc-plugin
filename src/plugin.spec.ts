@@ -1057,6 +1057,76 @@ describe('MaestroPlugin', () => {
                 return value
             end function`);
         });
+        it('supports interface type in public fields', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                interface myInterface
+                    text as string
+                end interface
+                namespace myNamespace
+                    interface myInterface
+                        text as string
+                    end interface
+                end namespace
+                @node("Comp", "Group")
+                class Comp
+
+                    public e1 as myInterface
+                    public e2 as myNamespace.myInterface
+
+                    function new()
+                    end function
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error && !d.message.includes('mc.types.'))).to.be.empty;
+
+            expect(
+                getContents('components/maestro/generated/Comp.xml')
+            ).to.eql(undent`
+                <?xml version="1.0" encoding="UTF-8" ?>
+                <component name="Comp" extends="Group">
+                    <interface>
+                        <field id="e1" type="assocarray" />
+                        <field id="e2" type="assocarray" />
+                    </interface>
+                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
+                    <children />
+                </component>
+            `);
+
+            expect(
+                getContents('components/maestro/generated/Comp.brs')
+            ).to.eql(undent`
+            'import "pkg:/source/comp.bs"
+
+            function init()
+                m.top.e1 = invalid
+                m.top.e2 = invalid
+                instance = __Comp_builder()
+                instance.delete("top")
+                instance.delete("global")
+                top = m.top
+                m.append(instance)
+                m.__isVMCreated = true
+                m.new()
+                m.top = top
+                m_wireUpObservers()
+            end function
+
+            function m_wireUpObservers()
+            end function
+
+            function __m_setTopField(field, value)
+                if m.top.doesExist(field)
+                    m.top[field] = value
+                end if
+                return value
+            end function`);
+        });
 
         it('gives diagnostics for missing observer function params', async () => {
             plugin.afterProgramCreate(program);
