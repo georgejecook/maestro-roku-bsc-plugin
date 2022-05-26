@@ -550,7 +550,6 @@ export class NodeClass {
                 if (fieldType) {
                     isEnum = true;
                 } else {
-
                     addNodeClassFieldNoFieldType(file, field.name.text, field.range.start.line, field.range.start.character);
                     continue;
                 }
