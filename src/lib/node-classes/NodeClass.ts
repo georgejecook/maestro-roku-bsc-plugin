@@ -505,12 +505,12 @@ export class NodeClass {
     }
 
     public replacePublicMFieldRefs(fileMap: ProjectFileMap) {
-        let allTopFields = getAllFields(fileMap, this.classStatement, TokenKind.Public) as any;
-        allTopFields.id = true;
-        delete (allTopFields.__classname);
+        let allTopFields = getAllFields(fileMap, this.classStatement, TokenKind.Public);
+        allTopFields.set('id', true as any);
+        allTopFields.delete('__classname');
         let logVisitor = createVisitor({
             DottedGetExpression: (de) => {
-                if (isVariableExpression(de.obj) && de.obj.name.text === 'm' && allTopFields[de.name.text.toLowerCase()]) {
+                if (isVariableExpression(de.obj) && de.obj.name.text === 'm' && allTopFields.get(de.name.text.toLowerCase())) {
                     try {
                         // eslint-disable-next-line
                         (de as any)['obj'] = new RawCodeStatement(`m.top`, this.file, de.range);
@@ -520,7 +520,7 @@ export class NodeClass {
                 }
             },
             DottedSetStatement: (ds) => {
-                if (isVariableExpression(ds.obj) && ds.obj.name.text === 'm' && allTopFields[ds.name.text.toLowerCase()]) {
+                if (isVariableExpression(ds.obj) && ds.obj.name.text === 'm' && allTopFields.get(ds.name.text.toLowerCase())) {
                     try {
                         // eslint-disable-next-line
                         (ds as any)['obj'] = new RawCodeStatement(`m.top`, this.file, ds.range);

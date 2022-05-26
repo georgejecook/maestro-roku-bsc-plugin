@@ -392,7 +392,7 @@ export class MaestroPlugin implements CompilerPlugin {
                 let fieldMap = getAllFields(this.fileMap, cs);
                 let id = createToken(TokenKind.Identifier, '__classname', cs.range);
                 // eslint-disable-next-line @typescript-eslint/dot-notation
-                if (!fieldMap['__classname']) {
+                if (!fieldMap.has('__classname')) {
                     let p = createToken(TokenKind.Public, 'public', cs.range);
                     let a = createToken(TokenKind.As, 'as', cs.range);
                     let s = createToken(TokenKind.String, 'string', cs.range);
@@ -661,7 +661,7 @@ export class MaestroPlugin implements CompilerPlugin {
             DottedSetStatement: (ds) => {
                 if (isVariableExpression(ds.obj) && ds.obj?.name?.text === 'm') {
                     let lowerName = ds.name.text.toLowerCase();
-                    if (fieldMap[lowerName]) {
+                    if (fieldMap.has(lowerName)) {
                         let callE = new CallExpression(
                             new DottedGetExpression(
                                 ds.obj,
@@ -700,7 +700,7 @@ export class MaestroPlugin implements CompilerPlugin {
                 DottedSetStatement: (ds) => {
                     if (isVariableExpression(ds.obj) && ds.obj?.name?.text === 'm') {
                         let lowerName = ds.name.text.toLowerCase();
-                        if (!fieldMap[lowerName] && !this.skips[lowerName]) {
+                        if (!fieldMap.has(lowerName) && !this.skips[lowerName]) {
                             if (!isNodeClass || (lowerName !== 'top' && lowerName !== 'global')) {
                                 addClassFieldsNotFoundOnSetOrGet(file, `${ds.obj.name.text}.${ds.name.text}`, cs.name.text, ds.range);
                             }
@@ -711,7 +711,7 @@ export class MaestroPlugin implements CompilerPlugin {
                     if (isVariableExpression(ds.obj) && ds?.obj?.name.text === 'm') {
                         //TODO - make this not get dotted get's in function calls
                         let lowerName = ds.name.text.toLowerCase();
-                        if (!fieldMap[lowerName] && !funcMap[lowerName] && !this.skips[lowerName]) {
+                        if (!fieldMap.has(lowerName) && !funcMap[lowerName] && !this.skips[lowerName]) {
                             if (!isNodeClass || (lowerName !== 'top' && lowerName !== 'global')) {
                                 addClassFieldsNotFoundOnSetOrGet(file, `${ds.obj.name.text}.${ds.name.text}`, cs.name.text, ds.range);
                             }

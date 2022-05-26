@@ -1,4 +1,4 @@
-import type { Position, BrsFile, XmlFile, ClassStatement, FunctionStatement, ClassMethodStatement, Statement, Expression } from 'brighterscript';
+import type { Position, BrsFile, XmlFile, ClassStatement, FunctionStatement, ClassMethodStatement, Statement, Expression, FieldStatement } from 'brighterscript';
 import { createVariableExpression } from 'brighterscript';
 // eslint-disable-next-line @typescript-eslint/no-duplicate-imports
 import * as brighterscript from 'brighterscript';
@@ -173,15 +173,15 @@ export function getTokenText(operator: brighterscript.TokenKind): string {
     }
 }
 
-export function getAllFields(fileMap: ProjectFileMap, cs: ClassStatement, vis?: brighterscript.TokenKind) {
-    let result = {};
-    while (cs) {
-        for (let field of cs.fields) {
-            if (!vis || field.accessModifier?.kind === vis) {
-                result[field.name.text.toLowerCase()] = field;
+export function getAllFields(fileMap: ProjectFileMap, classStatement: ClassStatement, accessModifier?: brighterscript.TokenKind) {
+    let result = new Map<string, FieldStatement>();
+    while (classStatement) {
+        for (let field of classStatement.fields) {
+            if (!accessModifier || field.accessModifier?.kind === accessModifier) {
+                result.set(field.name.text.toLowerCase(), field);
             }
         }
-        cs = cs.parentClassName ? fileMap.allClasses[cs.parentClassName.getName(brighterscript.ParseMode.BrighterScript).replace(/_/g, '.')] : null;
+        classStatement = classStatement.parentClassName ? fileMap.allClasses[classStatement.parentClassName.getName(brighterscript.ParseMode.BrighterScript).replace(/_/g, '.')] : null;
     }
 
     return result;
