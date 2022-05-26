@@ -180,23 +180,6 @@ export class MaestroPlugin implements CompilerPlugin {
         if (isBrsFile(file)) {
             this.importProcessor.processDynamicImports(file, this.program);
             this.reflectionUtil.addFile(file);
-            if (this.shouldParseFile(file)) {
-                this.nodeClassUtil.addFile(file, mFile);
-                if (this.maestroConfig.nodeClasses.buildForIDE) {
-                    for (let nc of [...mFile.nodeClasses.values()]) {
-                        nc.generateCode(this.fileFactory, this.program, this.fileMap, this.maestroConfig.nodeClasses.buildForIDE);
-                    }
-                    if (this.maestroConfig.nodeClasses.generateTestUtils) {
-                        this.nodeClassUtil.generateTestCode(this.program);
-                    }
-                }
-                if (mFile.nodeClasses.size > 0) {
-                    this.dirtyNodeClassPaths.add(file.pathAbsolute);
-                }
-                this.mFilesToValidate.set(file.pkgPath, file);
-            } else {
-            }
-
         } else {
             mFile.loadXmlContents();
         }
@@ -276,6 +259,26 @@ export class MaestroPlugin implements CompilerPlugin {
                     this.bindingProcessor.generateCodeForXMLFile(file, this.program);
                 }
                 // console.timeEnd('Validate bindings');
+            }
+        }
+
+        for (let file of Object.values(program.files).filter((f) => isBrsFile(f))) {
+            if (this.shouldParseFile(file) && isBrsFile(file)) {
+                let mFile = this.fileMap.allFiles[file.pathAbsolute];
+                this.nodeClassUtil.addFile(file, mFile);
+                if (this.maestroConfig.nodeClasses.buildForIDE) {
+                    for (let nc of [...mFile.nodeClasses.values()]) {
+                        nc.generateCode(this.fileFactory, this.program, this.fileMap, this.maestroConfig.nodeClasses.buildForIDE);
+                    }
+                    if (this.maestroConfig.nodeClasses.generateTestUtils) {
+                        this.nodeClassUtil.generateTestCode(this.program);
+                    }
+                }
+                if (mFile.nodeClasses.size > 0) {
+                    this.dirtyNodeClassPaths.add(file.pathAbsolute);
+                }
+                this.mFilesToValidate.set(file.pkgPath, file);
+            } else {
             }
         }
 

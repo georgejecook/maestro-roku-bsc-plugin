@@ -1,5 +1,5 @@
-import type { BrsFile, ClassMethodStatement, ClassStatement, Expression, FunctionStatement, LiteralExpression, Statement } from 'brighterscript';
-import { createVariableExpression } from 'brighterscript';
+import type { BrsFile, ClassMethodStatement, ClassStatement, DottedGetExpression, Expression, FunctionStatement, LiteralExpression, Statement } from 'brighterscript';
+import { createVariableExpression, isDottedGetExpression, isVariableExpression } from 'brighterscript';
 
 // eslint-disable-next-line @typescript-eslint/no-duplicate-imports
 import * as brighterscript from 'brighterscript';
@@ -286,4 +286,15 @@ export function sanitizePkgPath(pkgPath: string) {
     }
     return pkgPath;
 }
+
+export function getAllDottedGetParts(dg: DottedGetExpression) {
+    let parts = [dg?.name?.text];
+    let nextPart = dg.obj;
+    while (isDottedGetExpression(nextPart) || isVariableExpression(nextPart)) {
+        parts.push(nextPart?.name?.text);
+        nextPart = isDottedGetExpression(nextPart) ? nextPart.obj : undefined;
+    }
+    return parts.reverse();
+}
+
 
