@@ -1,8 +1,5 @@
 import type { Position, BrsFile, XmlFile, ClassStatement, FunctionStatement, ClassMethodStatement, Statement, Expression, FieldStatement } from 'brighterscript';
-import { createVariableExpression } from 'brighterscript';
-// eslint-disable-next-line @typescript-eslint/no-duplicate-imports
-import * as brighterscript from 'brighterscript';
-
+import { Range, Lexer, Parser, ParseMode, createVariableExpression, IfStatement, BinaryExpression, Block, createStringLiteral, createToken, isClassMethodStatement, isClassStatement, TokenKind } from 'brighterscript';
 import type { File } from '../files/File';
 import type { ProjectFileMap } from '../files/ProjectFileMap';
 
@@ -68,8 +65,10 @@ export function getAlternateFileNames(fileName: string): string[] {
     } else if (
         fileName?.toLowerCase().endsWith('.xml')
     ) {
-        return [fileName.substring(0, fileName.length - 4) + '.brs',
-            fileName.substring(0, fileName.length - 4) + '.bs'];
+        return [
+            fileName.substring(0, fileName.length - 4) + '.brs',
+            fileName.substring(0, fileName.length - 4) + '.bs'
+        ];
     } else {
         return [];
     }
@@ -86,12 +85,12 @@ export function getAssociatedFile(file: BrsFile | XmlFile, fileMap: ProjectFileM
 }
 
 export function createRange(pos: Position) {
-    return brighterscript.Range.create(pos.line, pos.character, pos.line, pos.character);
+    return Range.create(pos.line, pos.character, pos.line, pos.character);
 }
 
 export function makeASTFunction(source: string): FunctionStatement | undefined {
-    let tokens = brighterscript.Lexer.scan(source).tokens;
-    let { statements } = brighterscript.Parser.parse(tokens, { mode: brighterscript.ParseMode.BrighterScript });
+    let tokens = Lexer.scan(source).tokens;
+    let { statements } = Parser.parse(tokens, { mode: ParseMode.BrighterScript });
     if (statements && statements.length > 0) {
         return statements[0] as FunctionStatement;
     }
@@ -120,7 +119,7 @@ export function addOverriddenMethod(target: ClassStatement, name: string, source
   end function
   end class
   `);
-    if (brighterscript.isClassStatement(statement)) {
+    if (isClassStatement(statement)) {
         let classStatement = statement as ClassStatement;
         target.body.push(classStatement.methods[0]);
         return true;
@@ -130,7 +129,7 @@ export function addOverriddenMethod(target: ClassStatement, name: string, source
 
 export function changeClassMethodBody(target: ClassStatement, name: string, source: string): boolean {
     let method = target.methods.find((m) => m.name.text === name);
-    if (brighterscript.isClassMethodStatement(method)) {
+    if (isClassMethodStatement(method)) {
         changeFunctionBody(method, source);
         return true;
     }
@@ -141,39 +140,39 @@ export function sanitizeBsJsonString(text: string) {
     return `"${text ? text.replace(/"/g, '\'') : ''}"`;
 }
 
-export function createIfStatement(condition: Expression, statements: Statement[]): brighterscript.IfStatement {
-    let ifToken = brighterscript.createToken(brighterscript.TokenKind.If, 'else if', brighterscript.Range.create(1, 1, 1, 999999));
+export function createIfStatement(condition: Expression, statements: Statement[]): IfStatement {
+    let ifToken = createToken(TokenKind.If, 'else if', Range.create(1, 1, 1, 999999));
     ifToken.text = 'else if';
-    let thenBranch = new brighterscript.Block(statements, brighterscript.Range.create(1, 1, 1, 1));
-    return new brighterscript.IfStatement({ if: ifToken, then: brighterscript.createToken(brighterscript.TokenKind.Then, '', brighterscript.Range.create(1, 1, 1, 999999)) }, condition, thenBranch);
+    let thenBranch = new Block(statements, Range.create(1, 1, 1, 1));
+    return new IfStatement({ if: ifToken, then: createToken(TokenKind.Then, '', Range.create(1, 1, 1, 999999)) }, condition, thenBranch);
 }
 
-export function createVarExpression(varName: string, operator: brighterscript.TokenKind, value: string): brighterscript.BinaryExpression {
-    let variable = createVariableExpression(varName, brighterscript.Range.create(1, 1, 1, 999999));
-    let v = brighterscript.createStringLiteral('"' + value, brighterscript.Range.create(1, 1, 1, 999999));
+export function createVarExpression(varName: string, operator: TokenKind, value: string): BinaryExpression {
+    let variable = createVariableExpression(varName, Range.create(1, 1, 1, 999999));
+    let v = createStringLiteral('"' + value, Range.create(1, 1, 1, 999999));
 
-    let t = brighterscript.createToken(operator, getTokenText(operator), brighterscript.Range.create(1, 1, 1, 999999));
-    return new brighterscript.BinaryExpression(variable, t, v);
+    let t = createToken(operator, getTokenText(operator), Range.create(1, 1, 1, 999999));
+    return new BinaryExpression(variable, t, v);
 }
 
-export function getTokenText(operator: brighterscript.TokenKind): string {
+export function getTokenText(operator: TokenKind): string {
     switch (operator) {
-        case brighterscript.TokenKind.Equal:
+        case TokenKind.Equal:
             return '=';
-        case brighterscript.TokenKind.Plus:
+        case TokenKind.Plus:
             return '+';
-        case brighterscript.TokenKind.Minus:
+        case TokenKind.Minus:
             return '-';
-        case brighterscript.TokenKind.Less:
+        case TokenKind.Less:
             return '<';
-        case brighterscript.TokenKind.Greater:
+        case TokenKind.Greater:
             return '>';
         default:
             return '>';
     }
 }
 
-export function getAllFields(fileMap: ProjectFileMap, classStatement: ClassStatement, accessModifier?: brighterscript.TokenKind) {
+export function getAllFields(fileMap: ProjectFileMap, classStatement: ClassStatement, accessModifier?: TokenKind) {
     let result = new Map<string, FieldStatement>();
     while (classStatement) {
         for (let field of classStatement.fields) {
@@ -181,13 +180,13 @@ export function getAllFields(fileMap: ProjectFileMap, classStatement: ClassState
                 result.set(field.name.text.toLowerCase(), field);
             }
         }
-        classStatement = classStatement.parentClassName ? fileMap.allClasses[classStatement.parentClassName.getName(brighterscript.ParseMode.BrighterScript).replace(/_/g, '.')] : null;
+        classStatement = classStatement.parentClassName ? fileMap.allClasses[classStatement.parentClassName.getName(ParseMode.BrighterScript).replace(/_/g, '.')] : null;
     }
 
     return result;
 }
 
-export function getAllMethods(fileMap: ProjectFileMap, cs: ClassStatement, vis?: brighterscript.TokenKind) {
+export function getAllMethods(fileMap: ProjectFileMap, cs: ClassStatement, vis?: TokenKind) {
     let result = {};
     while (cs) {
         for (let method of cs.methods) {
@@ -195,7 +194,7 @@ export function getAllMethods(fileMap: ProjectFileMap, cs: ClassStatement, vis?:
                 result[method.name.text.toLowerCase()] = method;
             }
         }
-        cs = cs.parentClassName ? fileMap.allClasses[cs.parentClassName.getName(brighterscript.ParseMode.BrighterScript).replace(/_/g, '.')] : null;
+        cs = cs.parentClassName ? fileMap.allClasses[cs.parentClassName.getName(ParseMode.BrighterScript).replace(/_/g, '.')] : null;
     }
 
     return result;
@@ -209,7 +208,7 @@ export function getAllAnnotations(fileMap: ProjectFileMap, cs: ClassStatement) {
                 result[annotation.name.toLowerCase()] = true;
             }
         }
-        cs = cs.parentClassName ? fileMap.allClasses[cs.parentClassName.getName(brighterscript.ParseMode.BrighterScript).replace(/_/g, '.')] : null;
+        cs = cs.parentClassName ? fileMap.allClasses[cs.parentClassName.getName(ParseMode.BrighterScript).replace(/_/g, '.')] : null;
     }
 
     return result;

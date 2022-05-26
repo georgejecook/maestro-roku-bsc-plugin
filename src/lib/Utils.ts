@@ -1,9 +1,5 @@
 import type { BrsFile, ClassMethodStatement, ClassStatement, DottedGetExpression, Expression, FunctionStatement, LiteralExpression, Statement } from 'brighterscript';
-import { createVariableExpression, isDottedGetExpression, isVariableExpression } from 'brighterscript';
-
-// eslint-disable-next-line @typescript-eslint/no-duplicate-imports
-import * as brighterscript from 'brighterscript';
-
+import { Range, createVariableExpression, isDottedGetExpression, isVariableExpression, BinaryExpression, Block, createStringLiteral, createToken, IfStatement, ImportStatement, isAALiteralExpression, isArrayLiteralExpression, isClassMethodStatement, isClassStatement, isCommentStatement, isImportStatement, isIntegerType, isLiteralBoolean, isLiteralNumber, isLiteralString, isLongIntegerType, isUnaryExpression, Lexer, ParseMode, Parser, Position, TokenKind } from 'brighterscript';
 import * as rokuDeploy from 'roku-deploy';
 import { createRange } from './utils/Utils';
 
@@ -57,8 +53,8 @@ export function pad(pad: string, str: string, padLeft: number): string {
 }
 
 export function makeASTFunction(source: string): FunctionStatement | undefined {
-    let tokens = brighterscript.Lexer.scan(source).tokens;
-    let { statements } = brighterscript.Parser.parse(tokens, { mode: brighterscript.ParseMode.BrighterScript });
+    let tokens = Lexer.scan(source).tokens;
+    let { statements } = Parser.parse(tokens, { mode: ParseMode.BrighterScript });
     if (statements && statements.length > 0) {
         return statements[0] as FunctionStatement;
     }
@@ -87,7 +83,7 @@ export function addOverriddenMethod(target: ClassStatement, name: string, source
   end function
   end class
   `);
-    if (brighterscript.isClassStatement(statement)) {
+    if (isClassStatement(statement)) {
         let classStatement = statement as ClassStatement;
         target.body.push(classStatement.methods[0]);
         return true;
@@ -97,7 +93,7 @@ export function addOverriddenMethod(target: ClassStatement, name: string, source
 
 export function changeClassMethodBody(target: ClassStatement, name: string, source: Statement[] | string): boolean {
     let method = target.methods.find((m) => m.name.text === name);
-    if (brighterscript.isClassMethodStatement(method)) {
+    if (isClassMethodStatement(method)) {
         changeFunctionBody(method, source);
         return true;
     }
@@ -108,31 +104,31 @@ export function sanitizeBsJsonString(text: string) {
     return `"${text ? text.replace(/"/g, '\'') : ''}"`;
 }
 
-export function createIfStatement(condition: Expression, statements: Statement[]): brighterscript.IfStatement {
-    let ifToken = brighterscript.createToken(brighterscript.TokenKind.If, 'if', brighterscript.Range.create(1, 1, 1, 999999));
-    let thenBranch = new brighterscript.Block(statements, brighterscript.Range.create(1, 1, 1, 1));
-    return new brighterscript.IfStatement({ if: ifToken, then: brighterscript.createToken(brighterscript.TokenKind.Then, '', brighterscript.Range.create(1, 1, 1, 999999)) }, condition, thenBranch);
+export function createIfStatement(condition: Expression, statements: Statement[]): IfStatement {
+    let ifToken = createToken(TokenKind.If, 'if', Range.create(1, 1, 1, 999999));
+    let thenBranch = new Block(statements, Range.create(1, 1, 1, 1));
+    return new IfStatement({ if: ifToken, then: createToken(TokenKind.Then, '', Range.create(1, 1, 1, 999999)) }, condition, thenBranch);
 }
 
-export function createVarExpression(varName: string, operator: brighterscript.TokenKind, value: string): brighterscript.BinaryExpression {
-    let variable = createVariableExpression(varName, brighterscript.Range.create(1, 1, 1, 999999));
-    let v = brighterscript.createStringLiteral(value, brighterscript.Range.create(1, 1, 1, 999999));
+export function createVarExpression(varName: string, operator: TokenKind, value: string): BinaryExpression {
+    let variable = createVariableExpression(varName, Range.create(1, 1, 1, 999999));
+    let v = createStringLiteral(value, Range.create(1, 1, 1, 999999));
 
-    let t = brighterscript.createToken(operator, getTokenText(operator), brighterscript.Range.create(1, 1, 1, 999999));
-    return new brighterscript.BinaryExpression(variable, t, v);
+    let t = createToken(operator, getTokenText(operator), Range.create(1, 1, 1, 999999));
+    return new BinaryExpression(variable, t, v);
 }
 
-export function getTokenText(operator: brighterscript.TokenKind): string {
+export function getTokenText(operator: TokenKind): string {
     switch (operator) {
-        case brighterscript.TokenKind.Equal:
+        case TokenKind.Equal:
             return '=';
-        case brighterscript.TokenKind.Plus:
+        case TokenKind.Plus:
             return '+';
-        case brighterscript.TokenKind.Minus:
+        case TokenKind.Minus:
             return '-';
-        case brighterscript.TokenKind.Less:
+        case TokenKind.Less:
             return '<';
-        case brighterscript.TokenKind.Greater:
+        case TokenKind.Greater:
             return '>';
         default:
             return '';
@@ -176,28 +172,28 @@ export function expressionToString(expr: Expression): string {
     if (!expr) {
         return 'invalid';
     }
-    if (brighterscript.isUnaryExpression(expr) && brighterscript.isLiteralNumber(expr.right)) {
+    if (isUnaryExpression(expr) && isLiteralNumber(expr.right)) {
         return numberExpressionToValue(expr.right, expr.operator.text).toString();
     }
-    if (brighterscript.isLiteralString(expr)) {
+    if (isLiteralString(expr)) {
         //remove leading and trailing quotes
         return `"${expr.token.text.replace(/^"/, '').replace(/"$/, '')}"`;
     }
-    if (brighterscript.isLiteralNumber(expr)) {
+    if (isLiteralNumber(expr)) {
         return numberExpressionToValue(expr).toString();
     }
 
-    if (brighterscript.isLiteralBoolean(expr)) {
+    if (isLiteralBoolean(expr)) {
         return expr.token.text.toLowerCase() === 'true' ? 'true' : 'false';
     }
-    if (brighterscript.isArrayLiteralExpression(expr)) {
+    if (isArrayLiteralExpression(expr)) {
         return `[${expr.elements
-            .filter(e => !brighterscript.isCommentStatement(e))
+            .filter(e => !isCommentStatement(e))
             .map(e => expressionToString(e))}]`;
     }
-    if (brighterscript.isAALiteralExpression(expr)) {
+    if (isAALiteralExpression(expr)) {
         let text = `{${expr.elements.reduce((acc, e) => {
-            if (!brighterscript.isCommentStatement(e)) {
+            if (!isCommentStatement(e)) {
                 const sep = acc === '' ? '' : ', ';
                 acc += `${sep}${e.keyToken.text}: ${expressionToString(e.value)}`;
             }
@@ -211,28 +207,28 @@ export function expressionToValue(expr: Expression): any | undefined {
     if (!expr) {
         return undefined;
     }
-    if (brighterscript.isUnaryExpression(expr) && brighterscript.isLiteralNumber(expr.right)) {
+    if (isUnaryExpression(expr) && isLiteralNumber(expr.right)) {
         return numberExpressionToValue(expr.right, expr.operator.text);
     }
-    if (brighterscript.isLiteralString(expr)) {
+    if (isLiteralString(expr)) {
         //remove leading and trailing quotes
         return expr.token.text.replace(/^"/, '').replace(/"$/, '');
     }
-    if (brighterscript.isLiteralNumber(expr)) {
+    if (isLiteralNumber(expr)) {
         return numberExpressionToValue(expr);
     }
 
-    if (brighterscript.isLiteralBoolean(expr)) {
+    if (isLiteralBoolean(expr)) {
         return expr.token.text.toLowerCase() === 'true';
     }
-    if (brighterscript.isArrayLiteralExpression(expr)) {
+    if (isArrayLiteralExpression(expr)) {
         return expr.elements
-            .filter(e => !brighterscript.isCommentStatement(e))
+            .filter(e => !isCommentStatement(e))
             .map(e => expressionToValue(e));
     }
-    if (brighterscript.isAALiteralExpression(expr)) {
+    if (isAALiteralExpression(expr)) {
         return expr.elements.reduce((acc, e) => {
-            if (!brighterscript.isCommentStatement(e)) {
+            if (!isCommentStatement(e)) {
                 acc[e.keyToken.text] = expressionToValue(e.value);
             }
             return acc;
@@ -242,23 +238,23 @@ export function expressionToValue(expr: Expression): any | undefined {
 }
 
 function numberExpressionToValue(expr: LiteralExpression, operator = '') {
-    if (brighterscript.isIntegerType(expr.type) || brighterscript.isLongIntegerType(expr.type)) {
+    if (isIntegerType(expr.type) || isLongIntegerType(expr.type)) {
         return parseInt(operator + expr.token.text);
     } else {
         return parseFloat(operator + expr.token.text);
     }
 }
 
-export function createImportStatement(pkgPath: string, range: brighterscript.Range) {
-    let importToken = brighterscript.createToken(brighterscript.TokenKind.Import, 'import', range);
-    let filePathToken = brighterscript.createToken(brighterscript.TokenKind.SourceFilePathLiteral, `"${sanitizePkgPath(pkgPath)}"`, range);
-    return new brighterscript.ImportStatement(importToken, filePathToken);
+export function createImportStatement(pkgPath: string, range: Range) {
+    let importToken = createToken(TokenKind.Import, 'import', range);
+    let filePathToken = createToken(TokenKind.SourceFilePathLiteral, `"${sanitizePkgPath(pkgPath)}"`, range);
+    return new ImportStatement(importToken, filePathToken);
 }
 
 export function addImport(file: BrsFile, pkgPath: string) {
-    let existingImports = file.parser.ast.statements.find((el) => brighterscript.isImportStatement(el) && el.filePath === pkgPath);
+    let existingImports = file.parser.ast.statements.find((el) => isImportStatement(el) && el.filePath === pkgPath);
     if (!existingImports) {
-        let importStatement = createImportStatement(pkgPath, createRange(brighterscript.Position.create(1, 1)));
+        let importStatement = createImportStatement(pkgPath, createRange(Position.create(1, 1)));
         file.parser.ast.statements = [importStatement, ...file.parser.ast.statements];
         file.parser.invalidateReferences();
         file.ownScriptImports.push({
