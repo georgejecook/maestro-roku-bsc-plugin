@@ -1,5 +1,5 @@
-import { Position, BrsFile, XmlFile, ClassStatement, FunctionStatement, ClassMethodStatement, Statement, Expression, IfStatement, BinaryExpression, Block, createStringLiteral, createToken, isClassMethodStatement, isClassStatement, TokenKind } from 'brighterscript';
-import { Range, Lexer, Parser, ParseMode, createVariableExpression } from 'brighterscript';
+import type { Position, BrsFile, XmlFile, ClassStatement, FunctionStatement, ClassMethodStatement, Statement, Expression } from 'brighterscript';
+import { Range, Lexer, Parser, ParseMode, createVariableExpression, IfStatement, BinaryExpression, Block, createStringLiteral, createToken, isClassMethodStatement, isClassStatement, TokenKind } from 'brighterscript';
 import type { File } from '../files/File';
 import type { ProjectFileMap } from '../files/ProjectFileMap';
 
@@ -65,8 +65,10 @@ export function getAlternateFileNames(fileName: string): string[] {
     } else if (
         fileName?.toLowerCase().endsWith('.xml')
     ) {
-        return [fileName.substring(0, fileName.length - 4) + '.brs',
-        fileName.substring(0, fileName.length - 4) + '.bs'];
+        return [
+            fileName.substring(0, fileName.length - 4) + '.brs',
+            fileName.substring(0, fileName.length - 4) + '.bs'
+        ];
     } else {
         return [];
     }
