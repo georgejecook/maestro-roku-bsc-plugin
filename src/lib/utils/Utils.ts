@@ -1,4 +1,4 @@
-import type { Position, BrsFile, XmlFile, ClassStatement, FunctionStatement, ClassMethodStatement, Statement, Expression } from 'brighterscript';
+import type { Position, BrsFile, XmlFile, ClassStatement, FunctionStatement, ClassMethodStatement, Statement, Expression, FieldStatement } from 'brighterscript';
 import { Range, Lexer, Parser, ParseMode, createVariableExpression, IfStatement, BinaryExpression, Block, createStringLiteral, createToken, isClassMethodStatement, isClassStatement, TokenKind } from 'brighterscript';
 import type { File } from '../files/File';
 import type { ProjectFileMap } from '../files/ProjectFileMap';
@@ -172,15 +172,15 @@ export function getTokenText(operator: TokenKind): string {
     }
 }
 
-export function getAllFields(fileMap: ProjectFileMap, cs: ClassStatement, vis?: TokenKind) {
-    let result = {};
-    while (cs) {
-        for (let field of cs.fields) {
-            if (!vis || field.accessModifier?.kind === vis) {
-                result[field.name.text.toLowerCase()] = field;
+export function getAllFields(fileMap: ProjectFileMap, classStatement: ClassStatement, accessModifier?: TokenKind) {
+    let result = new Map<string, FieldStatement>();
+    while (classStatement) {
+        for (let field of classStatement.fields) {
+            if (!accessModifier || field.accessModifier?.kind === accessModifier) {
+                result.set(field.name.text.toLowerCase(), field);
             }
         }
-        cs = cs.parentClassName ? fileMap.allClasses[cs.parentClassName.getName(ParseMode.BrighterScript).replace(/_/g, '.')] : null;
+        classStatement = classStatement.parentClassName ? fileMap.allClasses[classStatement.parentClassName.getName(ParseMode.BrighterScript).replace(/_/g, '.')] : null;
     }
 
     return result;
