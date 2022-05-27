@@ -1,7 +1,7 @@
-import type { AnnotationExpression, BrsFile, ClassFieldStatement, ClassMethodStatement, ClassStatement, FunctionParameterExpression, Program, XmlFile } from 'brighterscript';
-import { isNewExpression, TokenKind, isClassMethodStatement, ParseMode, createVisitor, isVariableExpression, WalkMode, isAALiteralExpression, isArrayLiteralExpression, isIntegerType, isLiteralExpression, isLiteralNumber, isLongIntegerType, isUnaryExpression } from 'brighterscript';
+import type { AnnotationExpression, BrsFile, ClassFieldStatement, ClassMethodStatement, ClassStatement, EnumMemberStatement, FieldStatement, FunctionParameterExpression, Program, XmlFile } from 'brighterscript';
+import { isEnumMemberStatement, isDottedGetExpression, isEnumStatement, isNewExpression, TokenKind, isClassMethodStatement, ParseMode, createVisitor, isVariableExpression, WalkMode, isAALiteralExpression, isArrayLiteralExpression, isIntegerType, isLiteralExpression, isLiteralNumber, isLongIntegerType, isUnaryExpression } from 'brighterscript';
 import type { ProjectFileMap } from '../files/ProjectFileMap';
-import { expressionToString, expressionToValue, sanitizePkgPath } from '../Utils';
+import { expressionToString, expressionToValue, getAllDottedGetParts, sanitizePkgPath } from '../Utils';
 import { addNodeClassCallbackNotDefined, addNodeClassCallbackNotFound, addNodeClassCallbackWrongParams, addNodeClassFieldNoFieldType, addNodeClassNoExtendNodeFound, addNodeClassUnknownClassType, addTooManyPublicParams } from '../utils/Diagnostics';
 import type { FileFactory } from '../utils/FileFactory';
 import { RawCodeStatement } from '../utils/RawCodeStatement';
@@ -23,6 +23,7 @@ export enum NodeClassType {
 }
 
 export class NodeField {
+    isEnum: boolean;
     constructor(public file: BrsFile, public classStatement: ClassStatement, public field: ClassFieldStatement, public fieldType: string, public observerAnnotation?: AnnotationExpression, public alwaysNotify?: boolean, public debounce?: boolean, public isPossibleClassType = false, public isRootOnlyObserver = false) {
         this.name = field.name.text;
         this.type = isPossibleClassType ? 'assocarray' : fieldType;
@@ -350,7 +351,11 @@ export class NodeClass {
             let hasDebounce = false;
             if (this.type === NodeClassType.node) {
                 for (let member of this.nodeFields) {
-                    initBody += `m.top.${member.name} = ${member.value}\n`;
+                    if (member.isEnum) {
+                        initBody += `m.top.${member.name} = ${expressionToString(this.getEnumInitialValue(member.field))}\n`;
+                    } else {
+                        initBody += `m.top.${member.name} = ${member.value}\n`;
+                    }
                     if (member.isRootOnlyObserver) {
                         initBody += `m._p_${member.name} = invalid\n`;
                     }
@@ -501,12 +506,12 @@ export class NodeClass {
     }
 
     public replacePublicMFieldRefs(fileMap: ProjectFileMap) {
-        let allTopFields = getAllFields(fileMap, this.classStatement, TokenKind.Public) as any;
-        allTopFields.id = true;
-        delete (allTopFields.__classname);
+        let allTopFields = getAllFields(fileMap, this.classStatement, TokenKind.Public);
+        allTopFields.set('id', true as any);
+        allTopFields.delete('__classname');
         let logVisitor = createVisitor({
             DottedGetExpression: (de) => {
-                if (isVariableExpression(de.obj) && de.obj.name.text === 'm' && allTopFields[de.name.text.toLowerCase()]) {
+                if (isVariableExpression(de.obj) && de.obj.name.text === 'm' && allTopFields.get(de.name.text.toLowerCase())) {
                     try {
                         //BRON_AST_EDIT_HERE (user-defined code, needs replaced in before*transpile)
                         // eslint-disable-next-line
@@ -517,7 +522,7 @@ export class NodeClass {
                 }
             },
             DottedSetStatement: (ds) => {
-                if (isVariableExpression(ds.obj) && ds.obj.name.text === 'm' && allTopFields[ds.name.text.toLowerCase()]) {
+                if (isVariableExpression(ds.obj) && ds.obj.name.text === 'm' && allTopFields.get(ds.name.text.toLowerCase())) {
                     try {
                         //BRON_AST_EDIT_HERE (user-defined code, needs replaced in before*transpile)
                         // eslint-disable-next-line
@@ -542,9 +547,15 @@ export class NodeClass {
         for (let bf of fields.filter((bf) => (!bf.f.accessModifier || bf.f.accessModifier.kind === TokenKind.Public) && bf.f.name.text.toLocaleLowerCase() !== '__classname')) {
             let field = bf.f;
             let fieldType = this.getFieldType(field);
+            let isEnum = false;
             if (!fieldType) {
-                addNodeClassFieldNoFieldType(file, field.name.text, field.range.start.line, field.range.start.character);
-                continue;
+                fieldType = this.getEnumTypeFromField(field);
+                if (fieldType) {
+                    isEnum = true;
+                } else {
+                    addNodeClassFieldNoFieldType(file, field.name.text, field.range.start.line, field.range.start.character);
+                    continue;
+                }
             }
 
             let debounce = field.annotations?.find((a) => a.name.toLowerCase() === 'debounce') !== undefined;
@@ -554,6 +565,7 @@ export class NodeClass {
             let observerArgs = observerAnnotation?.getArguments() ?? [];
             let isRootOnly = rootOnly !== undefined || ((observerArgs.length > 2 && observerArgs[1] === true));
             let f = new NodeField(file, bf.cs, field, fieldType, observerAnnotation, alwaysNotify, debounce, !this.knownFieldTypes[fieldType.toLowerCase()], isRootOnly);
+            f.isEnum = isEnum;
             if (observerArgs.length > 0) {
                 let observerFunc = members.get((observerArgs[0] as string).toLowerCase());
                 if (isClassMethodStatement(observerFunc)) {
@@ -567,7 +579,7 @@ export class NodeClass {
         return nodeFields;
     }
 
-    getFieldType(field: ClassFieldStatement): string | undefined {
+    getFieldType(field: FieldStatement): string | undefined {
         let fieldType: string;
         if (field.type) {
             fieldType = field.type.text.toLowerCase();
@@ -577,6 +589,8 @@ export class NodeClass {
                 fieldType = 'node';
             } else if (fieldType === 'mc.types.array') {
                 fieldType = 'array';
+            } else if (this.getInterfaceFromFieldType(fieldType)) {
+                fieldType = 'assocarray';
             } else if (!this.knownFieldTypes[fieldType]) {
                 // keep original case
                 fieldType = field.type.text;
@@ -599,5 +613,53 @@ export class NodeClass {
         }
         return fieldType === 'invalid' ? undefined : fieldType;
 
+    }
+
+    getEnumFromField(field: FieldStatement) {
+        if (isDottedGetExpression(field.initialValue)) {
+            let enumMap = this.file.program.getFirstScopeForFile(this.file)?.getEnumMap();
+            let parts = getAllDottedGetParts(field.initialValue);
+            let namePart = parts.pop();
+            let enumStatement = enumMap.get(parts.join('.').toLowerCase())?.item;
+            if (isEnumStatement(enumStatement)) {
+                return enumStatement.body.find((value: EnumMemberStatement) => value.name.toLowerCase() === namePart.toLowerCase());
+            }
+
+        }
+        return undefined;
+    }
+
+    getInterfaceFromFieldType(fieldType: string) {
+        let interfaceMap = this.file.program.getFirstScopeForFile(this.file)?.getInterfaceMap();
+        return interfaceMap.get(fieldType.toLowerCase())?.item;
+    }
+
+
+    getEnumTypeFromField(field: FieldStatement) {
+        let enumValue = this.getEnumFromField(field);
+        if (isEnumMemberStatement(enumValue)) {
+            if (isLiteralExpression(enumValue.value)) {
+                return enumValue.value.type.toTypeString();
+            } else if (isAALiteralExpression(enumValue.value)) {
+                return 'assocarray';
+            } else if (isArrayLiteralExpression(enumValue.value)) {
+                return 'array';
+            } else if (isUnaryExpression(enumValue.value) && isLiteralNumber(enumValue.value.right)) {
+                if (isIntegerType(enumValue.value.right.type) || isLongIntegerType(enumValue.value.right.type)) {
+                    return 'integer';
+                } else {
+                    return 'float';
+                }
+
+            }
+            return undefined;
+        }
+    }
+
+    getEnumInitialValue(field: FieldStatement) {
+        let enumValue = this.getEnumFromField(field);
+        if (isEnumMemberStatement(enumValue)) {
+            return enumValue.value;
+        }
     }
 }

@@ -24,10 +24,10 @@ import {
     createInvalidLiteral,
     createVariableExpression,
     isFunctionStatement,
-    FieldStatement,
     createMethodStatement,
     isLiteralString,
-    isMethodStatement
+    isMethodStatement,
+    ClassFieldStatement
 } from 'brighterscript';
 import type {
     BrsFile,
@@ -387,29 +387,26 @@ export class MaestroPlugin implements CompilerPlugin {
         }
         if (isBrsFile(event.file) && this.shouldParseFile(event.file)) {
             let classes = event.file.parser.references.classStatements;
-            for (let classStatement of classes) {
+            for (let cs of classes) {
                 //force bsc to add an empty `new` method before doing ast edits
                 // eslint-disable-next-line @typescript-eslint/dot-notation
-                classStatement['ensureConstructorFunctionExists']?.();
+                cs['ensureConstructorFunctionExists']?.();
                 //do class updates in here
-                let fieldMap = getAllFields(this.fileMap, classStatement);
-                // eslint-disable-next-line @typescript-eslint/dot-notation
-                if (!fieldMap['__classname']) {
-                    let classNameStatement = new FieldStatement(
-                        createToken(TokenKind.Public, 'public', classStatement.range),
-                        createToken(TokenKind.Identifier, '__classname', classStatement.range),
-                        createToken(TokenKind.As, 'as', classStatement.range),
-                        createToken(TokenKind.String, 'string', classStatement.range),
-                        createToken(TokenKind.Equal, '=', classStatement.range),
-                        createStringLiteral('"' + classStatement.getName(ParseMode.BrighterScript), classStatement.range)
-                    );
-                    event.editor.arrayPush(classStatement.body, classNameStatement);
-                    event.editor.arrayPush(classStatement.fields, classNameStatement);
-                    event.editor.setProperty(classStatement.memberMap, '__className', classNameStatement);
+                let fieldMap = getAllFields(this.fileMap, cs);
+                let id = createToken(TokenKind.Identifier, '__classname', cs.range);
+                if (!fieldMap.has('__classname')) {
+                    let p = createToken(TokenKind.Public, 'public', cs.range);
+                    let a = createToken(TokenKind.As, 'as', cs.range);
+                    let s = createToken(TokenKind.String, 'string', cs.range);
+
+                    let classNameStatement = new ClassFieldStatement(p, id, a, s, createToken(TokenKind.Equal, '=', cs.range), createStringLiteral('"' + cs.getName(ParseMode.BrighterScript), cs.range));
+                    event.editor.arrayPush(cs.body, classNameStatement);
+                    event.editor.arrayPush(cs.fields, classNameStatement);
+                    event.editor.setProperty(cs.memberMap, '__className', classNameStatement);
                 } else {
                     //this is more complicated, have to add this to the constructor
-                    let s = new RawCodeStatement(`m.__className = "${classStatement.getName(ParseMode.BrighterScript)}"`, event.file, classStatement.range);
-                    let constructor = classStatement.memberMap.new as ClassMethodStatement;
+                    let s = new RawCodeStatement(`m.__className = "${cs.getName(ParseMode.BrighterScript)}"`, event.file, cs.range);
+                    let constructor = cs.memberMap.new as ClassMethodStatement;
 
                     //if there's no constructor, add one
                     if (!constructor) {
@@ -422,17 +419,17 @@ export class MaestroPlugin implements CompilerPlugin {
                         //         )
                         //     )
                         // );
-                        event.editor.arrayUnshift(classStatement.body, constructor);
+                        event.editor.arrayUnshift(cs.body, constructor);
                     }
                     event.editor.arrayPush(constructor.func.body.statements, s);
                 }
-                let allClassAnnotations = getAllAnnotations(this.fileMap, classStatement);
+                let allClassAnnotations = getAllAnnotations(this.fileMap, cs);
                 // eslint-disable-next-line @typescript-eslint/dot-notation
                 if (allClassAnnotations['usesetfield']) {
-                    this.updateFieldSets(classStatement);
+                    this.updateFieldSets(cs);
                 }
-                this.injectIOCCode(classStatement, event);
-                this.updateObserveCalls(classStatement, event);
+                this.injectIOCCode(cs, event);
+                this.updateObserveCalls(cs, event);
             }
             if (this.maestroConfig.stripParamTypes) {
                 for (let func of event.file.parser.references.functionExpressions) {
@@ -672,8 +669,7 @@ export class MaestroPlugin implements CompilerPlugin {
             DottedSetStatement: (dottedSet) => {
                 if (isVariableExpression(dottedSet.obj) && dottedSet.obj?.name?.text === 'm') {
                     let lowerName = dottedSet.name.text.toLowerCase();
-                    if (fieldMap[lowerName]) {
-                        //BRON_AST_EDIT_HERE (user-defined stuff)
+                    if (fieldMap.has(lowerName)) {
                         let callE = new CallExpression(
                             new DottedGetExpression(
                                 dottedSet.obj,
@@ -712,7 +708,7 @@ export class MaestroPlugin implements CompilerPlugin {
                 DottedSetStatement: (ds) => {
                     if (isVariableExpression(ds.obj) && ds.obj?.name?.text === 'm') {
                         let lowerName = ds.name.text.toLowerCase();
-                        if (!fieldMap[lowerName] && !this.skips[lowerName]) {
+                        if (!fieldMap.has(lowerName) && !this.skips[lowerName]) {
                             if (!isNodeClass || (lowerName !== 'top' && lowerName !== 'global')) {
                                 addClassFieldsNotFoundOnSetOrGet(file, `${ds.obj.name.text}.${ds.name.text}`, cs.name.text, ds.range);
                             }
@@ -723,7 +719,7 @@ export class MaestroPlugin implements CompilerPlugin {
                     if (isVariableExpression(ds.obj) && ds?.obj?.name.text === 'm') {
                         //TODO - make this not get dotted get's in function calls
                         let lowerName = ds.name.text.toLowerCase();
-                        if (!fieldMap[lowerName] && !funcMap[lowerName] && !this.skips[lowerName]) {
+                        if (!fieldMap.has(lowerName) && !funcMap[lowerName] && !this.skips[lowerName]) {
                             if (!isNodeClass || (lowerName !== 'top' && lowerName !== 'global')) {
                                 addClassFieldsNotFoundOnSetOrGet(file, `${ds.obj.name.text}.${ds.name.text}`, cs.name.text, ds.range);
                             }
