@@ -1,4 +1,5 @@
-import type { AnnotationExpression, BrsFile, ClassFieldStatement, ClassMethodStatement, ClassStatement, EnumMemberStatement, FieldStatement, FunctionParameterExpression, Program, XmlFile } from 'brighterscript';
+import type { AnnotationExpression, AstEditor, BrsFile, ClassFieldStatement, ClassMethodStatement, ClassStatement, EnumMemberStatement, FieldStatement, FunctionParameterExpression, Program, XmlFile } from 'brighterscript';
+import { createDottedIdentifier } from 'brighterscript';
 import { isEnumMemberStatement, isDottedGetExpression, isEnumStatement, isNewExpression, TokenKind, isClassMethodStatement, ParseMode, createVisitor, isVariableExpression, WalkMode, isAALiteralExpression, isArrayLiteralExpression, isIntegerType, isLiteralExpression, isLiteralNumber, isLongIntegerType, isUnaryExpression } from 'brighterscript';
 import type { ProjectFileMap } from '../files/ProjectFileMap';
 import { expressionToString, expressionToValue, getAllDottedGetParts, sanitizePkgPath } from '../Utils';
@@ -505,28 +506,24 @@ export class NodeClass {
         }
     }
 
-    public replacePublicMFieldRefs(fileMap: ProjectFileMap) {
+    public replacePublicMFieldRefs(fileMap: ProjectFileMap, editor: AstEditor) {
         let allTopFields = getAllFields(fileMap, this.classStatement, TokenKind.Public);
         allTopFields.set('id', true as any);
         allTopFields.delete('__classname');
         let logVisitor = createVisitor({
-            DottedGetExpression: (de) => {
-                if (isVariableExpression(de.obj) && de.obj.name.text === 'm' && allTopFields.get(de.name.text.toLowerCase())) {
+            DottedGetExpression: (dottedGet) => {
+                if (isVariableExpression(dottedGet.obj) && dottedGet.obj.name.text === 'm' && allTopFields.get(dottedGet.name.text.toLowerCase())) {
                     try {
-                        //BRON_AST_EDIT_HERE (user-defined code, needs replaced in before*transpile)
-                        // eslint-disable-next-line
-                        (de as any)['obj'] = new RawCodeStatement(`m.top`, this.file, de.range);
+                        editor.setProperty(dottedGet, 'obj', new RawCodeStatement(`m.top`, this.file, dottedGet.range));
                     } catch (e) {
                         console.log(`Error updating m.public field to dotted get: ${this.file.pkgPath} ${e.getMessage()}`);
                     }
                 }
             },
-            DottedSetStatement: (ds) => {
-                if (isVariableExpression(ds.obj) && ds.obj.name.text === 'm' && allTopFields.get(ds.name.text.toLowerCase())) {
+            DottedSetStatement: (dottedSet) => {
+                if (isVariableExpression(dottedSet.obj) && dottedSet.obj.name.text === 'm' && allTopFields.get(dottedSet.name.text.toLowerCase())) {
                     try {
-                        //BRON_AST_EDIT_HERE (user-defined code, needs replaced in before*transpile)
-                        // eslint-disable-next-line
-                        (ds as any)['obj'] = new RawCodeStatement(`m.top`, this.file, ds.range);
+                        editor.setProperty(dottedSet, 'obj', createDottedIdentifier(['m', 'top'], dottedSet.range));
                     } catch (e) {
                         console.log(`Error updating m.public field to dotted get: ${this.file.pkgPath} ${e.getMessage()}`);
                     }

@@ -46,6 +46,8 @@ import type {
     Expression
     ,
     ClassMethodStatement
+    ,
+    AstEditor
 } from 'brighterscript';
 import { ProjectFileMap } from './lib/files/ProjectFileMap';
 import type { MaestroConfig } from './lib/files/MaestroConfig';
@@ -449,7 +451,7 @@ export class MaestroPlugin implements CompilerPlugin {
             this.autoInjectNamespaceFunctionCalls(event.file);
         }
         for (let nc of Object.values(this.fileMap.nodeClasses)) {
-            nc.replacePublicMFieldRefs(this.fileMap);
+            nc.replacePublicMFieldRefs(this.fileMap, event.editor as AstEditor);
         }
     }
 

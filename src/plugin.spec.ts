@@ -1,4 +1,4 @@
-import type { BrsFile, BsDiagnostic, CallExpression, ClassStatement, ExpressionStatement, FieldStatement, FunctionStatement, MethodStatement, PrintStatement } from 'brighterscript';
+import type { BrsFile, BsDiagnostic, CallExpression, ClassStatement, DottedGetExpression, DottedSetStatement, ExpressionStatement, FieldStatement, FunctionStatement, MethodStatement, PrintStatement, VariableExpression } from 'brighterscript';
 import { DiagnosticSeverity, Program, ProgramBuilder, util, createVisitor, WalkMode } from 'brighterscript';
 import { expect } from 'chai';
 import { MaestroPlugin } from './plugin';
@@ -707,6 +707,52 @@ describe('MaestroPlugin', () => {
                 end function
             `);
         });
+
+        it('changes public m references to m.top', async () => {
+            plugin.afterProgramCreate(program);
+            const file = program.setFile<BrsFile>('source/comp.bs', `
+                @node("Comp", "Group")
+                class Comp
+                    public title = ""
+                    function new()
+                        m.title = "Hello"
+                        print m.title
+                    end function
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+
+            expect(
+                ((((file.ast.statements[0] as ClassStatement).body[1] as MethodStatement).func.body.statements[0] as DottedSetStatement).obj as VariableExpression)?.name.text
+            ).to.eql('m');
+
+            expect(
+                (((((file.ast.statements[0] as ClassStatement).body[1] as MethodStatement).func.body.statements[1] as PrintStatement).expressions[0] as DottedGetExpression).obj as VariableExpression)?.name.text
+            ).to.eql('m');
+
+            expect(
+                getContents('source/comp.brs')
+            ).to.eql(undent`
+                function __Comp_builder()
+                    instance = {}
+                    instance.new = function()
+                        m.title = ""
+                        m.__classname = "Comp"
+                        m.top.title = "Hello"
+                        print m.top.title
+                    end function
+                    return instance
+                end function
+                function Comp()
+                    instance = __Comp_builder()
+                    instance.new()
+                    return instance
+                end function
+            `);
+        });
+
 
         it('parses tunnels public functions', async () => {
             plugin.afterProgramCreate(program);
