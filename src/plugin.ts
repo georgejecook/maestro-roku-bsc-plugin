@@ -382,7 +382,7 @@ export class MaestroPlugin implements CompilerPlugin {
         if (!this.shouldParseFile(event.file)) {
             return;
         }
-        if (isBrsFile(event.file) && this.shouldParseFile(event.file)) {
+        if (isBrsFile(event.file)) {
             let classes = event.file.parser.references.classStatements;
             for (let cs of classes) {
                 //do class updates in here
