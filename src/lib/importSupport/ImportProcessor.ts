@@ -1,5 +1,5 @@
 
-import type { BrsFile, Program } from 'brighterscript';
+import type { BeforeFileTranspileEvent, BrsFile, Program } from 'brighterscript';
 import { createToken, TokenKind, ImportStatement } from 'brighterscript';
 import type { MaestroConfig } from '../files/MaestroConfig';
 import { addBuildTimeErrorImportMissingKey } from '../utils/Diagnostics';
@@ -31,22 +31,23 @@ export default class ImportProcessor {
         return imports;
     }
 
-    public processDynamicImports(file: BrsFile, program: Program) {
+    public processDynamicImports(event: BeforeFileTranspileEvent) {
+        const file = event.file as BrsFile;
         let statementsToRemove = [];
         let statementsToAdd = [];
         for (let importStatement of file.parser.references.importStatements) {
             if (importStatement.filePath.startsWith('build:/')) {
                 let key = importStatement.filePath.replace('build:/', '');
                 statementsToRemove.push(importStatement);
-                statementsToAdd = statementsToAdd.concat(this.getImportStatements(file, key, importStatement, program));
+                statementsToAdd = statementsToAdd.concat(this.getImportStatements(file, key, importStatement, event.program));
             }
         }
 
         if (statementsToRemove.length > 0) {
-            //BRON_AST_EDIT_HERE (use ast editor...and there's no validations necessary, so we can do this in beforeProgramTranspile/beforeFileTranspile
-            file.parser.ast.statements = file.parser.ast.statements.filter((el) => !statementsToRemove.includes(el));
-            file.parser.ast.statements = statementsToAdd.concat(file.parser.ast.statements);
-            file.parser.ast.statements = file.parser.ast.statements.filter((el) => !statementsToRemove.includes(el));
+            let statements = file.parser.ast.statements.filter((el) => !statementsToRemove.includes(el));
+            statements = statementsToAdd.concat(statements);
+            statements = statements.filter((el) => !statementsToRemove.includes(el));
+            event.editor.setProperty(file.parser.ast, 'statements', statements);
             file.parser.invalidateReferences();
         }
     }

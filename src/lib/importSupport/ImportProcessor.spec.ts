@@ -1,29 +1,37 @@
 import { expect } from 'chai';
-
-import { BrsFile, Program } from 'brighterscript';
+import type { BeforeFileTranspileEvent, ImportStatement } from 'brighterscript';
+import { AstEditor, BrsFile, Program } from 'brighterscript';
 import ImportProcessor from './ImportProcessor';
 
-let importProcessor: ImportProcessor;
-
 describe('build time imports', () => {
+    let program: Program;
+    let editor: AstEditor;
+    let event: BeforeFileTranspileEvent<BrsFile>;
+    let importProcessor: ImportProcessor;
     beforeEach(() => {
+        program = new Program({});
+        editor = new AstEditor();
         importProcessor = new ImportProcessor({
             'buildTimeImports': {
                 'IAuthProvider': ['pkg:/source/AuthManager.bs']
             }
         });
+        event = {
+            program: program,
+            editor: editor,
+            file: new BrsFile('/tmp/t.bs', 'source/t.bs', program),
+            outputPath: 'somewhere'
+        };
     });
 
     it('adds build time imports', () => {
-        let program = new Program({});
         program.setFile('source/AuthManager.bs', `
             class someClass
             end class
         `);
         program.validate();
 
-        let file = new BrsFile('/tmp/t.bs', 'source/t.bs', program);
-        file.parse(`
+        event.file.parse(`
             import "pkg:/source/mixins/FocusMixin.bs"
             import "build:/IAuthProvider"
 
@@ -33,20 +41,21 @@ describe('build time imports', () => {
                 m.top.topScreen = invalid
             end function
         `);
-        importProcessor.processDynamicImports(file, program);
-        expect(file.getDiagnostics()).to.be.empty;
+        importProcessor.processDynamicImports(event);
+        expect(event.file.getDiagnostics()).to.be.empty;
+        editor.undoAll();
+        //the AST should remain unchanged
+        expect((event.file.ast.statements[1] as ImportStatement).filePath).to.eql('build:/IAuthProvider');
     });
 
     it('empty build time imports', () => {
-        let program = new Program({});
         program.setFile('source/AuthManager.bs', `
             class someClass
             end class
         `);
         program.validate();
 
-        let file = new BrsFile('/tmp/t.bs', 'source/t.bs', program);
-        file.parse(`
+        event.file.parse(`
             import "pkg:/source/mixins/FocusMixin.bs"
             import "build:/IAuthProvider"
 
@@ -56,8 +65,12 @@ describe('build time imports', () => {
                 m.top.topScreen = invalid
             end function
         `);
-        importProcessor.processDynamicImports(file, program);
-        expect(file.getDiagnostics()).to.be.empty;
+        importProcessor.processDynamicImports(event);
+        expect(event.file.getDiagnostics()).to.be.empty;
+
+        editor.undoAll();
+        //the AST should remain unchanged
+        expect((event.file.ast.statements[1] as ImportStatement).filePath).to.eql('build:/IAuthProvider');
     });
 
     it('does not add diagnostics for empty build time imports, and parses file correctly', () => {
@@ -67,9 +80,7 @@ describe('build time imports', () => {
             }
         });
 
-        let program = new Program({});
-        let file = new BrsFile('/tmp/t.bs', 'source/t.bs', program);
-        file.parse(`
+        event.file.parse(`
             import "pkg:/source/mixins/FocusMixin.bs"
             import "build:/IAuthProvider"
 
@@ -79,9 +90,12 @@ describe('build time imports', () => {
                 m.top.topScreen = invalid
             end function
         `);
-        importProcessor.processDynamicImports(file, program);
+        importProcessor.processDynamicImports(event);
 
-        expect(file.getDiagnostics()).to.have.length(0);
+        expect(event.file.getDiagnostics()).to.have.length(0);
+
+        editor.undoAll();
+        //the AST should remain unchanged
+        expect((event.file.ast.statements[1] as ImportStatement).filePath).to.eql('build:/IAuthProvider');
     });
-
 });

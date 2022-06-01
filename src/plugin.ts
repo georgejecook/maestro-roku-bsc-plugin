@@ -181,7 +181,6 @@ export class MaestroPlugin implements CompilerPlugin {
             return;
         }
         if (isBrsFile(file)) {
-            this.importProcessor.processDynamicImports(file, this.program);
             this.reflectionUtil.addFile(file);
             if (this.shouldParseFile(file)) {
                 this.nodeClassUtil.addFile(file, mFile);
@@ -366,6 +365,7 @@ export class MaestroPlugin implements CompilerPlugin {
         }
         return true;
     }
+
     shouldDoExtraValidationsOnFile(file: BscFile) {
         if (!this.maestroConfig.extraValidation.doExtraValidation) {
             return false;
@@ -388,6 +388,8 @@ export class MaestroPlugin implements CompilerPlugin {
             return;
         }
         if (isBrsFile(event.file) && this.shouldParseFile(event.file)) {
+            this.importProcessor.processDynamicImports(event);
+
             let classes = event.file.parser.references.classStatements;
             for (let cs of classes) {
                 //force bsc to add an empty `new` method before doing ast edits
