@@ -4,7 +4,8 @@ import type {
     BrsFile,
     XmlFile,
     Program,
-    TranspileObj
+    TranspileObj,
+    AstEditor
 } from 'brighterscript';
 import { createSGAttribute, util, Lexer, Parser, ParseMode } from 'brighterscript';
 import undent from 'undent';
@@ -38,7 +39,7 @@ export class BindingProcessor {
     constructor(public fileMap: ProjectFileMap, public fileFactory: FileFactory, public config: MaestroConfig) {
     }
 
-    public generateCodeForXMLFile(file: File, program: Program, entry?: TranspileObj) {
+    public generateCodeForXMLFile(file: File, program: Program, editor: AstEditor, entry?: TranspileObj) {
         if (!file || (file.fileType !== FileType.Xml)
         ) {
             throw new Error('was given a non-xml file');
@@ -50,19 +51,16 @@ export class BindingProcessor {
                 if (entry) {
                     let vmFile = this.fileMap.getFileForClass(file.vmClassName);
                     if (vmFile) {
-                        //BRON_AST_EDIT_HERE (all of this can happen beforeProgramTranspile).
                         let xmlFile = file.bscFile as XmlFile; //the user created this file
                         // eslint-disable-next-line @typescript-eslint/dot-notation
-                        let dg = program['dependencyGraph'] as DependencyGraph;
-                        //TODO update astEditor to allow us to call arbitrary code to add/remove from dep graph
-                        dg.addDependency(xmlFile.dependencyGraphKey, vmFile.bscFile.dependencyGraphKey);
-                        //do it like this
-                        // editor.addChange(() => {
-                        //     dg.addDependency(xmlFile.dependencyGraphKey, vmFile.bscFile.dependencyGraphKey);
-                        // }, () => {
-                        //     dg.removeDependency(xmlFile.dependencyGraphKey, vmFile.bscFile.dependencyGraphKey);
-                        // });
+                        const dependencyGraph = program['dependencyGraph'] as DependencyGraph;
+                        editor.edit(() => {
+                            dependencyGraph.addDependency(xmlFile.dependencyGraphKey, vmFile.bscFile.dependencyGraphKey);
+                        }, () => {
+                            dependencyGraph.removeDependency(xmlFile.dependencyGraphKey, vmFile.bscFile.dependencyGraphKey);
+                        });
                         xmlFile.ast.component.scripts.push(this.createSGScript(xmlFile.pkgPath.replace('.xml', '.brs')));
+                        editor.arrayPush(xmlFile.ast.component.scripts, this.createSGScript(xmlFile.pkgPath.replace('.xml', '.brs')));
                         //writing this file might be fine...long term we should add the ability to put arbirary text files that just get written as-is.
                         fsExtra.outputFileSync(entry.outputPath.replace('.xml', '.brs'), this.getCodeBehindText(file, vmFile.bscFile as BrsFile));
                     } else {

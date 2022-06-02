@@ -276,10 +276,6 @@ export class MaestroPlugin implements CompilerPlugin {
                 file.bscFile = this.program.getFileByPathAbsolute(filePath);
                 file.resetDiagnostics();
                 this.bindingProcessor.validateBindings(file);
-                if (this.maestroConfig.mvvm.insertXmlBindingsEarly && file.isValid) {
-                    console.log('adding xml transpiled code for ', file.bscFile.pkgPath);
-                    this.bindingProcessor.generateCodeForXMLFile(file, this.program);
-                }
                 // console.timeEnd('Validate bindings');
             }
         }
@@ -630,18 +626,29 @@ export class MaestroPlugin implements CompilerPlugin {
 
     }
 
-    beforeProgramTranspile(program: Program, entries: TranspileObj[]) {
+    beforeProgramTranspile(program: Program, entries: TranspileObj[], editor: AstEditor) {
+        if (this.maestroConfig.processXMLFiles) {
+            for (let filePath of this.dirtyCompFilePaths) {
+                let file = this.fileMap.allFiles[filePath];
+                file.resetDiagnostics();
+                if (this.maestroConfig.mvvm.insertXmlBindingsEarly && file.isValid) {
+                    console.log('adding xml transpiled code for ', file.bscFile.pkgPath);
+                    this.bindingProcessor.generateCodeForXMLFile(file, this.program, editor);
+                }
+            }
+        }
+
         // console.log('++++++', this.maestroConfig.processXMLFiles);
         if (!this.maestroConfig.mvvm.insertXmlBindingsEarly && this.maestroConfig.processXMLFiles) {
             console.time('Inject bindings into xml files');
 
             for (let entry of entries) {
                 if (isXmlFile(entry.file)) {
-                    let mFile = this.fileMap.allFiles[entry.file.pathAbsolute];
+                    let mFile = this.fileMap.allFiles[entry.file.srcPath];
                     // eslint-disable-next-line @typescript-eslint/dot-notation
                     if (mFile.isValid) {
                         //it's a binding file
-                        this.bindingProcessor.generateCodeForXMLFile(mFile, program, entry);
+                        this.bindingProcessor.generateCodeForXMLFile(mFile, program, editor, entry);
                         // console.log('generating code for bindings ', entry.file.pkgPath);
                         //it's a binding file
                     } else if (mFile.bindings.length === 0 && this.shouldParseFile(entry.file)) {
@@ -733,10 +740,7 @@ export class MaestroPlugin implements CompilerPlugin {
             }), { walkMode: WalkMode.visitAllRecursive });
 
         }
-
-
     }
-
 
     afterScopeValidate(scope: Scope, files: BscFile[], callables: CallableContainerMap) {
         if (!this.maestroConfig?.extraValidation?.doExtraValidation) {
