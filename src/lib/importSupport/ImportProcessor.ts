@@ -1,5 +1,5 @@
 
-import type { BeforeFileTranspileEvent, BrsFile, Program } from 'brighterscript';
+import type { BrsFile, Program } from 'brighterscript';
 import { createToken, TokenKind, ImportStatement } from 'brighterscript';
 import type { MaestroConfig } from '../files/MaestroConfig';
 import { addBuildTimeErrorImportMissingKey } from '../utils/Diagnostics';
@@ -31,15 +31,14 @@ export default class ImportProcessor {
         return imports;
     }
 
-    public processDynamicImports(event: BeforeFileTranspileEvent) {
-        const file = event.file as BrsFile;
+    public processDynamicImports(file: BrsFile, program: Program) {
         let statementsToRemove = [];
         let statementsToAdd = [];
         for (let importStatement of file.parser.references.importStatements) {
             if (importStatement.filePath.startsWith('build:/')) {
                 let key = importStatement.filePath.replace('build:/', '');
                 statementsToRemove.push(importStatement);
-                statementsToAdd = statementsToAdd.concat(this.getImportStatements(file, key, importStatement, event.program));
+                statementsToAdd = statementsToAdd.concat(this.getImportStatements(file, key, importStatement, program));
             }
         }
 
@@ -47,7 +46,8 @@ export default class ImportProcessor {
             let statements = file.parser.ast.statements.filter((el) => !statementsToRemove.includes(el));
             statements = statementsToAdd.concat(statements);
             statements = statements.filter((el) => !statementsToRemove.includes(el));
-            event.editor.setProperty(file.parser.ast, 'statements', statements);
+            //TODO once BSC supports dynamic imports like `build:/`, move this functionality to `beforeFileTranspile`
+            file.parser.ast.statements = statements;
             file.parser.invalidateReferences();
         }
     }

@@ -181,6 +181,7 @@ export class MaestroPlugin implements CompilerPlugin {
             return;
         }
         if (isBrsFile(file)) {
+            this.importProcessor.processDynamicImports(file, this.program);
             this.reflectionUtil.addFile(file);
             if (this.shouldParseFile(file)) {
                 this.nodeClassUtil.addFile(file, mFile);
@@ -388,7 +389,6 @@ export class MaestroPlugin implements CompilerPlugin {
             return;
         }
         if (isBrsFile(event.file)) {
-            this.importProcessor.processDynamicImports(event);
 
             let classes = event.file.parser.references.classStatements;
             for (let cs of classes) {
