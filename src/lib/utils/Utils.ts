@@ -1,5 +1,5 @@
 import type { Position, BrsFile, XmlFile, ClassStatement, FunctionStatement, ClassMethodStatement, Statement, Expression, FieldStatement } from 'brighterscript';
-import { Range, Lexer, Parser, ParseMode, createVariableExpression, IfStatement, BinaryExpression, Block, createStringLiteral, createToken, isClassMethodStatement, isClassStatement, TokenKind } from 'brighterscript';
+import { Range, Parser, ParseMode, createVariableExpression, IfStatement, BinaryExpression, Block, createStringLiteral, createToken, isClassMethodStatement, isClassStatement, TokenKind } from 'brighterscript';
 import type { File } from '../files/File';
 import type { ProjectFileMap } from '../files/ProjectFileMap';
 
@@ -89,12 +89,10 @@ export function createRange(pos: Position) {
 }
 
 export function makeASTFunction(source: string): FunctionStatement | undefined {
-    let tokens = Lexer.scan(source).tokens;
-    let { statements } = Parser.parse(tokens, { mode: ParseMode.BrighterScript });
-    if (statements && statements.length > 0) {
+    let { statements } = Parser.parse(source, { mode: ParseMode.BrighterScript });
+    if (statements?.length > 0) {
         return statements[0] as FunctionStatement;
     }
-    return undefined;
 }
 
 export function getFunctionBody(source: string): Statement[] {

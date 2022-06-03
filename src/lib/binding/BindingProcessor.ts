@@ -7,7 +7,7 @@ import type {
     TranspileObj,
     AstEditor
 } from 'brighterscript';
-import { createSGAttribute, util, Lexer, Parser, ParseMode } from 'brighterscript';
+import { ExpressionStatement, createCall, createVariableExpression, createSGAttribute, util, Lexer, Parser, ParseMode } from 'brighterscript';
 import undent from 'undent';
 import type { File } from '../files/File';
 import { FileType } from '../files/FileType';
@@ -75,15 +75,15 @@ export class BindingProcessor {
             //the user defined a codebehind file.
         } else {
             (file.bscFile as XmlFile).parser.invalidateReferences();
-            this.addFindNodeVarsMethodForFile(file);
+            this.addFindNodeVarsMethodForFile(file, editor);
             if (this.config.mvvm.callCreateNodeVarsInInit) {
-                this.addInitCreateNodeVarsCall(file.associatedFile.bscFile as BrsFile);
+                this.addInitCreateNodeVarsCall(file.associatedFile.bscFile as BrsFile, editor);
             }
             if (this.config.mvvm.insertCreateVMMethod) {
                 this.addVMConstructor(file);
             }
             if (file.bindings.length > 0) {
-                this.addBindingMethodsForFile(file);
+                this.addBindingMethodsForFile(file, editor);
             }
 
             (file.associatedFile.bscFile as BrsFile).parser.invalidateReferences();
@@ -158,7 +158,7 @@ export class BindingProcessor {
         file.bindings = this.processElements(file);
     }
 
-    public addNodeVarsMethodForRegularXMLFile(file: File) {
+    public addNodeVarsMethodForRegularXMLFile(file: File, editor: AstEditor) {
         if (!file || file.fileType !== FileType.Xml) {
             throw new Error('was given a non-xml file');
         }
@@ -170,9 +170,9 @@ export class BindingProcessor {
             file.bscFile.parse(file.bscFile.fileContents);
             this.processElementsForTagIds(file);
             if (file.tagIds.size > 0) {
-                this.addFindNodeVarsMethodForFile(file);
+                this.addFindNodeVarsMethodForFile(file, editor);
                 if (this.config.mvvm.callCreateNodeVarsInInit) {
-                    this.addInitCreateNodeVarsCall(file.associatedFile.bscFile as BrsFile);
+                    this.addInitCreateNodeVarsCall(file.associatedFile.bscFile as BrsFile, editor);
                 }
             }
 
@@ -191,26 +191,28 @@ export class BindingProcessor {
         // console.log('got tagids', file.tagIds);
     }
 
-    private addInitCreateNodeVarsCall(file: BrsFile) {
+    private addInitCreateNodeVarsCall(file: BrsFile, editor: AstEditor) {
         let initFunc = file.parser.references.functionStatements.find((f) => f.name.text.toLowerCase() === 'init');
         if (initFunc) {
-            //BRON_AST_EDIT_HERE (could be user-defined file)
-            initFunc.func.body.statements.splice(0, 0, new RawCodeStatement(undent`
-                m_createNodeVars()
-            `));
+            editor.arrayUnshift(
+                initFunc.func.body.statements,
+                new ExpressionStatement(createCall(createVariableExpression('m_createNodeVars')))
+            );
         }
         if (!initFunc && this.config.mvvm.callCreateNodeVarsInInit) {
             console.log('init func was not present in ', file.pkgPath, ' adding init function');
-            //BRON_AST_EDIT_HERE (could be user-defined file)
             let initFunc = makeASTFunction(undent`
                 function init()
                     m_createNodeVars()
                 end function
             `);
-            //BRON_AST_EDIT_HERE (could be user-defined file)
-            file.parser.references.functionStatements.push(initFunc);
-            file.parser.references.functionStatementLookup.set('init', initFunc);
-            file.parser.ast.statements.push(initFunc);
+            editor.arrayPush(file.parser.references.functionStatements, initFunc);
+            editor.arrayPush(file.parser.ast.statements, initFunc);
+            editor.edit(() => {
+                file.parser.references.functionStatementLookup.set('init', initFunc);
+            }, () => {
+                file.parser.references.functionStatementLookup.delete('init');
+            });
         }
     }
 
@@ -317,10 +319,9 @@ export class BindingProcessor {
         file.isValid = errorCount === 0;
     }
 
-    private addBindingMethodsForFile(file: File) {
+    private addBindingMethodsForFile(file: File, editor: AstEditor) {
         //TODO - use AST for this.
         let associatedMFile = file.associatedFile.bscFile as BrsFile;
-        //BRON_AST_EDIT_HERE (could be user-defined file)
         let bindings = file.bindings.concat(file.getAllParentBindings());
         if (bindings.length > 0) {
             //TODO convert to pure AST
@@ -335,13 +336,11 @@ export class BindingProcessor {
             ), file.bscFile as XmlFile);
 
             if (bindingInitStatement) {
-                //BRON_AST_EDIT_HERE (could be user-defined file)
-                associatedMFile.parser.statements.push(bindingInitStatement);
+                editor.arrayPush(associatedMFile.parser.statements, bindingInitStatement);
                 file.associatedFile.isASTChanged = true;
             }
             if (staticBindingStatement) {
-                //BRON_AST_EDIT_HERE (could be user-defined file)
-                associatedMFile.parser.statements.push(staticBindingStatement);
+                editor.arrayPush(associatedMFile.parser.statements, staticBindingStatement);
                 file.associatedFile.isASTChanged = true;
             }
         }
@@ -401,12 +400,11 @@ export class BindingProcessor {
         return func;
     }
 
-    private addFindNodeVarsMethodForFile(file: File) {
+    private addFindNodeVarsMethodForFile(file: File, editor: AstEditor) {
         let createNodeVarsFunction = this.makeASTFunction(this.getNodeVarMethodText(file));
         let brsFile = file.associatedFile.bscFile as BrsFile;
-        //BRON_AST_EDIT_HERE (user-defined file)
         if (createNodeVarsFunction && file.associatedFile?.bscFile?.parser) {
-            brsFile.parser.statements.push(createNodeVarsFunction);
+            editor.arrayPush(brsFile.parser.statements, createNodeVarsFunction);
             file.associatedFile.isASTChanged = true;
         }
     }
@@ -435,7 +433,6 @@ export class BindingProcessor {
     private addVMConstructor(file: File) {
         console.log('addVM ', file.fullPath, file.bscFile === undefined);
         console.log('no initialize function, adding one');
-        //BRON_AST_EDIT_HERE (user-defined code)
         let func = makeASTFunction(this.getVMInitializeText(file));
 
         if (func) {

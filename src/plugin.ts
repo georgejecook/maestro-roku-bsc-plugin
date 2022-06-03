@@ -654,7 +654,7 @@ export class MaestroPlugin implements CompilerPlugin {
                     } else if (mFile.bindings.length === 0 && this.shouldParseFile(entry.file)) {
                         //check if we should add bindings to this anyhow)
                         // console.log('getting ids for regular xml file ', entry.file.pkgPath);
-                        this.bindingProcessor.addNodeVarsMethodForRegularXMLFile(mFile);
+                        this.bindingProcessor.addNodeVarsMethodForRegularXMLFile(mFile, editor);
                         //check if we should add bindings to this anyhow)
                     } else {
                         // console.log('not passing file through binding processor', entry.file.pkgPath);
