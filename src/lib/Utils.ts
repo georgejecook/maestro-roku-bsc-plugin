@@ -1,4 +1,4 @@
-import type { BrsFile, ClassMethodStatement, ClassStatement, DottedGetExpression, Expression, FunctionStatement, LiteralExpression, Statement } from 'brighterscript';
+import type { AstEditor, BrsFile, ClassMethodStatement, ClassStatement, DottedGetExpression, Expression, FunctionStatement, LiteralExpression, Statement } from 'brighterscript';
 import { Range, createVariableExpression, isDottedGetExpression, isVariableExpression, BinaryExpression, Block, createStringLiteral, createToken, IfStatement, ImportStatement, isAALiteralExpression, isArrayLiteralExpression, isClassMethodStatement, isClassStatement, isCommentStatement, isImportStatement, isIntegerType, isLiteralBoolean, isLiteralNumber, isLiteralString, isLongIntegerType, isUnaryExpression, Lexer, ParseMode, Parser, Position, TokenKind } from 'brighterscript';
 import * as rokuDeploy from 'roku-deploy';
 import { createRange } from './utils/Utils';
@@ -251,23 +251,17 @@ export function createImportStatement(pkgPath: string, range: Range) {
     return new ImportStatement(importToken, filePathToken);
 }
 
-export function addImport(file: BrsFile, pkgPath: string) {
+export function addImport(file: BrsFile, pkgPath: string, editor: AstEditor) {
     let existingImports = file.parser.ast.statements.find((el) => isImportStatement(el) && el.filePath === pkgPath);
     if (!existingImports) {
         let importStatement = createImportStatement(pkgPath, createRange(Position.create(1, 1)));
-        file.parser.ast.statements = [importStatement, ...file.parser.ast.statements];
+        editor.arrayUnshift(file.parser.ast.statements, importStatement);
         file.parser.invalidateReferences();
-        file.ownScriptImports.push({
-            pkgPath: pkgPath,
-            text: `import "${sanitizePkgPath(pkgPath)}"`,
-            sourceFile: file
-        });
         //re-attach the dependency graph which tells the xml file this has changed
-
-        // eslint-disable-next-line @typescript-eslint/dot-notation
-        let dg = file.program['dependencyGraph'];
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-        file.attachDependencyGraph(dg);
+        file.attachDependencyGraph(
+            // eslint-disable-next-line @typescript-eslint/dot-notation
+            file.program['dependencyGraph']
+        );
     }
 }
 

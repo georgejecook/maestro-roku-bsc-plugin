@@ -80,7 +80,7 @@ export class BindingProcessor {
                 this.addInitCreateNodeVarsCall(file.associatedFile.bscFile as BrsFile, editor);
             }
             if (this.config.mvvm.insertCreateVMMethod) {
-                this.addVMConstructor(file);
+                this.addVMConstructor(file, editor);
             }
             if (file.bindings.length > 0) {
                 this.addBindingMethodsForFile(file, editor);
@@ -430,7 +430,7 @@ export class BindingProcessor {
         }
     }
 
-    private addVMConstructor(file: File) {
+    private addVMConstructor(file: File, editor: AstEditor) {
         console.log('addVM ', file.fullPath, file.bscFile === undefined);
         console.log('no initialize function, adding one');
         let func = makeASTFunction(this.getVMInitializeText(file));
@@ -438,8 +438,7 @@ export class BindingProcessor {
         if (func) {
             let vmFile = this.fileMap.getFileForClass(file.vmClassName);
             if (vmFile) {
-                //BRON_AST_EDIT_HERE (user-defined code)
-                addImport(file.associatedFile.bscFile as BrsFile, vmFile.bscFile.pkgPath);
+                addImport(file.associatedFile.bscFile as BrsFile, vmFile.bscFile.pkgPath, editor);
                 (file.associatedFile.bscFile as BrsFile).parser.statements.push(func);
                 file.associatedFile.isASTChanged = true;
             } else {
