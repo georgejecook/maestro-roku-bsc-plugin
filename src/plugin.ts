@@ -382,7 +382,7 @@ export class MaestroPlugin implements CompilerPlugin {
         if (!this.shouldParseFile(event.file)) {
             return;
         }
-        if (isBrsFile(event.file) && this.shouldParseFile(event.file)) {
+        if (isBrsFile(event.file)) {
             let classes = event.file.parser.references.classStatements;
             for (let cs of classes) {
                 //do class updates in here
@@ -433,9 +433,6 @@ export class MaestroPlugin implements CompilerPlugin {
             }
             this.updateAsFunctionCalls(event.file);
             this.autoInjectNamespaceFunctionCalls(event.file);
-        }
-        for (let nc of Object.values(this.fileMap.nodeClasses)) {
-            nc.replacePublicMFieldRefs(this.fileMap);
         }
     }
 
@@ -613,7 +610,6 @@ export class MaestroPlugin implements CompilerPlugin {
                 return `${expr.index.name.text}`;
             }
         }
-
     }
 
     beforeProgramTranspile(program: Program, entries: TranspileObj[]) {
@@ -642,6 +638,11 @@ export class MaestroPlugin implements CompilerPlugin {
                 }
             }
             console.timeEnd('Inject bindings into xml files');
+        }
+
+        //do some nodeclass transformations
+        for (let nc of Object.values(this.fileMap.nodeClasses)) {
+            nc.replacePublicMFieldRefs(this.fileMap);
         }
     }
 
