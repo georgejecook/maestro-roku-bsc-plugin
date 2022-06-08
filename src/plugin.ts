@@ -16,6 +16,7 @@ import {
     isVoidType,
     isDynamicType,
     isNewExpression,
+    isLiteralString,
     isIndexedGetExpression,
     isExpression,
     isLiteralExpression,
@@ -25,9 +26,8 @@ import {
     createVariableExpression,
     isFunctionStatement,
     createMethodStatement,
-    isLiteralString,
     isMethodStatement,
-    ClassFieldStatement
+    FieldStatement
 } from 'brighterscript';
 import type {
     BrsFile,
@@ -42,10 +42,9 @@ import type {
     CallableContainerMap,
     FunctionStatement,
     Statement,
+    ClassMethodStatement,
     BeforeFileTranspileEvent,
     Expression
-    ,
-    ClassMethodStatement
     ,
     AstEditor
 } from 'brighterscript';
@@ -197,8 +196,6 @@ export class MaestroPlugin implements CompilerPlugin {
         }
     }
 
-    beforeProgramValidate?: (program: Program) => void;
-
     afterFileValidate(file: BscFile) {
         // console.log('MAESTRO afv-----', file.pathAbsolute);
         if (!this.shouldParseFile(file)) {
@@ -272,13 +269,14 @@ export class MaestroPlugin implements CompilerPlugin {
             }
         }
 
+        console.time('Build node class xml files');
         for (let nc of Object.values(this.fileMap.nodeClasses)) {
             nc.createXmlFile(this.fileFactory, this.program, this.fileMap);
         }
         if (this.maestroConfig.nodeClasses.generateTestUtils) {
             this.nodeClassUtil.generateTestCode(this.program);
         }
-        console.timeEnd('Build node classes');
+        console.timeEnd('Build node class xml files');
         this.dirtyCompFilePaths.clear();
         this.afterProgramValidate2(program);
     }
@@ -374,7 +372,6 @@ export class MaestroPlugin implements CompilerPlugin {
             return;
         }
         if (isBrsFile(event.file)) {
-
             let classes = event.file.parser.references.classStatements;
             for (let cs of classes) {
                 //force bsc to add an empty `new` method before doing ast edits
@@ -388,7 +385,7 @@ export class MaestroPlugin implements CompilerPlugin {
                     let a = createToken(TokenKind.As, 'as', cs.range);
                     let s = createToken(TokenKind.String, 'string', cs.range);
 
-                    let classNameStatement = new ClassFieldStatement(p, id, a, s, createToken(TokenKind.Equal, '=', cs.range), createStringLiteral('"' + cs.getName(ParseMode.BrighterScript), cs.range));
+                    let classNameStatement = new FieldStatement(p, id, a, s, createToken(TokenKind.Equal, '=', cs.range), createStringLiteral('"' + cs.getName(ParseMode.BrighterScript), cs.range));
                     event.editor.arrayPush(cs.body, classNameStatement);
                     event.editor.arrayPush(cs.fields, classNameStatement);
                     event.editor.setProperty(cs.memberMap, '__className', classNameStatement);
@@ -614,7 +611,6 @@ export class MaestroPlugin implements CompilerPlugin {
                 return `${expr.index.name.text}`;
             }
         }
-
     }
 
     beforeProgramTranspile(program: Program, entries: TranspileObj[], editor: AstEditor) {
@@ -660,6 +656,11 @@ export class MaestroPlugin implements CompilerPlugin {
             }
             console.timeEnd('Inject bindings into xml files');
         }
+
+        //do some nodeclass transformations
+        for (let nc of Object.values(this.fileMap.nodeClasses)) {
+            nc.replacePublicMFieldRefs(this.fileMap, editor);
+        }
     }
 
     beforePublish(builder: ProgramBuilder, files: FileObj[]) {
@@ -667,7 +668,6 @@ export class MaestroPlugin implements CompilerPlugin {
         this.reflectionUtil.updateRuntimeFile();
         console.timeEnd('Update reflection runtime file');
     }
-
 
     public updateFieldSets(cs: ClassStatement) {
         let fieldMap = getAllFields(this.fileMap, cs, TokenKind.Public);
