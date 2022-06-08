@@ -646,7 +646,11 @@ describe('MaestroPlugin', () => {
     describe('node class tests', () => {
         it('parses a node class with no errors', async () => {
             plugin.afterProgramCreate(program);
+            program.setFile('source/lib.bs', ``);
+            program.setFile('source/common.bs', ``);
             program.setFile('source/comp.bs', `
+                import "lib.bs"
+                import "pkg:/source/common.bs"
                 @node("Comp", "Group")
                 class Comp
 
@@ -670,8 +674,10 @@ describe('MaestroPlugin', () => {
                         <field id="title" type="string" />
                         <field id="content" type="string" />
                     </interface>
-                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/lib.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/common.brs" />
                     <script type="text/brightscript" uri="pkg:/source/comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
                     <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
                     <children />
                 </component>
@@ -680,8 +686,6 @@ describe('MaestroPlugin', () => {
             expect(
                 getContents('components/maestro/generated/Comp.brs')
             ).to.eql(undent`
-                'import "pkg:/source/comp.bs"
-
                 function init()
                     m.top.title = ""
                     m.top.content = ""
@@ -753,7 +757,6 @@ describe('MaestroPlugin', () => {
             `);
         });
 
-
         it('parses tunnels public functions', async () => {
             plugin.afterProgramCreate(program);
             program.setFile('source/comp.bs', `
@@ -785,8 +788,8 @@ describe('MaestroPlugin', () => {
                         <field id="content" type="string" />
                         <function name="someFunction" />
                     </interface>
-                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
                     <script type="text/brightscript" uri="pkg:/source/comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
                     <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
                     <children />
                 </component>
@@ -795,8 +798,6 @@ describe('MaestroPlugin', () => {
             expect(
                 getContents('components/maestro/generated/Comp.brs')
             ).to.eql(undent`
-                'import "pkg:/source/comp.bs"
-
                 function init()
                     m.top.title = ""
                     m.top.content = ""
@@ -858,8 +859,8 @@ describe('MaestroPlugin', () => {
                         <field id="title" type="string" />
                         <field id="content" type="string" />
                     </interface>
-                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
                     <script type="text/brightscript" uri="pkg:/source/comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
                     <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
                     <children />
                 </component>
@@ -867,8 +868,6 @@ describe('MaestroPlugin', () => {
             expect(
                 getContents('components/maestro/generated/Comp.brs')
             ).to.eql(undent`
-                'import "pkg:/source/comp.bs"
-
                 function init()
                     m.top.title = ""
                     m.top.content = ""
@@ -931,8 +930,8 @@ describe('MaestroPlugin', () => {
                         <field id="title" type="string" />
                         <field id="content" type="string" />
                     </interface>
-                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
                     <script type="text/brightscript" uri="pkg:/source/comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
                     <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
                     <children />
                 </component>
@@ -941,8 +940,6 @@ describe('MaestroPlugin', () => {
             expect(
                 getContents('components/maestro/generated/Comp.brs')
             ).to.eql(undent`
-                'import "pkg:/source/comp.bs"
-
                 function init()
                     m.top.title = ""
                     m._p_title = invalid
@@ -1031,8 +1028,8 @@ describe('MaestroPlugin', () => {
                         <field id="arrTyped" type="array" />
                         <field id="aaTyped" type="assocarray" />
                     </interface>
-                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
                     <script type="text/brightscript" uri="pkg:/source/comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
                     <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
                     <children />
                 </component>
@@ -1041,8 +1038,6 @@ describe('MaestroPlugin', () => {
             expect(
                 getContents('components/maestro/generated/Comp.brs')
             ).to.eql(undent`
-                'import "pkg:/source/comp.bs"
-
                 function init()
                     m.top.clazzTyped = invalid
                     m.top.s = "string"
@@ -1128,8 +1123,8 @@ describe('MaestroPlugin', () => {
                         <field id="e2" type="integer" />
                         <field id="e3" type="float" />
                     </interface>
-                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
                     <script type="text/brightscript" uri="pkg:/source/comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
                     <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
                     <children />
                 </component>
@@ -1138,8 +1133,6 @@ describe('MaestroPlugin', () => {
             expect(
                 getContents('components/maestro/generated/Comp.brs')
             ).to.eql(undent`
-            'import "pkg:/source/comp.bs"
-
             function init()
                 m.top.e1 = "v"
                 m.top.e2 = 2
@@ -1199,8 +1192,8 @@ describe('MaestroPlugin', () => {
                         <field id="e1" type="assocarray" />
                         <field id="e2" type="assocarray" />
                     </interface>
-                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
                     <script type="text/brightscript" uri="pkg:/source/comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
                     <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
                     <children />
                 </component>
@@ -1209,8 +1202,6 @@ describe('MaestroPlugin', () => {
             expect(
                 getContents('components/maestro/generated/Comp.brs')
             ).to.eql(undent`
-            'import "pkg:/source/comp.bs"
-
             function init()
                 m.top.e1 = invalid
                 m.top.e2 = invalid

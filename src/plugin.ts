@@ -185,14 +185,6 @@ export class MaestroPlugin implements CompilerPlugin {
             this.reflectionUtil.addFile(file);
             if (this.shouldParseFile(file)) {
                 this.nodeClassUtil.addFile(file, mFile);
-                if (this.maestroConfig.nodeClasses.buildForIDE) {
-                    for (let nc of [...mFile.nodeClasses.values()]) {
-                        nc.generateCode(this.fileFactory, this.program, this.fileMap, this.maestroConfig.nodeClasses.buildForIDE);
-                    }
-                    if (this.maestroConfig.nodeClasses.generateTestUtils) {
-                        this.nodeClassUtil.generateTestCode(this.program);
-                    }
-                }
                 if (mFile.nodeClasses.size > 0) {
                     this.dirtyNodeClassPaths.add(file.pathAbsolute);
                 }
@@ -280,16 +272,13 @@ export class MaestroPlugin implements CompilerPlugin {
             }
         }
 
-        if (!this.maestroConfig.nodeClasses.buildForIDE) {
-            console.time('Build node classes');
-            for (let nc of Object.values(this.fileMap.nodeClasses)) {
-                nc.generateCode(this.fileFactory, this.program, this.fileMap, false);
-            }
-            if (this.maestroConfig.nodeClasses.generateTestUtils) {
-                this.nodeClassUtil.generateTestCode(this.program);
-            }
-            console.timeEnd('Build node classes');
+        for (let nc of Object.values(this.fileMap.nodeClasses)) {
+            nc.createXmlFile(this.fileFactory, this.program, this.fileMap);
         }
+        if (this.maestroConfig.nodeClasses.generateTestUtils) {
+            this.nodeClassUtil.generateTestCode(this.program);
+        }
+        console.timeEnd('Build node classes');
         this.dirtyCompFilePaths.clear();
         this.afterProgramValidate2(program);
     }
@@ -447,6 +436,8 @@ export class MaestroPlugin implements CompilerPlugin {
             }
             this.updateAsFunctionCalls(event);
             this.autoInjectNamespaceFunctionCalls(event.file);
+        } else if (isXmlFile(event.file)) {
+
         }
         for (let nc of Object.values(this.fileMap.nodeClasses)) {
             nc.replacePublicMFieldRefs(this.fileMap, event.editor as AstEditor);
@@ -627,6 +618,11 @@ export class MaestroPlugin implements CompilerPlugin {
     }
 
     beforeProgramTranspile(program: Program, entries: TranspileObj[], editor: AstEditor) {
+        //generate the codebehind files for every nodeclass
+        for (let nc of Object.values(this.fileMap.nodeClasses)) {
+            nc.createCodebehindFile(this.fileFactory, this.program, this.fileMap, editor);
+        }
+
         if (this.maestroConfig.processXMLFiles) {
             for (let filePath of this.dirtyCompFilePaths) {
                 let file = this.fileMap.allFiles[filePath];
@@ -728,7 +724,7 @@ export class MaestroPlugin implements CompilerPlugin {
                 },
                 DottedGetExpression: (ds) => {
                     if (isVariableExpression(ds.obj) && ds?.obj?.name.text === 'm') {
-                        //TODO - make this not get dotted get's in function calls
+                        //TODO - make this not get dotted gets in function calls
                         let lowerName = ds.name.text.toLowerCase();
                         if (!fieldMap.has(lowerName) && !funcMap[lowerName] && !this.skips[lowerName]) {
                             if (!isNodeClass || (lowerName !== 'top' && lowerName !== 'global')) {
