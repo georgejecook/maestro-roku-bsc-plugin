@@ -192,7 +192,7 @@ export class NodeClass {
     catch error
       m.log.error("error occurred executing task", mc_dv(m.top), error)
       m.top.output = {isOk:false, data: error, message: mc_getString(error, "message")}
-    end catch
+    end try
   end function
     `;
         return text;
