@@ -187,7 +187,12 @@ export class NodeClass {
     m.__isVMCreated = true
     m.new()
     m.top = top
-    m.top.output = m.execute(m.top.args)
+    try
+      m.top.output = m.execute(m.top.args)
+    catch error
+      m.log.error("error occurred executing task", mc_dv(m.top), error)
+      m.top.output = {isOk:false, data: error, message: mc_getString(error, "message")}
+    end catch
   end function
     `;
         return text;
