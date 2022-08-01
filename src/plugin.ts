@@ -92,6 +92,7 @@ export class MaestroPlugin implements CompilerPlugin {
     private mFilesToValidate = new Map<string, BrsFile>();
     private dirtyCompFilePaths = new Set<string>();
     private dirtyNodeClassPaths = new Set<string>();
+    private filesThatNeedParsingInBeforeProgramValidate = new Map<string, File>();
 
     private skips = {
         '__classname': true,
@@ -181,25 +182,32 @@ export class MaestroPlugin implements CompilerPlugin {
             this.importProcessor.processDynamicImports(file, this.program);
             this.reflectionUtil.addFile(file);
             if (this.shouldParseFile(file)) {
-                this.nodeClassUtil.addFile(file, mFile);
-                if (this.maestroConfig.nodeClasses.buildForIDE) {
-                    for (let nc of [...mFile.nodeClasses.values()]) {
-                        nc.generateCode(this.fileFactory, this.program, this.fileMap, this.maestroConfig.nodeClasses.buildForIDE);
-                    }
-                    if (this.maestroConfig.nodeClasses.generateTestUtils) {
-                        this.nodeClassUtil.generateTestCode(this.program);
-                    }
-                }
-                if (mFile.nodeClasses.size > 0) {
-                    this.dirtyNodeClassPaths.add(file.pathAbsolute);
-                }
-                this.mFilesToValidate.set(file.pkgPath, file);
-            } else {
+                this.filesThatNeedParsingInBeforeProgramValidate.set(mFile.fullPath, mFile);
             }
 
         } else {
             mFile.loadXmlContents();
         }
+    }
+
+    beforeProgramValidate(program: Program) {
+        for (let [, mFile] of this.filesThatNeedParsingInBeforeProgramValidate) {
+            let file = mFile.bscFile as BrsFile;
+            this.nodeClassUtil.addFile(file, mFile);
+            for (let nc of [...mFile.nodeClasses.values()]) {
+                nc.generateCode(this.fileFactory, this.program, this.fileMap, this.maestroConfig.nodeClasses.buildForIDE);
+            }
+            if (this.maestroConfig.nodeClasses.buildForIDE) {
+                if (this.maestroConfig.nodeClasses.generateTestUtils) {
+                    this.nodeClassUtil.generateTestCode(this.program);
+                }
+            }
+            if (mFile.nodeClasses.size > 0) {
+                this.dirtyNodeClassPaths.add(file.pathAbsolute);
+            }
+            this.mFilesToValidate.set(file.pkgPath, file);
+        }
+        this.filesThatNeedParsingInBeforeProgramValidate.clear();
     }
 
     afterFileValidate(file: BscFile) {
