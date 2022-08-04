@@ -175,9 +175,17 @@ export function getTokenText(operator: TokenKind): string {
 export function getAllFields(fileMap: ProjectFileMap, classStatement: ClassStatement, accessModifier?: TokenKind) {
     let result = new Map<string, FieldStatement>();
     while (classStatement) {
-        for (let field of classStatement.fields) {
-            if (!accessModifier || field.accessModifier?.kind === accessModifier) {
-                result.set(field.name.text.toLowerCase(), field);
+        if (accessModifier === TokenKind.Public) {
+            for (let field of classStatement.fields) {
+                if (!field.accessModifier || field.accessModifier?.kind === accessModifier) {
+                    result.set(field.name.text.toLowerCase(), field);
+                }
+            }
+        } else {
+            for (let field of classStatement.fields) {
+                if (!accessModifier || field.accessModifier?.kind === accessModifier) {
+                    result.set(field.name.text.toLowerCase(), field);
+                }
             }
         }
         classStatement = classStatement.parentClassName ? fileMap.allClasses[classStatement.parentClassName.getName(ParseMode.BrighterScript).replace(/_/g, '.')] : null;
@@ -186,12 +194,20 @@ export function getAllFields(fileMap: ProjectFileMap, classStatement: ClassState
     return result;
 }
 
-export function getAllMethods(fileMap: ProjectFileMap, cs: ClassStatement, vis?: TokenKind) {
+export function getAllMethods(fileMap: ProjectFileMap, cs: ClassStatement, accessModifier?: TokenKind) {
     let result = {};
     while (cs) {
-        for (let method of cs.methods) {
-            if (!vis || method.accessModifier?.kind === vis) {
-                result[method.name.text.toLowerCase()] = method;
+        if (accessModifier === TokenKind.Public) {
+            for (let method of cs.methods) {
+                if (!method.accessModifier || method.accessModifier?.kind === accessModifier) {
+                    result[method.name.text.toLowerCase()] = method;
+                }
+            }
+        } else {
+            for (let method of cs.methods) {
+                if (!accessModifier || method.accessModifier?.kind === accessModifier) {
+                    result[method.name.text.toLowerCase()] = method;
+                }
             }
         }
         cs = cs.parentClassName ? fileMap.allClasses[cs.parentClassName.getName(ParseMode.BrighterScript).replace(/_/g, '.')] : null;
