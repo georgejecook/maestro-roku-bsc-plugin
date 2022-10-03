@@ -47,24 +47,23 @@ describe('File', () => {
     });
 
 
-    //TODO this beahaviour has changed
     describe.skip('reset diagnostics', () => {
-        it('only resets maestro diagnostics', () => {
-            const file = new File(makeBrsFile('/fsPath/test.json'), projectFileMap);
-            file.bscFile['diagnostics'] = [{ code: 'MSTO100' }, { code: '1004' }];
-            file.resetDiagnostics();
-            expect(file.bscFile['diagnostics']).to.have.lengthOf(1);
-            expect(file.bscFile['diagnostics'][0].code).to.equal('1004');
+        // it('only resets maestro diagnostics', () => {
+        //     const file = new File(makeBrsFile('/fsPath/test.json'), projectFileMap);
+        //     file.bscFile['diagnostics'] = [{ code: 'MSTO100' }, { code: '1004' }];
+        //     file.resetDiagnostics();
+        //     expect(file.bscFile['diagnostics']).to.have.lengthOf(1);
+        //     expect(file.bscFile['diagnostics'][0].code).to.equal('1004');
 
-        });
-        it('only resets maestro diagnostics, and does not crash on number codes', () => {
-            const file = new File(makeBrsFile('/fsPath/test.json'), projectFileMap);
-            file.bscFile['diagnostics'] = [{ code: 'MSTO100' }, { code: 1004 }];
-            file.resetDiagnostics();
-            expect(file.bscFile['diagnostics']).to.have.lengthOf(1);
-            expect((file.bscFile['diagnostics'][0].code)).to.equal(1004);
+        // });
+        // it('only resets maestro diagnostics, and does not crash on number codes', () => {
+        //     const file = new File(makeBrsFile('/fsPath/test.json'), projectFileMap);
+        //     file.bscFile['diagnostics'] = [{ code: 'MSTO100' }, { code: 1004 }];
+        //     file.resetDiagnostics();
+        //     expect(file.bscFile['diagnostics']).to.have.lengthOf(1);
+        //     expect((file.bscFile['diagnostics'][0].code)).to.equal(1004);
 
-        });
+        // });
     });
     function makeBrsFile<T extends BrsFile | XmlFile>(path) {
         return new BrsFile(path, path, program);

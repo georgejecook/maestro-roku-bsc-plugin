@@ -977,7 +977,7 @@ describe('MaestroPlugin', () => {
             `);
         });
 
-        it('supports enum type in public fields', async () => {
+        it.only('supports enum type in public fields', async () => {
             plugin.afterProgramCreate(program);
             program.setFile('source/comp.bs', `
                 enum myEnum
@@ -985,7 +985,7 @@ describe('MaestroPlugin', () => {
                 end enum
                 namespace myNamespace
                     enum nsEnum
-                        intValue = 2
+                        value1 = 1.0
                         floatValue = 2.0
                     end enum
                 end namespace
@@ -995,7 +995,7 @@ describe('MaestroPlugin', () => {
                 class Comp
 
                     public e1 = myEnum.text
-                    public e2 = myNamespace.nsEnum.intValue
+                    public e2 = myNamespace.nsEnum.value1
                     public e3 = myNamespace.nsEnum.floatValue
 
                     function new()
@@ -1034,7 +1034,7 @@ describe('MaestroPlugin', () => {
 
             function init()
                 m.top.e1 = "v"
-                m.top.e2 = 2
+                m.top.e2 = 1
                 m.top.e3 = 2
                 instance = __Comp_builder()
                 instance.delete("top")

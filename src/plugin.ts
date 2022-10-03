@@ -23,7 +23,7 @@ import {
     isLiteralExpression,
     isCallExpression,
     isCallfuncExpression,
-    isClassMethodStatement,
+    isMethodStatement,
     createInvalidLiteral,
     createVariableExpression,
     isFunctionStatement
@@ -41,9 +41,12 @@ import type {
     CallableContainerMap,
     FunctionStatement,
     Statement,
-    ClassMethodStatement,
+    MethodStatement,
     BeforeFileTranspileEvent,
-    Expression
+    Expression,
+    Editor
+    ,
+    AstEditor
 } from 'brighterscript';
 import { ProjectFileMap } from './lib/files/ProjectFileMap';
 import type { MaestroConfig } from './lib/files/MaestroConfig';
@@ -61,7 +64,6 @@ import { getAllAnnotations, getAllFields } from './lib/utils/Utils';
 import { getSGMembersLookup } from './SGApi';
 import { DynamicType } from 'brighterscript/dist/types/DynamicType';
 
-type Writeable<T> = { -readonly [P in keyof T]: T[P] };
 interface FunctionInfo {
     minArgs: number;
     maxArgs: number;
@@ -165,8 +167,8 @@ export class MaestroPlugin implements CompilerPlugin {
     }
 
     afterFileParse(file: (BrsFile | XmlFile)): void {
-        // console.log('MAESTRO afp-----', file.pathAbsolute);
-        let mFile = this.fileMap.allFiles[file.pathAbsolute];
+        // console.log('MAESTRO afp-----', file.srcPath);
+        let mFile = this.fileMap.allFiles[file.srcPath];
         if (!mFile) {
             mFile = this.fileMap.createFile(file);
         }
@@ -194,24 +196,24 @@ export class MaestroPlugin implements CompilerPlugin {
         for (let [, mFile] of this.filesThatNeedParsingInBeforeProgramValidate) {
             let file = mFile.bscFile as BrsFile;
             this.nodeClassUtil.addFile(file, mFile);
-            for (let nc of [...mFile.nodeClasses.values()]) {
-                nc.generateCode(this.fileFactory, this.program, this.fileMap, this.maestroConfig.nodeClasses.buildForIDE);
-            }
-            if (this.maestroConfig.nodeClasses.buildForIDE) {
-                if (this.maestroConfig.nodeClasses.generateTestUtils) {
-                    this.nodeClassUtil.generateTestCode(this.program);
-                }
-            }
-            if (mFile.nodeClasses.size > 0) {
-                this.dirtyNodeClassPaths.add(file.pathAbsolute);
-            }
+            // for (let nc of [...mFile.nodeClasses.values()]) {
+            //     nc.generateCode(this.fileFactory, this.program, this.fileMap, this.maestroConfig.nodeClasses.buildForIDE);
+            // }
+            // if (this.maestroConfig.nodeClasses.buildForIDE) {
+            //     if (this.maestroConfig.nodeClasses.generateTestUtils) {
+            //         this.nodeClassUtil.generateTestCode(this.program);
+            //     }
+            // }
+            // if (mFile.nodeClasses.size > 0) {
+            //     this.dirtyNodeClassPaths.add(file.srcPath);
+            // }
             this.mFilesToValidate.set(file.pkgPath, file);
         }
         this.filesThatNeedParsingInBeforeProgramValidate.clear();
     }
 
     afterFileValidate(file: BscFile) {
-        // console.log('MAESTRO afv-----', file.pathAbsolute);
+        // console.log('MAESTRO afv-----', file.srcPath);
         if (!this.shouldParseFile(file)) {
             return;
         }
@@ -221,12 +223,12 @@ export class MaestroPlugin implements CompilerPlugin {
             return;
         }
         // console.log('MAESTRO running stf.....');
-        let compFile = this.fileMap.allFiles[file.pathAbsolute];
+        let compFile = this.fileMap.allFiles[file.srcPath];
         if (this.maestroConfig.processXMLFiles) {
 
             if (compFile?.fileType === FileType.Xml && compFile?.vmClassName) {
                 this.bindingProcessor.parseBindings(compFile);
-                this.dirtyCompFilePaths.add(file.pathAbsolute);
+                this.dirtyCompFilePaths.add(file.srcPath);
             } else {
                 for (let compFile of this.getCompFilesThatHaveFileInScope(file)) {
                     this.dirtyCompFilePaths.add(compFile.fullPath);
@@ -276,13 +278,9 @@ export class MaestroPlugin implements CompilerPlugin {
             for (let filePath of [...this.dirtyCompFilePaths.values()]) {
                 // console.time('Validate bindings');
                 let file = this.fileMap.allFiles[filePath];
-                file.bscFile = this.program.getFileByPathAbsolute(filePath);
+                file.bscFile = this.program.getFile(filePath);
                 file.resetDiagnostics();
                 this.bindingProcessor.validateBindings(file);
-                if (this.maestroConfig.mvvm.insertXmlBindingsEarly && file.isValid) {
-                    console.log('adding xml transpiled code for ', file.bscFile.pkgPath);
-                    this.bindingProcessor.generateCodeForXMLFile(file, this.program);
-                }
                 // console.timeEnd('Validate bindings');
             }
         }
@@ -324,7 +322,7 @@ export class MaestroPlugin implements CompilerPlugin {
         if (this.maestroConfig.extraValidation.doExtraValidation) {
             console.time('Do additional validations');
             for (let f of [...this.mFilesToValidate.values()]) {
-                let mFile = this.fileMap.allFiles[f.pathAbsolute];
+                let mFile = this.fileMap.allFiles[f.srcPath];
                 if (mFile && this.shouldDoExtraValidationsOnFile(f)) {
                     this.checkMReferences(mFile);
                     this.doExtraValidations(f);
@@ -362,7 +360,7 @@ export class MaestroPlugin implements CompilerPlugin {
     shouldParseFile(file: BscFile) {
         if (this.maestroConfig.excludeFilters) {
             for (let filter of [...this.maestroConfig.excludeFilters, '**/components/maestro/generated/*']) {
-                if (minimatch(file.pathAbsolute, filter)) {
+                if (minimatch(file.srcPath, filter)) {
                     return false;
                 }
             }
@@ -378,7 +376,7 @@ export class MaestroPlugin implements CompilerPlugin {
         }
         if (this.maestroConfig.extraValidation.excludeFilters) {
             for (let filter of [...this.maestroConfig.extraValidation.excludeFilters, '**/components/maestro/generated/*']) {
-                if (minimatch(file.pathAbsolute, filter)) {
+                if (minimatch(file.srcPath, filter)) {
                     return false;
                 }
             }
@@ -390,6 +388,16 @@ export class MaestroPlugin implements CompilerPlugin {
         if (!this.shouldParseFile(event.file)) {
             return;
         }
+        if (this.maestroConfig.processXMLFiles && this.dirtyCompFilePaths.has(event.file.srcPath)) {
+            // console.time('Validate bindings');
+            let file = this.fileMap.allFiles[event.file.srcPath];
+            if (this.maestroConfig.mvvm.insertXmlBindingsEarly && file.isValid) {
+                console.log('adding xml transpiled code for ', file.bscFile.pkgPath);
+                this.bindingProcessor.generateCodeForXMLFile(file, this.program, event.editor);
+            }
+            // console.timeEnd('Validate bindings');
+        }
+
         if (isBrsFile(event.file)) {
             let classes = event.file.parser.references.classStatements;
             for (let cs of classes) {
@@ -410,7 +418,7 @@ export class MaestroPlugin implements CompilerPlugin {
                     //this is more complicated, have to add this to the constructor
                     let s = new RawCodeStatement(`m.__className = "${cs.getName(ParseMode.BrighterScript)}"`, event.file, cs.range);
 
-                    let constructor = cs.memberMap.new as ClassMethodStatement;
+                    let constructor = cs.memberMap.new as MethodStatement;
                     if (constructor) {
                         constructor.func.body.statements.push(s);
                     } else {
@@ -423,7 +431,7 @@ export class MaestroPlugin implements CompilerPlugin {
                 if (allClassAnnotations['usesetfield']) {
                     this.updateFieldSets(cs);
                 }
-                this.injectIOCCode(cs, event.file);
+                this.injectIOCCode(cs, event.file, event.editor);
                 this.updateObserveCalls(cs, event.file);
             }
             if (this.maestroConfig.stripParamTypes) {
@@ -620,24 +628,24 @@ export class MaestroPlugin implements CompilerPlugin {
         }
     }
 
-    beforeProgramTranspile(program: Program, entries: TranspileObj[]) {
+    beforeProgramTranspile(program: Program, entries: TranspileObj[], editor: AstEditor) {
         // console.log('++++++', this.maestroConfig.processXMLFiles);
         if (!this.maestroConfig.mvvm.insertXmlBindingsEarly && this.maestroConfig.processXMLFiles) {
             console.time('Inject bindings into xml files');
 
             for (let entry of entries) {
                 if (isXmlFile(entry.file)) {
-                    let mFile = this.fileMap.allFiles[entry.file.pathAbsolute];
+                    let mFile = this.fileMap.allFiles[entry.file.srcPath];
                     // eslint-disable-next-line @typescript-eslint/dot-notation
                     if (mFile.isValid) {
                         //it's a binding file
-                        this.bindingProcessor.generateCodeForXMLFile(mFile, program, entry);
+                        this.bindingProcessor.generateCodeForXMLFile(mFile, program, editor, entry);
                         // console.log('generating code for bindings ', entry.file.pkgPath);
                         //it's a binding file
                     } else if (mFile.bindings.length === 0 && this.shouldParseFile(entry.file)) {
                         //check if we should add bindings to this anyhow)
                         // console.log('getting ids for regular xml file ', entry.file.pkgPath);
-                        this.bindingProcessor.addNodeVarsMethodForRegularXMLFile(mFile);
+                        this.bindingProcessor.addNodeVarsMethodForRegularXMLFile(mFile, editor);
                         //check if we should add bindings to this anyhow)
                     } else {
                         // console.log('not passing file through binding processor', entry.file.pkgPath);
@@ -678,8 +686,7 @@ export class MaestroPlugin implements CompilerPlugin {
                             [
                                 createStringLiteral(`"${ds.name.text}"`, ds.range),
                                 ds.value
-                            ],
-                            null);
+                            ]);
                         let callS = new ExpressionStatement(callE);
                         return callS;
                     }
@@ -745,7 +752,7 @@ export class MaestroPlugin implements CompilerPlugin {
                 continue;
             }
             if (!this.shouldDoExtraValidationsOnFile(file)) {
-                // console.log('skipping validation on ', file.pathAbsolute);
+                // console.log('skipping validation on ', file.srcPath);
                 continue;
             }
 
@@ -785,16 +792,15 @@ export class MaestroPlugin implements CompilerPlugin {
         }
     }
 
-    private injectIOCCode(cs: ClassStatement, file: BrsFile) {
+    private injectIOCCode(cs: ClassStatement, file: BrsFile, astEditor: Editor) {
 
         // eslint-disable-next-line @typescript-eslint/dot-notation
         let isNodeClass = cs['_isNodeClass'] === true;
 
-        for (let f of cs.fields) {
-            let annotation = (f.annotations || []).find((a) => a.name.toLowerCase() === 'inject' || a.name.toLowerCase() === 'injectclass' || a.name.toLowerCase() === 'createclass');
+        for (let field of cs.fields) {
+            let annotation = (field.annotations || []).find((a) => a.name.toLowerCase() === 'inject' || a.name.toLowerCase() === 'injectclass' || a.name.toLowerCase() === 'createclass');
             if (annotation) {
                 let args = annotation.getArguments();
-                let wf = f as Writeable<ClassFieldStatement>;
                 if (annotation.name === 'inject') {
                     if (args.length < 1) {
                         file.addDiagnostics([{
@@ -804,7 +810,7 @@ export class MaestroPlugin implements CompilerPlugin {
                         }]);
                         continue;
                     }
-                    let syncAnnotation = (f.annotations || []).find((a) => a.name.toLowerCase() === 'sync');
+                    let syncAnnotation = (field.annotations || []).find((a) => a.name.toLowerCase() === 'sync');
                     if (syncAnnotation && args.length < 2) {
                         file.addDiagnostics([{
                             ...noPathForIOCSync(),
@@ -845,7 +851,7 @@ export class MaestroPlugin implements CompilerPlugin {
                         }
                     }
 
-                    if (isNodeClass && (f.accessModifier?.kind === TokenKind.Public)) {
+                    if (isNodeClass && (field.accessModifier?.kind === TokenKind.Public)) {
                         if (syncAnnotation) {
                             file.addDiagnostics([{
                                 ...noPathForIOCSync(),
@@ -855,14 +861,14 @@ export class MaestroPlugin implements CompilerPlugin {
                             continue;
                         }
                         if (args.length === 1) {
-                            wf.initialValue = new RawCodeStatement(`__m_setTopField("${f.name.text}", mioc_getInstance("${iocKey}"))`, file, f.range);
+                            astEditor.setProperty(field, 'initialValue', new RawCodeStatement(`__m_setTopField("${field.name.text}", mioc_getInstance("${iocKey}"))`, file, field.range));
                         } else if (args.length === 2) {
-                            wf.initialValue = new RawCodeStatement(`__m_setTopField("${f.name.text}", mioc_getInstance("${iocKey}", "${iocPath}"))`, file, f.range);
+                            astEditor.setProperty(field, 'initialValue', new RawCodeStatement(`__m_setTopField("${field.name.text}", mioc_getInstance("${iocKey}", "${iocPath}"))`, file, field.range));
                         }
                     } else {
                         //check for observer field in here..
 
-                        let observerAnnotation = (f.annotations || []).find((a) => a.name.toLowerCase() === 'observer');
+                        let observerAnnotation = (field.annotations || []).find((a) => a.name.toLowerCase() === 'observer');
                         if (observerAnnotation || syncAnnotation) {
                             let funcName = 'invalid';
                             if (observerAnnotation) {
@@ -872,7 +878,7 @@ export class MaestroPlugin implements CompilerPlugin {
                                 // let observerFunc = members.get((observerArgs[0] as string).toLowerCase());
                                 // if (observerArgs.length > 0) {
                                 //     let observerFunc = members.get((observerArgs[0] as string).toLowerCase());
-                                //     if (isClassMethodStatement(observerFunc)) {
+                                //     if (isMethodStatement(observerFunc)) {
                                 //         f.numArgs = observerFunc?.func?.parameters?.length;
                                 //     }
                                 // }
@@ -887,18 +893,18 @@ export class MaestroPlugin implements CompilerPlugin {
                                     file: file
                                 }]);
                             } else {
-                                wf.initialValue = new RawCodeStatement(`m._addIOCObserver("${f.name.text}", "${iocKey}", "${iocPath}", "${observePath}", "${observeField}", ${funcName})`, file, f.range);
+                                astEditor.setProperty(field, 'initialValue', new RawCodeStatement(`m._addIOCObserver("${field.name.text}", "${iocKey}", "${iocPath}", "${observePath}", "${observeField}", ${funcName})`, file, field.range));
                             }
                         } else {
                             if (!iocPath) {
-                                wf.initialValue = new RawCodeStatement(`mioc_getInstance("${iocKey}")`, file, f.range);
+                                astEditor.setProperty(field, 'initialValue', new RawCodeStatement(`mioc_getInstance("${iocKey}")`, file, field.range));
                             } else {
-                                wf.initialValue = new RawCodeStatement(`mioc_getInstance("${iocKey}", "${iocPath}")`, file, f.range);
+                                astEditor.setProperty(field, 'initialValue', new RawCodeStatement(`mioc_getInstance("${iocKey}", "${iocPath}")`, file, field.range));
                             }
                         }
                     }
                 } else if (annotation.name === 'injectClass') {
-                    wf.initialValue = new RawCodeStatement(`mioc_getClassInstance("${args[0].toString()}")`, file, f.range);
+                    astEditor.setProperty(field, 'initialValue', new RawCodeStatement(`mioc_getClassInstance("${args[0].toString()}")`, file, field.range));
                 } else if (annotation.name === 'createClass') {
                     let instanceArgs = [];
                     for (let i = 1; i < args.length - 1; i++) {
@@ -907,13 +913,13 @@ export class MaestroPlugin implements CompilerPlugin {
                         }
                     }
                     if (instanceArgs.length > 0) {
-                        wf.initialValue = new RawCodeStatement(`mioc_createClassInstance("${args[0].toString()}", [${instanceArgs.join(',')}])`, file, f.range);
+                        astEditor.setProperty(field, 'initialValue', new RawCodeStatement(`mioc_createClassInstance("${args[0].toString()}", [${instanceArgs.join(',')}])`, file, field.range));
                     } else {
-                        wf.initialValue = new RawCodeStatement(`mioc_createClassInstance("${args[0].toString()}")`, file, f.range);
+                        astEditor.setProperty(field, 'initialValue', new RawCodeStatement(`mioc_createClassInstance("${args[0].toString()}")`, file, field.range));
 
                     }
                 }
-                wf.equal = createToken(TokenKind.Equal, '=', f.range);
+                astEditor.setProperty(field, 'equal', createToken(TokenKind.Equal, '=', field.range));
             }
         }
     }
@@ -1105,7 +1111,7 @@ export class MaestroPlugin implements CompilerPlugin {
                                                 }]);
                                             } else if (fieldName) {
                                                 let memberStatement = cs.memberMap[name.toLowerCase()];
-                                                if (isClassMethodStatement(memberStatement)) {
+                                                if (isMethodStatement(memberStatement)) {
                                                     let numArgs = memberStatement.func.parameters.length;
                                                     let sendMode = isLiteralString(ce.args[2]) ? ce.args[2].token.text : '"value"';
                                                     let expectedArgs = 0;

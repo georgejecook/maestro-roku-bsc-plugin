@@ -66,7 +66,7 @@ export default class ReflectionUtil {
     }
 
     public addFile(file: BrsFile) {
-        let mFile = this.fileMap.allFiles[file.pathAbsolute];
+        let mFile = this.fileMap.allFiles[file.srcPath];
         this.fileMap.removeFileClasses(mFile);
         for (let cs of file.parser.references.classStatements) {
             this.fileMap.addClass(cs, mFile);
@@ -76,7 +76,7 @@ export default class ReflectionUtil {
     public shouldParseReflectionFile(file: BscFile) {
         if (this.maestroConfig.reflection.excludeFilters) {
             for (let filter of [...this.maestroConfig.reflection.excludeFilters, '**/components/maestro/generated/*']) {
-                if (minimatch(file.pathAbsolute, filter)) {
+                if (minimatch(file.srcPath, filter)) {
                     return false;
                 }
             }
