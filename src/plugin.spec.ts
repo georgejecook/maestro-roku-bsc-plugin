@@ -2,7 +2,6 @@ import type { BrsFile, BsDiagnostic } from 'brighterscript';
 import { DiagnosticSeverity, Program, ProgramBuilder, util } from 'brighterscript';
 import { expect } from 'chai';
 import { MaestroPlugin } from './plugin';
-import PluginInterface from 'brighterscript/dist/PluginInterface';
 import { standardizePath as s } from './lib/Utils';
 import * as fsExtra from 'fs-extra';
 import * as path from 'path';
@@ -36,12 +35,12 @@ describe('MaestroPlugin', () => {
         fsExtra.ensureDirSync(_stagingFolderPath);
         fsExtra.ensureDirSync(_rootDir);
         fsExtra.ensureDirSync(tmpPath);
+
         builder = new ProgramBuilder();
         builder.options = util.normalizeAndResolveConfig(options);
         builder.program = new Program(builder.options);
         program = builder.program;
-        builder.plugins = new PluginInterface([plugin], program.logger);
-        program.plugins = new PluginInterface([plugin], program.logger);
+        program.plugins.add(plugin);
         program.createSourceScope(); //ensure source scope is created
         plugin.maestroConfig = {
             extraValidation: {
@@ -977,7 +976,7 @@ describe('MaestroPlugin', () => {
             `);
         });
 
-        it.only('supports enum type in public fields', async () => {
+        it('supports enum type in public fields', async () => {
             plugin.afterProgramCreate(program);
             program.setFile('source/comp.bs', `
                 enum myEnum
@@ -1017,7 +1016,7 @@ describe('MaestroPlugin', () => {
                 <component name="Comp" extends="Group">
                     <interface>
                         <field id="e1" type="string" />
-                        <field id="e2" type="integer" />
+                        <field id="e2" type="float" />
                         <field id="e3" type="float" />
                     </interface>
                     <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
@@ -1252,6 +1251,7 @@ describe('MaestroPlugin', () => {
                         end class
                 end namespace
             `);
+            program.validate();
             await builder.transpile();
             expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
             let classFile = program.getFile<BrsFile>('source/myClass.bs');
@@ -2534,16 +2534,16 @@ describe('MaestroPlugin', () => {
                 end function
             `);
             program.validate();
-            let d = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error);
-            expect(d).to.have.lengthOf(8);
-            expect(d[4].code).to.equal('MSTO1058');
-            expect(d[4].message).to.equal('Cannot call function inside an as expression. Function called: "getValue"');
-            expect(d[5].code).to.equal('MSTO1058');
-            expect(d[5].message).to.equal('Cannot call function inside an as expression. Function called: "getName"');
-            expect(d[6].code).to.equal('MSTO1058');
-            expect(d[6].message).to.equal('Cannot call function inside an as expression. Function called: "getfavorites"');
-            expect(d[7].code).to.equal('MSTO1058');
-            expect(d[7].message).to.equal('Cannot call function inside an as expression. Function called: "get"');
+            let d = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error && d.code !== 1001);
+            expect(d).to.have.lengthOf(4);
+            expect(d[0].code).to.equal('MSTO1058');
+            expect(d[0].message).to.equal('Cannot call function inside an as expression. Function called: "getValue"');
+            expect(d[1].code).to.equal('MSTO1058');
+            expect(d[1].message).to.equal('Cannot call function inside an as expression. Function called: "getName"');
+            expect(d[2].code).to.equal('MSTO1058');
+            expect(d[2].message).to.equal('Cannot call function inside an as expression. Function called: "getfavorites"');
+            expect(d[3].code).to.equal('MSTO1058');
+            expect(d[3].message).to.equal('Cannot call function inside an as expression. Function called: "get"');
         });
         it('fails validations if a callfunc invocation is present in an as call', () => {
             plugin.afterProgramCreate(program);
@@ -2557,16 +2557,16 @@ describe('MaestroPlugin', () => {
                 end function
             `);
             program.validate();
-            let d = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error);
-            expect(d).to.have.lengthOf(8);
-            expect(d[4].code).to.equal('MSTO1058');
-            expect(d[4].message).to.equal('Cannot call function inside an as expression. Function called: "getValue"');
-            expect(d[5].code).to.equal('MSTO1058');
-            expect(d[5].message).to.equal('Cannot call function inside an as expression. Function called: "getName"');
-            expect(d[6].code).to.equal('MSTO1058');
-            expect(d[6].message).to.equal('Cannot call function inside an as expression. Function called: "getfavorites"');
-            expect(d[7].code).to.equal('MSTO1058');
-            expect(d[7].message).to.equal('Cannot call function inside an as expression. Function called: "get"');
+            let d = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error && d.code !== 1001);
+            expect(d).to.have.lengthOf(4);
+            expect(d[0].code).to.equal('MSTO1058');
+            expect(d[0].message).to.equal('Cannot call function inside an as expression. Function called: "getValue"');
+            expect(d[1].code).to.equal('MSTO1058');
+            expect(d[1].message).to.equal('Cannot call function inside an as expression. Function called: "getName"');
+            expect(d[2].code).to.equal('MSTO1058');
+            expect(d[2].message).to.equal('Cannot call function inside an as expression. Function called: "getfavorites"');
+            expect(d[3].code).to.equal('MSTO1058');
+            expect(d[3].message).to.equal('Cannot call function inside an as expression. Function called: "get"');
         });
 
         it('converts as calls in namespace functions', async () => {
@@ -2796,7 +2796,7 @@ describe('MaestroPlugin', () => {
                 end class
             `);
             program.validate();
-            let d = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error && d.code !== 'MSTO1040');
+            let d = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error && d.code !== 'MSTO1040' && d.code !== 1001);
             expect(d).to.have.lengthOf(6);
             expect(d[0].code).to.equal('MSTO1061');
             expect(d[1].code).to.equal('MSTO1059');

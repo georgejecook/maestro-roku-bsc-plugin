@@ -192,21 +192,21 @@ export class MaestroPlugin implements CompilerPlugin {
         }
     }
 
-    beforeProgramValidate(program: Program) {
+    ncValidation(program: Program) {
         for (let [, mFile] of this.filesThatNeedParsingInBeforeProgramValidate) {
             let file = mFile.bscFile as BrsFile;
             this.nodeClassUtil.addFile(file, mFile);
-            // for (let nc of [...mFile.nodeClasses.values()]) {
-            //     nc.generateCode(this.fileFactory, this.program, this.fileMap, this.maestroConfig.nodeClasses.buildForIDE);
-            // }
-            // if (this.maestroConfig.nodeClasses.buildForIDE) {
-            //     if (this.maestroConfig.nodeClasses.generateTestUtils) {
-            //         this.nodeClassUtil.generateTestCode(this.program);
-            //     }
-            // }
-            // if (mFile.nodeClasses.size > 0) {
-            //     this.dirtyNodeClassPaths.add(file.srcPath);
-            // }
+            for (let nc of [...mFile.nodeClasses.values()]) {
+                nc.generateCode(this.fileFactory, this.program, this.fileMap, this.maestroConfig.nodeClasses.buildForIDE);
+            }
+            if (this.maestroConfig.nodeClasses.buildForIDE) {
+                if (this.maestroConfig.nodeClasses.generateTestUtils) {
+                    this.nodeClassUtil.generateTestCode(this.program);
+                }
+            }
+            if (mFile.nodeClasses.size > 0) {
+                this.dirtyNodeClassPaths.add(file.srcPath);
+            }
             this.mFilesToValidate.set(file.pkgPath, file);
         }
         this.filesThatNeedParsingInBeforeProgramValidate.clear();
@@ -273,6 +273,7 @@ export class MaestroPlugin implements CompilerPlugin {
     }
 
     afterProgramValidate(program: Program) {
+        this.ncValidation(program);
         // console.log('MAESTRO bpv-----');
         if (this.maestroConfig.processXMLFiles) {
             for (let filePath of [...this.dirtyCompFilePaths.values()]) {
@@ -686,7 +687,8 @@ export class MaestroPlugin implements CompilerPlugin {
                             [
                                 createStringLiteral(`"${ds.name.text}"`, ds.range),
                                 ds.value
-                            ]);
+                            ]
+                        );
                         let callS = new ExpressionStatement(callE);
                         return callS;
                     }

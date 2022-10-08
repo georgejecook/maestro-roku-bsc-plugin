@@ -26,7 +26,7 @@
         "@typescript-eslint/eslint-plugin": "^4.4.1",
         "@typescript-eslint/parser": "^4.4.1",
         "auto-changelog": "^2.2.1",
-        "brighterscript": "file:../../vsc/brighterscript",
+        "brighterscript": "^0.59.0",
         "chai": "^4.2.0",
         "eslint": "^7.32.0",
         "eslint-plugin-github": "4.3.0",
