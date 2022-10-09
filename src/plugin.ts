@@ -167,6 +167,7 @@ export class MaestroPlugin implements CompilerPlugin {
     }
 
     afterFileParse(file: (BrsFile | XmlFile)): void {
+        // afp(file: (BrsFile | XmlFile)): void {
         // console.log('MAESTRO afp-----', file.srcPath);
         let mFile = this.fileMap.allFiles[file.srcPath];
         if (!mFile) {
@@ -182,7 +183,7 @@ export class MaestroPlugin implements CompilerPlugin {
         }
         if (isBrsFile(file)) {
             this.importProcessor.processDynamicImports(file, this.program);
-            this.reflectionUtil.addFile(file);
+            // this.reflectionUtil.addFile(file);
             if (this.shouldParseFile(file)) {
                 this.filesThatNeedParsingInBeforeProgramValidate.set(mFile.fullPath, mFile);
             }
@@ -195,6 +196,7 @@ export class MaestroPlugin implements CompilerPlugin {
     ncValidation(program: Program) {
         for (let [, mFile] of this.filesThatNeedParsingInBeforeProgramValidate) {
             let file = mFile.bscFile as BrsFile;
+            this.reflectionUtil.addFile(file);
             this.nodeClassUtil.addFile(file, mFile);
             for (let nc of [...mFile.nodeClasses.values()]) {
                 nc.generateCode(this.fileFactory, this.program, this.fileMap, this.maestroConfig.nodeClasses.buildForIDE);
@@ -708,15 +710,19 @@ export class MaestroPlugin implements CompilerPlugin {
                 continue;
             }
             // eslint-disable-next-line @typescript-eslint/dot-notation
-            let isNodeClass = cs['_isNodeClass'];
+            // let isNodeClass = cs['_isNodeClass'];
             let fieldMap = getAllFields(this.fileMap, cs);
             let funcMap = file.getAllFuncs(cs);
+            console.log(cs.name.text);
             cs.walk(createVisitor({
                 DottedSetStatement: (ds) => {
                     if (isVariableExpression(ds.obj) && ds.obj?.name?.text === 'm') {
                         let lowerName = ds.name.text.toLowerCase();
+                        if (cs.name.text === 'NotificationChildScreen') {
+                            console.log('DottedSet ', lowerName);
+                        }
                         if (!fieldMap.has(lowerName) && !this.skips[lowerName]) {
-                            if (!isNodeClass || (lowerName !== 'top' && lowerName !== 'global')) {
+                            if (lowerName !== 'top' && lowerName !== 'global') {
                                 addClassFieldsNotFoundOnSetOrGet(file, `${ds.obj.name.text}.${ds.name.text}`, cs.name.text, ds.range);
                             }
                         }
@@ -724,10 +730,14 @@ export class MaestroPlugin implements CompilerPlugin {
                 },
                 DottedGetExpression: (ds) => {
                     if (isVariableExpression(ds.obj) && ds?.obj?.name.text === 'm') {
-                        //TODO - make this not get dotted get's in function calls
                         let lowerName = ds.name.text.toLowerCase();
+                        if (cs.name.text === 'NotificationChildScreen') {
+                            console.log('DottedSet ', lowerName);
+                        }
+                        //TODO - make this not get dotted get's in function calls
                         if (!fieldMap.has(lowerName) && !funcMap[lowerName] && !this.skips[lowerName]) {
-                            if (!isNodeClass || (lowerName !== 'top' && lowerName !== 'global')) {
+                            if (lowerName !== 'top' && lowerName !== 'global') {
+                                // if (!isNodeClass && (lowerName !== 'top' && lowerName !== 'global')) {
                                 addClassFieldsNotFoundOnSetOrGet(file, `${ds.obj.name.text}.${ds.name.text}`, cs.name.text, ds.range);
                             }
                         }

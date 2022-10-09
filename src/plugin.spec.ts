@@ -1309,7 +1309,7 @@ describe('MaestroPlugin', () => {
             `);
         });
 
-        it('does not add __classname if in parent class', async () => {
+        it('adds __classname, in subclasses', async () => {
             plugin.afterProgramCreate(program);
             program.setFile('source/myClass.bs', `
                 class ClassA
@@ -1348,6 +1348,7 @@ describe('MaestroPlugin', () => {
                     instance.new = sub()
                         m.super0_new()
                         m.title2 = invalid
+                        m.__classname = "ClassB"
                     end sub
                     return instance
                 end function
@@ -1633,65 +1634,70 @@ describe('MaestroPlugin', () => {
                         end function
                    end class
                     class ChildVM extends VM
-                        function doStuff()
+                        override function doStuff()
                             m.setField("fieldA", "val1")
                             m.fieldA = "val1"
                             m.fieldB = {this:"val2"}
                             m.fieldC = {this:"val1"}
                             m.notKnown = true
-                            m.fieldA = something.getVAlues({this:"val1"}, "sdfd")
+                            something = {}
+                            m.fieldA = something.getValues({this:"val1"}, "key")
                         end function
                    end class
                 `);
+                program.validate();
                 await builder.transpile();
-                expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+
+                // expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
                 expect(
                     getContents('source/VM.brs')
                 ).to.eql(undent`
-                    function __VM_builder()
-                        instance = {}
-                        instance.new = sub()
-                            m.fieldA = invalid
-                            m.fieldB = invalid
-                            m.fieldC = invalid
-                            m.__classname = "VM"
-                        end sub
-                        instance.doStuff = function()
-                        end function
-                        return instance
-                    end function
-                    function VM()
-                        instance = __VM_builder()
-                        instance.new()
-                        return instance
-                    end function
-                    function __ChildVM_builder()
-                        instance = __VM_builder()
-                        instance.super0_new = instance.new
-                        instance.new = sub()
-                            m.super0_new()
-                        end sub
-                        instance.doStuff = function()
-                            m.setField("fieldA", "val1")
-                            m.setField("fieldA", "val1")
-                            m.setField("fieldB", {
-                                this: "val2"
-                            })
-                            m.fieldC = {
-                                this: "val1"
-                            }
-                            m.notKnown = true
-                            m.setField("fieldA", something.getVAlues({
-                                this: "val1"
-                            }, "sdfd"))
-                        end function
-                        return instance
-                    end function
-                    function ChildVM()
-                        instance = __ChildVM_builder()
-                        instance.new()
-                        return instance
-                    end function
+            function __VM_builder()
+                instance = {}
+                instance.new = sub()
+                    m.fieldA = invalid
+                    m.fieldB = invalid
+                    m.fieldC = invalid
+                    m.__classname = "VM"
+                end sub
+                instance.doStuff = function()
+                end function
+                return instance
+            end function
+            function VM()
+                instance = __VM_builder()
+                instance.new()
+                return instance
+            end function
+            function __ChildVM_builder()
+                instance = __VM_builder()
+                instance.super0_new = instance.new
+                instance.new = sub()
+                    m.super0_new()
+                end sub
+                instance.super0_doStuff = instance.doStuff
+                instance.doStuff = function()
+                    m.setField("fieldA", "val1")
+                    m.setField("fieldA", "val1")
+                    m.setField("fieldB", {
+                        this: "val2"
+                    })
+                    m.fieldC = {
+                        this: "val1"
+                    }
+                    m.notKnown = true
+                    something = {}
+                    m.setField("fieldA", something.getValues({
+                        this: "val1"
+                    }, "key"))
+                end function
+                return instance
+            end function
+            function ChildVM()
+                instance = __ChildVM_builder()
+                instance.new()
+                return instance
+            end function
                 `);
             });
         });
