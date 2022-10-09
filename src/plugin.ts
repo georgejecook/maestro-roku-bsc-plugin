@@ -713,7 +713,6 @@ export class MaestroPlugin implements CompilerPlugin {
             // let isNodeClass = cs['_isNodeClass'];
             let fieldMap = getAllFields(this.fileMap, cs);
             let funcMap = file.getAllFuncs(cs);
-            console.log(cs.name.text);
             cs.walk(createVisitor({
                 DottedSetStatement: (ds) => {
                     if (isVariableExpression(ds.obj) && ds.obj?.name?.text === 'm') {
