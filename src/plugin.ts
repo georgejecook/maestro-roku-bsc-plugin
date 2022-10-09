@@ -718,9 +718,6 @@ export class MaestroPlugin implements CompilerPlugin {
                 DottedSetStatement: (ds) => {
                     if (isVariableExpression(ds.obj) && ds.obj?.name?.text === 'm') {
                         let lowerName = ds.name.text.toLowerCase();
-                        if (cs.name.text === 'NotificationChildScreen') {
-                            console.log('DottedSet ', lowerName);
-                        }
                         if (!fieldMap.has(lowerName) && !this.skips[lowerName]) {
                             if (lowerName !== 'top' && lowerName !== 'global') {
                                 addClassFieldsNotFoundOnSetOrGet(file, `${ds.obj.name.text}.${ds.name.text}`, cs.name.text, ds.range);
@@ -731,9 +728,6 @@ export class MaestroPlugin implements CompilerPlugin {
                 DottedGetExpression: (ds) => {
                     if (isVariableExpression(ds.obj) && ds?.obj?.name.text === 'm') {
                         let lowerName = ds.name.text.toLowerCase();
-                        if (cs.name.text === 'NotificationChildScreen') {
-                            console.log('DottedSet ', lowerName);
-                        }
                         //TODO - make this not get dotted get's in function calls
                         if (!fieldMap.has(lowerName) && !funcMap[lowerName] && !this.skips[lowerName]) {
                             if (lowerName !== 'top' && lowerName !== 'global') {
