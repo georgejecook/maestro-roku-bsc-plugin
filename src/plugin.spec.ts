@@ -40,8 +40,8 @@ describe('MaestroPlugin', () => {
         builder.options = util.normalizeAndResolveConfig(options);
         builder.program = new Program(builder.options);
         program = builder.program;
-        builder.plugins = new PluginInterface([plugin], program.logger);
-        program.plugins = new PluginInterface([plugin], program.logger);
+        builder.plugins = new PluginInterface([plugin], program.logger as any);
+        program.plugins = new PluginInterface([plugin], program.logger as any);
         program.createSourceScope(); //ensure source scope is created
         plugin.maestroConfig = {
             extraValidation: {
@@ -2534,17 +2534,13 @@ describe('MaestroPlugin', () => {
                 end function
             `);
             program.validate();
-            let d = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error);
-            expect(d).to.have.lengthOf(8);
-            expect(d[4].code).to.equal('MSTO1058');
-            expect(d[4].message).to.equal('Cannot call function inside an as expression. Function called: "getValue"');
-            expect(d[5].code).to.equal('MSTO1058');
-            expect(d[5].message).to.equal('Cannot call function inside an as expression. Function called: "getName"');
-            expect(d[6].code).to.equal('MSTO1058');
-            expect(d[6].message).to.equal('Cannot call function inside an as expression. Function called: "getfavorites"');
-            expect(d[7].code).to.equal('MSTO1058');
-            expect(d[7].message).to.equal('Cannot call function inside an as expression. Function called: "get"');
+            const diagnostics = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error).map(x => x.message);
+            expect(diagnostics).to.include('Cannot call function inside an as expression. Function called: "getValue"');
+            expect(diagnostics).to.include('Cannot call function inside an as expression. Function called: "getName"');
+            expect(diagnostics).to.include('Cannot call function inside an as expression. Function called: "getfavorites"');
+            expect(diagnostics).to.include('Cannot call function inside an as expression. Function called: "get"');
         });
+
         it('fails validations if a callfunc invocation is present in an as call', () => {
             plugin.afterProgramCreate(program);
             program.setFile('source/comp.bs', `
@@ -2557,16 +2553,11 @@ describe('MaestroPlugin', () => {
                 end function
             `);
             program.validate();
-            let d = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error);
-            expect(d).to.have.lengthOf(8);
-            expect(d[4].code).to.equal('MSTO1058');
-            expect(d[4].message).to.equal('Cannot call function inside an as expression. Function called: "getValue"');
-            expect(d[5].code).to.equal('MSTO1058');
-            expect(d[5].message).to.equal('Cannot call function inside an as expression. Function called: "getName"');
-            expect(d[6].code).to.equal('MSTO1058');
-            expect(d[6].message).to.equal('Cannot call function inside an as expression. Function called: "getfavorites"');
-            expect(d[7].code).to.equal('MSTO1058');
-            expect(d[7].message).to.equal('Cannot call function inside an as expression. Function called: "get"');
+            const diagnostics = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error).map(x => x.message);
+            expect(diagnostics).to.include('Cannot call function inside an as expression. Function called: "getValue"');
+            expect(diagnostics).to.include('Cannot call function inside an as expression. Function called: "getName"');
+            expect(diagnostics).to.include('Cannot call function inside an as expression. Function called: "getfavorites"');
+            expect(diagnostics).to.include('Cannot call function inside an as expression. Function called: "get"');
         });
 
         it('converts as calls in namespace functions', async () => {
