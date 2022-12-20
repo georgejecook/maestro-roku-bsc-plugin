@@ -679,7 +679,8 @@ export class MaestroPlugin implements CompilerPlugin {
                                 createStringLiteral(`"${ds.name.text}"`, ds.range),
                                 ds.value
                             ],
-                            null);
+                            null
+                        );
                         let callS = new ExpressionStatement(callE);
                         return callS;
                     }

@@ -166,7 +166,7 @@ export class NodeClass {
       for each funcName in m.pendingCallbacks
         ${isLazy ? `_getVM()
         m.[funcName]()`
-                : 'm.[funcName]()'}
+        : 'm.[funcName]()'}
       end for
       m.pendingCallbacks = {}
     end function
