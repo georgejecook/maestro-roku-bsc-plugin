@@ -258,11 +258,14 @@ export function addImport(file: BrsFile, pkgPath: string, astEditor: Editor) {
         let importStatement = createImportStatement(pkgPath, createRange(Position.create(1, 1)));
         file.parser.ast.statements = [importStatement, ...file.parser.ast.statements];
         file.parser.invalidateReferences();
-        file.ownScriptImports.push({
+        const scriptImport = {
+            //TODO remove this eventually once the file api lands, pkgPath was deprecated on imports
             pkgPath: pkgPath,
+            destPath: pkgPath,
             text: `import "${sanitizePkgPath(pkgPath)}"`,
             sourceFile: file
-        });
+        };
+        file.ownScriptImports.push(scriptImport);
         //re-attach the dependency graph which tells the xml file this has changed
 
         // eslint-disable-next-line @typescript-eslint/dot-notation

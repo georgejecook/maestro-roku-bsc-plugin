@@ -1,6 +1,5 @@
 import {
     isVariableExpression,
-    CallExpression,
     createIdentifier,
     DottedGetExpression,
     ExpressionStatement,
@@ -26,7 +25,8 @@ import {
     isMethodStatement,
     createInvalidLiteral,
     createVariableExpression,
-    isFunctionStatement
+    isFunctionStatement,
+    CallExpression
 } from 'brighterscript';
 import type {
     BrsFile,
@@ -394,7 +394,7 @@ export class MaestroPlugin implements CompilerPlugin {
     }
 
     beforeFileTranspile(event: BeforeFileTranspileEvent) {
-        if (!this.shouldParseFile(event.file)) {
+        if (!this.shouldParseFile(event.file as any)) {
             return;
         }
         if (this.maestroConfig.processXMLFiles && this.dirtyCompFilePaths.has(event.file.srcPath)) {
@@ -918,13 +918,13 @@ export class MaestroPlugin implements CompilerPlugin {
                     astEditor.setProperty(field, 'initialValue', new RawCodeStatement(`mioc_getClassInstance("${args[0].toString()}")`, file, field.range));
                 } else if (annotation.name === 'createClass') {
                     let instanceArgs = [];
-                    for (let i = 1; i < args.length - 1; i++) {
+                    for (let i = 1; i < args.length; i++) {
                         if (args[i]) {
                             instanceArgs.push(args[i].toString());
                         }
                     }
                     if (instanceArgs.length > 0) {
-                        astEditor.setProperty(field, 'initialValue', new RawCodeStatement(`mioc_createClassInstance("${args[0].toString()}", [${instanceArgs.join(',')}])`, file, field.range));
+                        astEditor.setProperty(field, 'initialValue', new RawCodeStatement(`mioc_createClassInstance("${args[0].toString()}", [${instanceArgs.map((arg) => `"${arg.toString()}"`).join(',')}])`, file, field.range));
                     } else {
                         astEditor.setProperty(field, 'initialValue', new RawCodeStatement(`mioc_createClassInstance("${args[0].toString()}")`, file, field.range));
 
@@ -1198,7 +1198,7 @@ export class MaestroPlugin implements CompilerPlugin {
         let filesSearched = new Set<BscFile>();
         //TODO -needs ALL known SG functions!
         for (const file of scope.getAllFiles()) {
-            if (isXmlFile(file) || filesSearched.has(file)) {
+            if (!isBrsFile(file) || filesSearched.has(file)) {
                 continue;
             }
             filesSearched.add(file);
@@ -1216,7 +1216,7 @@ export class MaestroPlugin implements CompilerPlugin {
         let filesSearched = new Set<BscFile>();
         //TODO -needs ALL known SG functions!
         for (const file of scope.getAllFiles()) {
-            if (isXmlFile(file) || filesSearched.has(file)) {
+            if (!isBrsFile(file) || filesSearched.has(file)) {
                 continue;
             }
             filesSearched.add(file);
