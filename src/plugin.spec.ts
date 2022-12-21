@@ -6,8 +6,7 @@ import { standardizePath as s } from './lib/Utils';
 import * as fsExtra from 'fs-extra';
 import * as path from 'path';
 import undent from 'undent';
-import { expectDiagnostics, expectDiagnosticsIncludes, expectZeroDiagnostics } from './testHelpers.spec';
-import { observeRequiresFirstArgumentIsField, observeRequiresFirstArgumentIsNotM } from './lib/utils/Diagnostics';
+import { expectDiagnostics, expectZeroDiagnostics } from './testHelpers.spec';
 
 let tmpPath = s`${process.cwd()}/tmp`;
 let _rootDir = s`${tmpPath}/rootDir`;
@@ -37,6 +36,7 @@ describe('MaestroPlugin', () => {
         fsExtra.ensureDirSync(_stagingFolderPath);
         fsExtra.ensureDirSync(_rootDir);
         fsExtra.ensureDirSync(tmpPath);
+
         builder = new ProgramBuilder();
         builder.options = util.normalizeAndResolveConfig(options);
         builder.plugins.add(plugin);
@@ -971,9 +971,7 @@ describe('MaestroPlugin', () => {
                 end enum
                 namespace myNamespace
                     enum nsEnum1
-                        intValue = 2
-                    end enum
-                    enum nsEnum2
+                        value1 = 1.0
                         floatValue = 2.0
                     end enum
                 end namespace
@@ -983,8 +981,8 @@ describe('MaestroPlugin', () => {
                 class Comp
 
                     public e1 = myEnum.text
-                    public e2 = myNamespace.nsEnum1.intValue
-                    public e3 = myNamespace.nsEnum2.floatValue
+                    public e2 = myNamespace.nsEnum1.value1
+                    public e3 = myNamespace.nsEnum1.floatValue
 
                     function new()
                     end function
@@ -1005,7 +1003,7 @@ describe('MaestroPlugin', () => {
                 <component name="Comp" extends="Group">
                     <interface>
                         <field id="e1" type="string" />
-                        <field id="e2" type="integer" />
+                        <field id="e2" type="float" />
                         <field id="e3" type="float" />
                     </interface>
                     <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
@@ -1022,7 +1020,7 @@ describe('MaestroPlugin', () => {
 
             function init()
                 m.top.e1 = "v"
-                m.top.e2 = 2
+                m.top.e2 = 1
                 m.top.e3 = 2
                 instance = __Comp_builder()
                 instance.delete("top")
@@ -1240,6 +1238,7 @@ describe('MaestroPlugin', () => {
                         end class
                 end namespace
             `);
+            program.validate();
             await builder.transpile();
             expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
             let classFile = program.getFile<BrsFile>('source/myClass.bs');
@@ -1297,7 +1296,7 @@ describe('MaestroPlugin', () => {
             `);
         });
 
-        it('does not add __classname if in parent class', async () => {
+        it('adds __classname, in subclasses', async () => {
             plugin.afterProgramCreate(program);
             program.setFile('source/myClass.bs', `
                 class ClassA
@@ -1336,6 +1335,7 @@ describe('MaestroPlugin', () => {
                     instance.new = sub()
                         m.super0_new()
                         m.title2 = invalid
+                        m.__classname = "ClassB"
                     end sub
                     return instance
                 end function
@@ -1621,65 +1621,70 @@ describe('MaestroPlugin', () => {
                         end function
                    end class
                     class ChildVM extends VM
-                        function doStuff()
+                        override function doStuff()
                             m.setField("fieldA", "val1")
                             m.fieldA = "val1"
                             m.fieldB = {this:"val2"}
                             m.fieldC = {this:"val1"}
                             m.notKnown = true
-                            m.fieldA = something.getVAlues({this:"val1"}, "sdfd")
+                            something = {}
+                            m.fieldA = something.getValues({this:"val1"}, "key")
                         end function
                    end class
                 `);
+                program.validate();
                 await builder.transpile();
-                expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+
+                // expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
                 expect(
                     getContents('source/VM.brs')
                 ).to.eql(undent`
-                    function __VM_builder()
-                        instance = {}
-                        instance.new = sub()
-                            m.fieldA = invalid
-                            m.fieldB = invalid
-                            m.fieldC = invalid
-                            m.__classname = "VM"
-                        end sub
-                        instance.doStuff = function()
-                        end function
-                        return instance
-                    end function
-                    function VM()
-                        instance = __VM_builder()
-                        instance.new()
-                        return instance
-                    end function
-                    function __ChildVM_builder()
-                        instance = __VM_builder()
-                        instance.super0_new = instance.new
-                        instance.new = sub()
-                            m.super0_new()
-                        end sub
-                        instance.doStuff = function()
-                            m.setField("fieldA", "val1")
-                            m.setField("fieldA", "val1")
-                            m.setField("fieldB", {
-                                this: "val2"
-                            })
-                            m.fieldC = {
-                                this: "val1"
-                            }
-                            m.notKnown = true
-                            m.setField("fieldA", something.getVAlues({
-                                this: "val1"
-                            }, "sdfd"))
-                        end function
-                        return instance
-                    end function
-                    function ChildVM()
-                        instance = __ChildVM_builder()
-                        instance.new()
-                        return instance
-                    end function
+            function __VM_builder()
+                instance = {}
+                instance.new = sub()
+                    m.fieldA = invalid
+                    m.fieldB = invalid
+                    m.fieldC = invalid
+                    m.__classname = "VM"
+                end sub
+                instance.doStuff = function()
+                end function
+                return instance
+            end function
+            function VM()
+                instance = __VM_builder()
+                instance.new()
+                return instance
+            end function
+            function __ChildVM_builder()
+                instance = __VM_builder()
+                instance.super0_new = instance.new
+                instance.new = sub()
+                    m.super0_new()
+                end sub
+                instance.super0_doStuff = instance.doStuff
+                instance.doStuff = function()
+                    m.setField("fieldA", "val1")
+                    m.setField("fieldA", "val1")
+                    m.setField("fieldB", {
+                        this: "val2"
+                    })
+                    m.fieldC = {
+                        this: "val1"
+                    }
+                    m.notKnown = true
+                    something = {}
+                    m.setField("fieldA", something.getValues({
+                        this: "val1"
+                    }, "key"))
+                end function
+                return instance
+            end function
+            function ChildVM()
+                instance = __ChildVM_builder()
+                instance.new()
+                return instance
+            end function
                 `);
             });
         });
@@ -2523,11 +2528,16 @@ describe('MaestroPlugin', () => {
                 end function
             `);
             program.validate();
-            const diagnostics = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error).map(x => x.message);
-            expect(diagnostics).to.include('Cannot call function inside an as expression. Function called: "getValue"');
-            expect(diagnostics).to.include('Cannot call function inside an as expression. Function called: "getName"');
-            expect(diagnostics).to.include('Cannot call function inside an as expression. Function called: "getfavorites"');
-            expect(diagnostics).to.include('Cannot call function inside an as expression. Function called: "get"');
+            let d = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error && d.code !== 1001);
+            expect(d).to.have.lengthOf(4);
+            expect(d[0].code).to.equal('MSTO1058');
+            expect(d[0].message).to.equal('Cannot call function inside an as expression. Function called: "getValue"');
+            expect(d[1].code).to.equal('MSTO1058');
+            expect(d[1].message).to.equal('Cannot call function inside an as expression. Function called: "getName"');
+            expect(d[2].code).to.equal('MSTO1058');
+            expect(d[2].message).to.equal('Cannot call function inside an as expression. Function called: "getfavorites"');
+            expect(d[3].code).to.equal('MSTO1058');
+            expect(d[3].message).to.equal('Cannot call function inside an as expression. Function called: "get"');
         });
 
         it('fails validations if a callfunc invocation is present in an as call', () => {
@@ -2542,11 +2552,16 @@ describe('MaestroPlugin', () => {
                 end function
             `);
             program.validate();
-            const diagnostics = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error).map(x => x.message);
-            expect(diagnostics).to.include('Cannot call function inside an as expression. Function called: "getValue"');
-            expect(diagnostics).to.include('Cannot call function inside an as expression. Function called: "getName"');
-            expect(diagnostics).to.include('Cannot call function inside an as expression. Function called: "getfavorites"');
-            expect(diagnostics).to.include('Cannot call function inside an as expression. Function called: "get"');
+            let d = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error && d.code !== 1001);
+            expect(d).to.have.lengthOf(4);
+            expect(d[0].code).to.equal('MSTO1058');
+            expect(d[0].message).to.equal('Cannot call function inside an as expression. Function called: "getValue"');
+            expect(d[1].code).to.equal('MSTO1058');
+            expect(d[1].message).to.equal('Cannot call function inside an as expression. Function called: "getName"');
+            expect(d[2].code).to.equal('MSTO1058');
+            expect(d[2].message).to.equal('Cannot call function inside an as expression. Function called: "getfavorites"');
+            expect(d[3].code).to.equal('MSTO1058');
+            expect(d[3].message).to.equal('Cannot call function inside an as expression. Function called: "get"');
         });
 
         it('converts as calls in namespace functions', async () => {
@@ -2776,14 +2791,14 @@ describe('MaestroPlugin', () => {
                 end class
             `);
             program.validate();
-            expectDiagnosticsIncludes(program, [
-                observeRequiresFirstArgumentIsNotM(),
-                observeRequiresFirstArgumentIsField(),
-                observeRequiresFirstArgumentIsField(),
-                observeRequiresFirstArgumentIsField(),
-                observeRequiresFirstArgumentIsField(),
-                observeRequiresFirstArgumentIsField()
-            ]);
+            let d = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error && d.code !== 'MSTO1040' && d.code !== 1001);
+            expect(d).to.have.lengthOf(6);
+            expect(d[0].code).to.equal('MSTO1061');
+            expect(d[1].code).to.equal('MSTO1059');
+            expect(d[2].code).to.equal('MSTO1059');
+            expect(d[3].code).to.equal('MSTO1059');
+            expect(d[4].code).to.equal('MSTO1059');
+            expect(d[5].code).to.equal('MSTO1059');
         });
 
         it('gives diagnostics when observe function does not exist', () => {

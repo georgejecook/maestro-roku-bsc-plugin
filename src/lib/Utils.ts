@@ -1,4 +1,4 @@
-import type { BrsFile, ClassMethodStatement, ClassStatement, DottedGetExpression, Expression, FunctionStatement, LiteralExpression, Statement } from 'brighterscript';
+import type { BrsFile, ClassMethodStatement, ClassStatement, DottedGetExpression, Editor, Expression, FunctionStatement, LiteralExpression, Statement } from 'brighterscript';
 import { Range, createVariableExpression, isDottedGetExpression, isVariableExpression, BinaryExpression, Block, createStringLiteral, createToken, IfStatement, ImportStatement, isAALiteralExpression, isArrayLiteralExpression, isClassMethodStatement, isClassStatement, isCommentStatement, isImportStatement, isIntegerType, isLiteralBoolean, isLiteralNumber, isLiteralString, isLongIntegerType, isUnaryExpression, Lexer, ParseMode, Parser, Position, TokenKind } from 'brighterscript';
 import * as rokuDeploy from 'roku-deploy';
 import { createRange } from './utils/Utils';
@@ -251,7 +251,8 @@ export function createImportStatement(pkgPath: string, range: Range) {
     return new ImportStatement(importToken, filePathToken);
 }
 
-export function addImport(file: BrsFile, pkgPath: string) {
+export function addImport(file: BrsFile, pkgPath: string, astEditor: Editor) {
+    //TODO - not sure how to do this; ask Bron
     let existingImports = file.parser.ast.statements.find((el) => isImportStatement(el) && el.filePath === pkgPath);
     if (!existingImports) {
         let importStatement = createImportStatement(pkgPath, createRange(Position.create(1, 1)));

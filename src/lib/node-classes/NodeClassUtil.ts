@@ -18,11 +18,11 @@ export default class NodeClassUtil {
     }
 
     public addFile(file: BrsFile, mFile: File) {
-        for (let nodeClass of this.fileMap.nodeClassesByPath[file.pathAbsolute] || []) {
+        for (let nodeClass of this.fileMap.nodeClassesByPath[file.srcPath] || []) {
             delete this.fileMap.nodeClasses[nodeClass.name];
             delete mFile.nodeClasses[nodeClass.name];
         }
-        delete this.fileMap.nodeClassesByPath[file.pathAbsolute];
+        delete this.fileMap.nodeClassesByPath[file.srcPath];
 
         for (let cs of file.parser.references.classStatements) {
             let annotation = cs.annotations?.find((a) => a.name.toLowerCase() === 'task' || a.name.toLowerCase() === 'node');
@@ -62,12 +62,12 @@ export default class NodeClassUtil {
                         //is valid
                         let nodeClass = new NodeClass(nodeType, file, cs, nodeName, extendsName, annotation, this.fileMap, lazyAnnotation !== undefined, waitInitAnnotation !== undefined);
                         this.fileMap.nodeClasses[nodeClass.generatedNodeName] = nodeClass;
-                        let nodeClasses = this.fileMap.nodeClassesByPath[file.pathAbsolute];
+                        let nodeClasses = this.fileMap.nodeClassesByPath[file.srcPath];
                         if (!nodeClasses) {
                             nodeClasses = [];
-                            this.fileMap.nodeClassesByPath[file.pathAbsolute] = nodeClasses;
+                            this.fileMap.nodeClassesByPath[file.srcPath] = nodeClasses;
                         }
-                        mFile.nodeClasses.set(file.pathAbsolute, nodeClass);
+                        mFile.nodeClasses.set(file.srcPath, nodeClass);
                         nodeClasses.push(nodeClass);
                         // eslint-disable-next-line @typescript-eslint/dot-notation
                         cs['_isNodeClass'] = true;

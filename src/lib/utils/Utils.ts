@@ -75,7 +75,7 @@ export function getAlternateFileNames(fileName: string): string[] {
 }
 
 export function getAssociatedFile(file: BrsFile | XmlFile, fileMap: ProjectFileMap): File | undefined {
-    for (let filePath of getAlternateFileNames(file.pathAbsolute)) {
+    for (let filePath of getAlternateFileNames(file.srcPath)) {
         let mFile = fileMap.allFiles[filePath];
         if (mFile) {
             return mFile;

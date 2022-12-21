@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/indent */
 import type { AnnotationExpression, BrsFile, ClassFieldStatement, ClassMethodStatement, ClassStatement, EnumMemberStatement, FieldStatement, FunctionParameterExpression, Program, XmlFile } from 'brighterscript';
 import { isEnumMemberStatement, isDottedGetExpression, isEnumStatement, isNewExpression, TokenKind, isClassMethodStatement, ParseMode, createVisitor, isVariableExpression, WalkMode, isAALiteralExpression, isArrayLiteralExpression, isIntegerType, isLiteralExpression, isLiteralNumber, isLongIntegerType, isUnaryExpression } from 'brighterscript';
 import type { ProjectFileMap } from '../files/ProjectFileMap';
@@ -153,6 +154,7 @@ export class NodeClass {
     }
 
     getDebounceFunction(isLazy) {
+        // eslint-disable-next-line @typescript-eslint/indent
         return `
     function addCallback(funcName)
 

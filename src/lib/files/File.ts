@@ -55,7 +55,7 @@ export class File {
     }
 
     get fileType(): FileType {
-        switch (path.extname(this.bscFile.pathAbsolute).toLowerCase()) {
+        switch (path.extname(this.bscFile.srcPath).toLowerCase()) {
             case '.brs':
                 return FileType.Brs;
             case '.xml':
@@ -74,7 +74,7 @@ export class File {
     public isASTChanged = false;
 
     public get fullPath() {
-        return this.bscFile.pathAbsolute;
+        return this.bscFile.srcPath;
     }
 
     public getAllParentBindings(bindings: Binding[] = null): Binding[] {
@@ -84,7 +84,7 @@ export class File {
             bindings = bindings.concat(this.bindings);
         }
         if (this.parentXmlFile) {
-            let parentFile = this.fileMap.allFiles[this.parentXmlFile.pathAbsolute];
+            let parentFile = this.fileMap.allFiles[this.parentXmlFile.srcPath];
             return parentFile?.getAllParentBindings(bindings);
         } else {
             return bindings;
@@ -98,7 +98,7 @@ export class File {
             addSetItems(ids, this.tagIds);
         }
         if (this.parentXmlFile) {
-            let parentFile = this.fileMap.allFiles[this.parentXmlFile.pathAbsolute];
+            let parentFile = this.fileMap.allFiles[this.parentXmlFile.srcPath];
             return parentFile?.getAllParentTagIds(ids);
         } else {
             return ids;
@@ -112,7 +112,7 @@ export class File {
             addSetItems(ids, this.fieldIds);
         }
         if (this.parentXmlFile) {
-            let parentFile = this.fileMap.allFiles[this.parentXmlFile.pathAbsolute];
+            let parentFile = this.fileMap.allFiles[this.parentXmlFile.srcPath];
             return parentFile?.getAllParentFieldIds(ids);
         } else {
             return ids;
