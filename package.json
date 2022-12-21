@@ -43,6 +43,9 @@
         "ts-node": "^10.4.0",
         "typescript": "^4.1.3"
     },
+    "optionalDependencies": {
+        "fsevents": "*"
+    },
     "preferGlobal": true,
     "keywords": [
         "brightscript",
@@ -83,7 +86,7 @@
         ],
         "sourceMap": true,
         "instrument": true,
-        "check-coverage": false,
+        "check-coverage": true,
         "lines": 5,
         "statements": 5,
         "functions": 5,
