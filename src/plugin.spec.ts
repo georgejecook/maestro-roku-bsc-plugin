@@ -43,19 +43,6 @@ describe('MaestroPlugin', () => {
         builder.program = builder['createProgram']();
         program = builder.program;
         program.createSourceScope(); //ensure source scope is created
-        plugin.maestroConfig = {
-            extraValidation: {
-                doExtraValidation: true
-            },
-            addFrameworkFiles: false,
-            mvvm: {},
-            processXMLFiles: true,
-            nodeClasses: {},
-            buildTimeImports: {
-                'IAuthProvider': ['pkg:/source/AuthManager.bs']
-            }
-        };
-        plugin.afterProgramCreate(program);
         program.setFile('manifest', ``);
     });
 
@@ -446,7 +433,6 @@ describe('MaestroPlugin', () => {
                 </component>
             `);
             program.validate();
-            //TODO why is this failing? What changed in the most recent brighterscript??
             expectZeroDiagnostics(program);
             await builder.transpile();
             expectZeroDiagnostics(program);

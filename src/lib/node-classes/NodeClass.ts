@@ -348,7 +348,7 @@ export class NodeClass {
         if (!isIDEBuild) {
             //update node fields, in case of them being present in base classes
             this.nodeFields = this.getNodeFields(this.file, this.classStatement, fileMap);
-            let source = `import "${sanitizePkgPath(this.file.pkgPath)}"\n`;
+            let source = `import "${sanitizePkgPath((this.file as any).destPath ?? this.file.pkgPath)}"\n`;
 
             let initBody = ``;
             let otherFunctionsText = ``;
