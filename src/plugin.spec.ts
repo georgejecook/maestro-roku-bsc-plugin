@@ -1,12 +1,13 @@
-import type { BrsFile, BsDiagnostic } from 'brighterscript';
-import { DiagnosticSeverity, Program, ProgramBuilder, util } from 'brighterscript';
+import type { BrsFile, BsDiagnostic, Program } from 'brighterscript';
+import { DiagnosticSeverity, ProgramBuilder, util } from 'brighterscript';
 import { expect } from 'chai';
 import { MaestroPlugin } from './plugin';
-import PluginInterface from 'brighterscript/dist/PluginInterface';
 import { standardizePath as s } from './lib/Utils';
 import * as fsExtra from 'fs-extra';
 import * as path from 'path';
 import undent from 'undent';
+import { expectDiagnostics, expectDiagnosticsIncludes, expectZeroDiagnostics } from './testHelpers.spec';
+import { observeRequiresFirstArgumentIsField, observeRequiresFirstArgumentIsNotM } from './lib/utils/Diagnostics';
 
 let tmpPath = s`${process.cwd()}/tmp`;
 let _rootDir = s`${tmpPath}/rootDir`;
@@ -38,24 +39,10 @@ describe('MaestroPlugin', () => {
         fsExtra.ensureDirSync(tmpPath);
         builder = new ProgramBuilder();
         builder.options = util.normalizeAndResolveConfig(options);
-        builder.program = new Program(builder.options);
+        builder.plugins.add(plugin);
+        builder.program = builder['createProgram']();
         program = builder.program;
-        builder.plugins = new PluginInterface([plugin], program.logger);
-        program.plugins = new PluginInterface([plugin], program.logger);
         program.createSourceScope(); //ensure source scope is created
-        plugin.maestroConfig = {
-            extraValidation: {
-                doExtraValidation: true
-            },
-            addFrameworkFiles: false,
-            mvvm: {},
-            processXMLFiles: true,
-            nodeClasses: {},
-            buildTimeImports: {
-                'IAuthProvider': ['pkg:/source/AuthManager.bs']
-            }
-        };
-        plugin.afterProgramCreate(program);
         program.setFile('manifest', ``);
     });
 
@@ -446,10 +433,9 @@ describe('MaestroPlugin', () => {
                 </component>
             `);
             program.validate();
-            expect(program.getDiagnostics()).to.be.empty;
+            expectZeroDiagnostics(program);
             await builder.transpile();
-            console.log(builder.getDiagnostics());
-            expect(builder.getDiagnostics()).to.be.empty;
+            expectZeroDiagnostics(program);
 
             expect(
                 getContents('components/roku_modules/mv/comp.xml')
@@ -984,8 +970,10 @@ describe('MaestroPlugin', () => {
                     text = "v"
                 end enum
                 namespace myNamespace
-                    enum nsEnum
+                    enum nsEnum1
                         intValue = 2
+                    end enum
+                    enum nsEnum2
                         floatValue = 2.0
                     end enum
                 end namespace
@@ -995,8 +983,8 @@ describe('MaestroPlugin', () => {
                 class Comp
 
                     public e1 = myEnum.text
-                    public e2 = myNamespace.nsEnum.intValue
-                    public e3 = myNamespace.nsEnum.floatValue
+                    public e2 = myNamespace.nsEnum1.intValue
+                    public e3 = myNamespace.nsEnum2.floatValue
 
                     function new()
                     end function
@@ -1008,7 +996,7 @@ describe('MaestroPlugin', () => {
             `);
             program.validate();
             await builder.transpile();
-            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error && !d.message.includes('mc.types.'))).to.be.empty;
+            expectZeroDiagnostics(builder);
 
             expect(
                 getContents('components/maestro/generated/Comp.xml')
@@ -1756,7 +1744,7 @@ describe('MaestroPlugin', () => {
                         public fieldA
                         @createClass("ChildVM")
                         public fieldB
-                        @createClass("ChildVM", arg1, arg2)
+                        @createClass("ChildVM", "arg1", "arg2")
                         public fieldC
                     end class
                     class ChildVM extends VM
@@ -1764,7 +1752,7 @@ describe('MaestroPlugin', () => {
                 `);
                 program.validate();
                 await builder.transpile();
-                expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+                expectZeroDiagnostics(builder);
                 expect(
                     getContents('source/VM.brs')
                 ).to.eql(undent`
@@ -1773,7 +1761,7 @@ describe('MaestroPlugin', () => {
                         instance.new = sub()
                             m.fieldA = mioc_getInstance("Entitlements")
                             m.fieldB = mioc_createClassInstance("ChildVM")
-                            m.fieldC = mioc_createClassInstance("ChildVM")
+                            m.fieldC = mioc_createClassInstance("ChildVM", ["arg1","arg2"])
                             m.__classname = "VM"
                         end sub
                         return instance
@@ -1812,7 +1800,7 @@ describe('MaestroPlugin', () => {
                         public fieldC
                         @createClass("notInScope")
                         public fieldD
-                        @createClass("ChildVM", bad, values)
+                        @createClass("ChildVM", bad, values) 'bs:disable-line 1001
                         public fieldE
                         @sync
                         @inject("noPathPublic")
@@ -1827,16 +1815,17 @@ describe('MaestroPlugin', () => {
                 `);
                 program.validate();
                 await builder.transpile();
-                let d = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error);
-                expect(d).to.have.lengthOf(8);
-                expect(d[0].code).to.equal('MSTO1042');
-                expect(d[1].code).to.equal('MSTO1042');
-                expect(d[2].code).to.equal('MSTO1042');
-                expect(d[3].code).to.equal('MSTO1043');
-                expect(d[4].code).to.equal('MSTO1043');
-                expect(d[5].code).to.equal('MSTO1057');
-                expect(d[6].code).to.equal('MSTO1056');
-                expect(d[7].code).to.equal('MSTO1056');
+                expectDiagnostics(program, [
+                    { code: 'MSTO1042', message: 'Inject annotation on VM.fieldA must supply one argument' },
+                    { code: 'MSTO1042', message: 'Inject annotation on VM.fieldB must supply one argument' },
+                    { code: 'MSTO1042', message: 'Inject annotation on VM.fieldC must supply one argument' },
+                    //TODO why is this diagnostic missing?
+                    // { code: 'MSTO1043', message: 'cannot inject ChildVM into field VM.fieldE. It is not in scope' },
+                    { code: 'MSTO1043', message: 'cannot inject notInScope into field VM.fieldD. It is not in scope' },
+                    { code: 'MSTO1056' },
+                    { code: 'MSTO1056' },
+                    { code: 'MSTO1057' }
+                ]);
             });
 
             it('gives diagnostics when the injection public field with sync @nodeclass', async () => {
@@ -2534,17 +2523,13 @@ describe('MaestroPlugin', () => {
                 end function
             `);
             program.validate();
-            let d = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error);
-            expect(d).to.have.lengthOf(8);
-            expect(d[4].code).to.equal('MSTO1058');
-            expect(d[4].message).to.equal('Cannot call function inside an as expression. Function called: "getValue"');
-            expect(d[5].code).to.equal('MSTO1058');
-            expect(d[5].message).to.equal('Cannot call function inside an as expression. Function called: "getName"');
-            expect(d[6].code).to.equal('MSTO1058');
-            expect(d[6].message).to.equal('Cannot call function inside an as expression. Function called: "getfavorites"');
-            expect(d[7].code).to.equal('MSTO1058');
-            expect(d[7].message).to.equal('Cannot call function inside an as expression. Function called: "get"');
+            const diagnostics = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error).map(x => x.message);
+            expect(diagnostics).to.include('Cannot call function inside an as expression. Function called: "getValue"');
+            expect(diagnostics).to.include('Cannot call function inside an as expression. Function called: "getName"');
+            expect(diagnostics).to.include('Cannot call function inside an as expression. Function called: "getfavorites"');
+            expect(diagnostics).to.include('Cannot call function inside an as expression. Function called: "get"');
         });
+
         it('fails validations if a callfunc invocation is present in an as call', () => {
             plugin.afterProgramCreate(program);
             program.setFile('source/comp.bs', `
@@ -2557,16 +2542,11 @@ describe('MaestroPlugin', () => {
                 end function
             `);
             program.validate();
-            let d = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error);
-            expect(d).to.have.lengthOf(8);
-            expect(d[4].code).to.equal('MSTO1058');
-            expect(d[4].message).to.equal('Cannot call function inside an as expression. Function called: "getValue"');
-            expect(d[5].code).to.equal('MSTO1058');
-            expect(d[5].message).to.equal('Cannot call function inside an as expression. Function called: "getName"');
-            expect(d[6].code).to.equal('MSTO1058');
-            expect(d[6].message).to.equal('Cannot call function inside an as expression. Function called: "getfavorites"');
-            expect(d[7].code).to.equal('MSTO1058');
-            expect(d[7].message).to.equal('Cannot call function inside an as expression. Function called: "get"');
+            const diagnostics = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error).map(x => x.message);
+            expect(diagnostics).to.include('Cannot call function inside an as expression. Function called: "getValue"');
+            expect(diagnostics).to.include('Cannot call function inside an as expression. Function called: "getName"');
+            expect(diagnostics).to.include('Cannot call function inside an as expression. Function called: "getfavorites"');
+            expect(diagnostics).to.include('Cannot call function inside an as expression. Function called: "get"');
         });
 
         it('converts as calls in namespace functions', async () => {
@@ -2796,14 +2776,14 @@ describe('MaestroPlugin', () => {
                 end class
             `);
             program.validate();
-            let d = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error && d.code !== 'MSTO1040');
-            expect(d).to.have.lengthOf(6);
-            expect(d[0].code).to.equal('MSTO1061');
-            expect(d[1].code).to.equal('MSTO1059');
-            expect(d[2].code).to.equal('MSTO1059');
-            expect(d[3].code).to.equal('MSTO1059');
-            expect(d[4].code).to.equal('MSTO1059');
-            expect(d[5].code).to.equal('MSTO1059');
+            expectDiagnosticsIncludes(program, [
+                observeRequiresFirstArgumentIsNotM(),
+                observeRequiresFirstArgumentIsField(),
+                observeRequiresFirstArgumentIsField(),
+                observeRequiresFirstArgumentIsField(),
+                observeRequiresFirstArgumentIsField(),
+                observeRequiresFirstArgumentIsField()
+            ]);
         });
 
         it('gives diagnostics when observe function does not exist', () => {

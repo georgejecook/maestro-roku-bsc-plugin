@@ -51,7 +51,7 @@ describe('File', () => {
     describe.skip('reset diagnostics', () => {
         it('only resets maestro diagnostics', () => {
             const file = new File(makeBrsFile('/fsPath/test.json'), projectFileMap);
-            file.bscFile['diagnostics'] = [{ code: 'MSTO100' }, { code: '1004' }];
+            file.bscFile['diagnostics'] = [{ code: 'MSTO100' }, { code: '1004' }] as any;
             file.resetDiagnostics();
             expect(file.bscFile['diagnostics']).to.have.lengthOf(1);
             expect(file.bscFile['diagnostics'][0].code).to.equal('1004');
@@ -59,7 +59,7 @@ describe('File', () => {
         });
         it('only resets maestro diagnostics, and does not crash on number codes', () => {
             const file = new File(makeBrsFile('/fsPath/test.json'), projectFileMap);
-            file.bscFile['diagnostics'] = [{ code: 'MSTO100' }, { code: 1004 }];
+            file.bscFile['diagnostics'] = [{ code: 'MSTO100' }, { code: 1004 }] as any;
             file.resetDiagnostics();
             expect(file.bscFile['diagnostics']).to.have.lengthOf(1);
             expect((file.bscFile['diagnostics'][0].code)).to.equal(1004);
