@@ -94,6 +94,7 @@ export class MaestroPlugin implements CompilerPlugin {
     private mFilesToValidate = new Map<string, BrsFile>();
     private dirtyCompFilePaths = new Set<string>();
     private dirtyNodeClassPaths = new Set<string>();
+    private filesThatNeedAddingBeforeProgramValidate = new Map<string, File>();
     private filesThatNeedParsingInBeforeProgramValidate = new Map<string, File>();
 
     private skips = {
@@ -184,6 +185,7 @@ export class MaestroPlugin implements CompilerPlugin {
         if (isBrsFile(file)) {
             this.importProcessor.processDynamicImports(file, this.program);
             // this.reflectionUtil.addFile(file);
+            this.filesThatNeedAddingBeforeProgramValidate.set(mFile.fullPath, mFile);
             if (this.shouldParseFile(file)) {
                 this.filesThatNeedParsingInBeforeProgramValidate.set(mFile.fullPath, mFile);
             }
@@ -194,9 +196,13 @@ export class MaestroPlugin implements CompilerPlugin {
     }
 
     ncValidation(program: Program) {
-        for (let [, mFile] of this.filesThatNeedParsingInBeforeProgramValidate) {
+        for (let [, mFile] of this.filesThatNeedAddingBeforeProgramValidate) {
             let file = mFile.bscFile as BrsFile;
             this.reflectionUtil.addFile(file);
+        }
+        this.filesThatNeedAddingBeforeProgramValidate.clear();
+        for (let [, mFile] of this.filesThatNeedParsingInBeforeProgramValidate) {
+            let file = mFile.bscFile as BrsFile;
             this.nodeClassUtil.addFile(file, mFile);
             for (let nc of [...mFile.nodeClasses.values()]) {
                 nc.generateCode(this.fileFactory, this.program, this.fileMap, this.maestroConfig.nodeClasses.buildForIDE);
@@ -643,11 +649,11 @@ export class MaestroPlugin implements CompilerPlugin {
                     if (mFile.isValid) {
                         //it's a binding file
                         this.bindingProcessor.generateCodeForXMLFile(mFile, program, editor, entry);
-                        // console.log('generating code for bindings ', entry.file.pkgPath);
+                        console.log('generating code for bindings ', entry.file.pkgPath);
                         //it's a binding file
                     } else if (mFile.bindings.length === 0 && this.shouldParseFile(entry.file)) {
                         //check if we should add bindings to this anyhow)
-                        // console.log('getting ids for regular xml file ', entry.file.pkgPath);
+                        console.log('getting ids for regular xml file ', entry.file.pkgPath);
                         this.bindingProcessor.addNodeVarsMethodForRegularXMLFile(mFile, editor);
                         //check if we should add bindings to this anyhow)
                     } else {
