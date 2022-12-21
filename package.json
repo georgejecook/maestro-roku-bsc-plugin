@@ -83,7 +83,7 @@
         ],
         "sourceMap": true,
         "instrument": true,
-        "check-coverage": true,
+        "check-coverage": false,
         "lines": 5,
         "statements": 5,
         "functions": 5,
