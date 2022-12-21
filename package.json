@@ -26,7 +26,7 @@
         "@typescript-eslint/eslint-plugin": "^4.4.1",
         "@typescript-eslint/parser": "^4.4.1",
         "auto-changelog": "^2.2.1",
-        "brighterscript": "^0.52.3",
+        "brighterscript": "^0.61.2",
         "chai": "^4.2.0",
         "eslint": "^7.32.0",
         "eslint-plugin-github": "4.3.0",
@@ -39,6 +39,7 @@
         "rimraf": "^3.0.2",
         "sax": "^1.2.4",
         "source-map-support": "^0.5.21",
+        "thenby": "^1.3.4",
         "ts-node": "^10.4.0",
         "typescript": "^4.1.3"
     },
