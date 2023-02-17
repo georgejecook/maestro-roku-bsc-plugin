@@ -44,8 +44,7 @@ import type {
     MethodStatement,
     BeforeFileTranspileEvent,
     Expression,
-    Editor
-    ,
+    Editor,
     AstEditor
 } from 'brighterscript';
 import { ProjectFileMap } from './lib/files/ProjectFileMap';
@@ -58,11 +57,13 @@ import ImportProcessor from './lib/importSupport/ImportProcessor';
 import ReflectionUtil from './lib/reflection/ReflectionUtil';
 import { FileFactory } from './lib/utils/FileFactory';
 import NodeClassUtil from './lib/node-classes/NodeClassUtil';
-import { RawCodeStatement } from './lib/utils/RawCodeStatement';
+import { RawCodeStatement, RawCodeExpression } from './lib/utils/RawCodeStatement';
 import { addClassFieldsNotFoundOnSetOrGet, addIOCNoTypeSupplied, addIOCWrongArgs, noCallsInAsXXXAllowed, functionNotImported, IOCClassNotInScope, namespaceNotImported, noPathForInject, noPathForIOCSync, unknownClassMethod, unknownConstructorMethod, unknownSuperClass, unknownType, wrongConstructorArgs, wrongMethodArgs, observeRequiresFirstArgumentIsField, observeRequiresFirstArgumentIsNotM, observeFunctionNameNotFound, observeFunctionNameWrongArgs } from './lib/utils/Diagnostics';
 import { getAllAnnotations, getAllFields } from './lib/utils/Utils';
 import { getSGMembersLookup } from './SGApi';
 import { DynamicType } from 'brighterscript/dist/types/DynamicType';
+import { BrsTranspileState } from 'brighterscript/dist/parser/BrsTranspileState';
+import { typeToValueString } from './lib/Utils';
 
 interface FunctionInfo {
     minArgs: number;
@@ -249,6 +250,7 @@ export class MaestroPlugin implements CompilerPlugin {
     }
 
     private validateAsXXXCalls(file: BrsFile) {
+        let state = new BrsTranspileState(file);
         if (this.maestroConfig.updateAsFunctionCalls && this.shouldDoExtraValidationsOnFile(file)) {
             for (let functionScope of file.functionScopes) {
                 // event.file.functionCalls
@@ -259,7 +261,7 @@ export class MaestroPlugin implements CompilerPlugin {
                         if (regex.test(name)) {
                             try {
                                 let value = callExpression.args[0] as DottedGetExpression;
-                                this.getStringPathFromDottedGet(value);
+                                this.getRawTextFromDottedGet(value, state);
                                 this.getRootValue(value);
                             } catch (error) {
                                 if (error.message === 'unsupportedValue') {
@@ -462,6 +464,8 @@ export class MaestroPlugin implements CompilerPlugin {
     }
 
     private updateAsFunctionCalls(file: BrsFile) {
+        let state = new BrsTranspileState(file);
+
         if (this.maestroConfig.updateAsFunctionCalls) {
             for (let functionScope of file.functionScopes) {
 
@@ -473,11 +477,12 @@ export class MaestroPlugin implements CompilerPlugin {
                         if (regex.test(name)) {
                             try {
                                 let value = callExpression.args.shift() as DottedGetExpression;
-                                let stringPath = this.getStringPathFromDottedGet(value);
+                                let stringPath = this.getRawTextFromDottedGet(value, state);
                                 name = `mc_get${name.match(regex)[1]}`;
                                 callExpression.callee.name.text = name;
                                 if (stringPath) {
-                                    callExpression.args.unshift(stringPath);
+                                    let rawCode = new RawCodeExpression(`"${stringPath}"`, file, value.range);
+                                    callExpression.args.unshift(rawCode);
                                 } else {
                                     callExpression.args.unshift(createInvalidLiteral());
                                 }
@@ -584,8 +589,9 @@ export class MaestroPlugin implements CompilerPlugin {
 
         return root;
     }
-    private getStringPathFromDottedGet(value: DottedGetExpression) {
-        let parts = [this.getPathValuePartAsString(value)];
+
+    private getRawTextFromDottedGet(value: DottedGetExpression, state: BrsTranspileState) {
+        let parts = [this.getPathValuePartAsString(value, state)];
         let root;
         root = value.obj;
         while (root) {
@@ -593,12 +599,12 @@ export class MaestroPlugin implements CompilerPlugin {
                 throw this.getWrongAsXXXFunctionPartError(root);
             }
             if (root.obj) {
-                parts.push(`${this.getPathValuePartAsString(root)}`);
+                parts.push(`${this.getPathValuePartAsString(root, state)}`);
             }
             root = root.obj;
         }
         let joinedParts = parts.reverse().join('.');
-        return joinedParts === '' ? undefined : createStringLiteral(joinedParts);
+        return joinedParts === '' ? undefined : joinedParts;
     }
 
     private getWrongAsXXXFunctionPartError(expr: Expression) {
@@ -619,7 +625,7 @@ export class MaestroPlugin implements CompilerPlugin {
         }
         return error;
     }
-    private getPathValuePartAsString(expr: Expression) {
+    private getPathValuePartAsString(expr: Expression, state: BrsTranspileState) {
         if (isCallExpression(expr) || isCallfuncExpression(expr)) {
             throw this.getWrongAsXXXFunctionPartError(expr);
         }
@@ -631,8 +637,11 @@ export class MaestroPlugin implements CompilerPlugin {
         } else if (isIndexedGetExpression(expr)) {
             if (isLiteralExpression(expr.index)) {
                 return `${expr.index.token.text.replace(/^"/, '').replace(/"$/, '')}`;
-            } else if (isVariableExpression(expr.index)) {
-                return `${expr.index.name.text}`;
+                // } else if (isVariableExpression(expr.index)) {
+                // return expr.index.name.text;
+            } else {
+                return `" + bslib_toString(${expr.index.transpile(state).join('')}) + "`;
+                // return `\${m.text}}`;
             }
         }
     }
@@ -725,7 +734,7 @@ export class MaestroPlugin implements CompilerPlugin {
                         let lowerName = ds.name.text.toLowerCase();
                         if (!fieldMap.has(lowerName) && !this.skips[lowerName]) {
                             if (lowerName !== 'top' && lowerName !== 'global') {
-                                addClassFieldsNotFoundOnSetOrGet(file, `${ds.obj.name.text}.${ds.name.text}`, cs.name.text, ds.range);
+                                addClassFieldsNotFoundOnSetOrGet(file, `${ds.obj.name.text}.${ds.name.text} `, cs.name.text, ds.range);
                             }
                         }
                     }
@@ -737,7 +746,7 @@ export class MaestroPlugin implements CompilerPlugin {
                         if (!fieldMap.has(lowerName) && !funcMap[lowerName] && !this.skips[lowerName]) {
                             if (lowerName !== 'top' && lowerName !== 'global') {
                                 // if (!isNodeClass && (lowerName !== 'top' && lowerName !== 'global')) {
-                                addClassFieldsNotFoundOnSetOrGet(file, `${ds.obj.name.text}.${ds.name.text}`, cs.name.text, ds.range);
+                                addClassFieldsNotFoundOnSetOrGet(file, `${ds.obj.name.text}.${ds.name.text} `, cs.name.text, ds.range);
                             }
                         }
                     }
@@ -775,20 +784,20 @@ export class MaestroPlugin implements CompilerPlugin {
                         addIOCWrongArgs(file, `${f.name.text}`, cs.name.text, f.range);
                     } else if (annotation.name === 'inject') {
                         if (args.length === 0 || args.length > 2) {
-                            addIOCNoTypeSupplied(file, `${f.name.text}`, cs.name.text, f.range);
+                            addIOCNoTypeSupplied(file, `${f.name.text} `, cs.name.text, f.range);
                         }
                     } else if (annotation.name === 'injectClass') {
                         if (args.length !== 1) {
-                            addIOCWrongArgs(file, `${f.name.text}`, cs.name.text, f.range);
+                            addIOCWrongArgs(file, `${f.name.text} `, cs.name.text, f.range);
                         } else {
                             let targetClass = classMap.get(args[0].toString().toLowerCase());
                             if (!targetClass) {
-                                IOCClassNotInScope(file, args[0].toString(), `${f.name.text}`, cs.name.text, f.range);
+                                IOCClassNotInScope(file, args[0].toString(), `${f.name.text} `, cs.name.text, f.range);
                             }
                         }
                     } else if (annotation.name === 'createClass') {
                         if (args.length < 1) {
-                            addIOCWrongArgs(file, `${cs.name.text}.${f.name.text}`, cs.name.text, f.range);
+                            addIOCWrongArgs(file, `${cs.name.text}.${f.name.text} `, cs.name.text, f.range);
                         } else {
                             let targetClass = classMap.get(args[0].toString().toLowerCase());
                             if (!targetClass) {
@@ -807,6 +816,8 @@ export class MaestroPlugin implements CompilerPlugin {
 
         // eslint-disable-next-line @typescript-eslint/dot-notation
         let isNodeClass = cs['_isNodeClass'] === true;
+
+        let state = new BrsTranspileState(file);
 
         for (let field of cs.fields) {
             let annotation = (field.annotations || []).find((a) => a.name.toLowerCase() === 'inject' || a.name.toLowerCase() === 'injectclass' || a.name.toLowerCase() === 'createclass');
@@ -862,6 +873,20 @@ export class MaestroPlugin implements CompilerPlugin {
                         }
                     }
 
+                    let defaultValue;
+                    try {
+                        if (field?.initialValue) {
+                            defaultValue = field?.initialValue?.transpile(state) ?? 'invalid';
+                        } else if (field.as) {
+                            defaultValue = typeToValueString(field.type);
+                        }
+                    } catch (error) {
+                        console.error(error);
+                    }
+                    if (!defaultValue) {
+                        defaultValue = 'invalid';
+                    }
+
                     if (isNodeClass && (field.accessModifier?.kind === TokenKind.Public)) {
                         if (syncAnnotation) {
                             file.addDiagnostics([{
@@ -872,9 +897,9 @@ export class MaestroPlugin implements CompilerPlugin {
                             continue;
                         }
                         if (args.length === 1) {
-                            astEditor.setProperty(field, 'initialValue', new RawCodeStatement(`__m_setTopField("${field.name.text}", mioc_getInstance("${iocKey}"))`, file, field.range));
+                            astEditor.setProperty(field, 'initialValue', new RawCodeStatement(`__m_setTopField("${field.name.text}", mioc_getInstance("${iocKey}", invalid, ${defaultValue}))`, file, field.range));
                         } else if (args.length === 2) {
-                            astEditor.setProperty(field, 'initialValue', new RawCodeStatement(`__m_setTopField("${field.name.text}", mioc_getInstance("${iocKey}", "${iocPath}"))`, file, field.range));
+                            astEditor.setProperty(field, 'initialValue', new RawCodeStatement(`__m_setTopField("${field.name.text}", mioc_getInstance("${iocKey}", "${iocPath}", ${defaultValue}))`, file, field.range));
                         }
                     } else {
                         //check for observer field in here..
@@ -884,7 +909,7 @@ export class MaestroPlugin implements CompilerPlugin {
                             let funcName = 'invalid';
                             if (observerAnnotation) {
                                 let observerArgs = observerAnnotation?.getArguments() ?? [];
-                                funcName = `m.${(observerArgs[0] as string).toLowerCase()}`;
+                                funcName = `m.${(observerArgs[0] as string).toLowerCase()} `;
                                 //TODO add validation
                                 // let observerFunc = members.get((observerArgs[0] as string).toLowerCase());
                                 // if (observerArgs.length > 0) {
@@ -908,9 +933,9 @@ export class MaestroPlugin implements CompilerPlugin {
                             }
                         } else {
                             if (!iocPath) {
-                                astEditor.setProperty(field, 'initialValue', new RawCodeStatement(`mioc_getInstance("${iocKey}")`, file, field.range));
+                                astEditor.setProperty(field, 'initialValue', new RawCodeStatement(`mioc_getInstance("${iocKey}", invalid, ${defaultValue})`, file, field.range));
                             } else {
-                                astEditor.setProperty(field, 'initialValue', new RawCodeStatement(`mioc_getInstance("${iocKey}", "${iocPath}")`, file, field.range));
+                                astEditor.setProperty(field, 'initialValue', new RawCodeStatement(`mioc_getInstance("${iocKey}", "${iocPath}", ${defaultValue})`, file, field.range));
                             }
                         }
                     }
@@ -959,7 +984,7 @@ export class MaestroPlugin implements CompilerPlugin {
                 if (!methodLookup[name]) {
                     // console.log('>> ' + name);
                     file.addDiagnostics([{
-                        ...unknownSuperClass(`${name}`),
+                        ...unknownSuperClass(`${name} `),
                         range: cs.range,
                         file: file
                     }]);
@@ -969,7 +994,7 @@ export class MaestroPlugin implements CompilerPlugin {
                         // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
                         if (!this.isImported(member, importedPkgPaths)) {
                             file.addDiagnostics([{
-                                ...unknownSuperClass(`${name}`),
+                                ...unknownSuperClass(`${name} `),
                                 range: cs.range,
                                 file: file
                             }]);
@@ -985,7 +1010,7 @@ export class MaestroPlugin implements CompilerPlugin {
                         if (!methodLookup[name]) {
                             // console.log('>> ' + name);
                             file.addDiagnostics([{
-                                ...unknownConstructorMethod(`${name}`, this.name),
+                                ...unknownConstructorMethod(`${name} `, this.name),
                                 range: ne.range,
                                 file: file
                             }]);
@@ -995,7 +1020,7 @@ export class MaestroPlugin implements CompilerPlugin {
                                 let numArgs = ne.call.args.length;
                                 if (numArgs < member.minArgs || numArgs > member.maxArgs) {
                                     file.addDiagnostics([{
-                                        ...wrongConstructorArgs(`${name}`, numArgs, member.minArgs, member.maxArgs),
+                                        ...wrongConstructorArgs(`${name} `, numArgs, member.minArgs, member.maxArgs),
                                         range: ne.range,
                                         file: file
                                     }]);
@@ -1003,7 +1028,7 @@ export class MaestroPlugin implements CompilerPlugin {
                                 // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
                                 if (!this.isImported(member, importedPkgPaths)) {
                                     file.addDiagnostics([{
-                                        ...unknownConstructorMethod(`${name}`, this.name),
+                                        ...unknownConstructorMethod(`${name} `, this.name),
                                         range: ne.range,
                                         file: file
                                     }]);
@@ -1031,13 +1056,13 @@ export class MaestroPlugin implements CompilerPlugin {
                                 //look it up minus the tail
 
                                 file.addDiagnostics([{
-                                    ...unknownType(`${fullPathName}.${name}`, this.name),
+                                    ...unknownType(`${fullPathName}.${name} `, this.name),
                                     range: ce.range,
                                     file: file
                                 }]);
                             } else if (!ns.functionStatements[name.toLowerCase()] && !ns.classStatements[name.toLowerCase()]) {
                                 file.addDiagnostics([{
-                                    ...unknownType(`${fullPathName}.${name}`, this.name),
+                                    ...unknownType(`${fullPathName}.${name} `, this.name),
                                     range: ce.range,
                                     file: file
                                 }]);
@@ -1048,7 +1073,7 @@ export class MaestroPlugin implements CompilerPlugin {
                                     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
                                     if (this.maestroConfig.extraValidation.doExtraImportValidation && !this.isNamespaceImported(ns, importedPkgPaths)) {
                                         file.addDiagnostics([{
-                                            ...namespaceNotImported(`${fullPathName}.${name}`),
+                                            ...namespaceNotImported(`${fullPathName}.${name} `),
                                             range: ce.range,
                                             file: file
                                         }]);
@@ -1059,7 +1084,7 @@ export class MaestroPlugin implements CompilerPlugin {
                                     if (numArgs < minArgs || numArgs > maxArgs) {
                                         file.addDiagnostics([{
                                             // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-                                            ...wrongMethodArgs(`${name}`, numArgs, minArgs, maxArgs),
+                                            ...wrongMethodArgs(`${name} `, numArgs, minArgs, maxArgs),
                                             range: ce.range,
                                             file: file
                                         }]);
@@ -1072,7 +1097,7 @@ export class MaestroPlugin implements CompilerPlugin {
                             if (this.maestroConfig.extraValidation.doExtraImportValidation && !methodLookup[name.toLowerCase()]) {
                                 // console.log('>> ' + name.toLowerCase());
                                 file.addDiagnostics([{
-                                    ...unknownClassMethod(`${name}`, this.name),
+                                    ...unknownClassMethod(`${name} `, this.name),
                                     range: ce.range,
                                     file: file
                                 }]);
@@ -1082,7 +1107,7 @@ export class MaestroPlugin implements CompilerPlugin {
                                     let numArgs = ce.args.length;
                                     if (numArgs < member.minArgs || numArgs > member.maxArgs) {
                                         file.addDiagnostics([{
-                                            ...wrongMethodArgs(`${name}`, numArgs, member.minArgs, member.maxArgs),
+                                            ...wrongMethodArgs(`${name} `, numArgs, member.minArgs, member.maxArgs),
                                             range: ce.range,
                                             file: file
                                         }]);
@@ -1090,7 +1115,7 @@ export class MaestroPlugin implements CompilerPlugin {
                                     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
                                     if (this.maestroConfig.extraValidation.doExtraImportValidation && !this.isImported(member, importedPkgPaths)) {
                                         file.addDiagnostics([{
-                                            ...functionNotImported(`${name}`),
+                                            ...functionNotImported(`${name} `),
                                             range: ce.range,
                                             file: file
                                         }]);
@@ -1277,3 +1302,4 @@ export class MaestroPlugin implements CompilerPlugin {
 export default () => {
     return new MaestroPlugin();
 };
+
