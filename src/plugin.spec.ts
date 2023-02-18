@@ -1792,7 +1792,6 @@ describe('MaestroPlugin', () => {
                 program.validate();
                 await builder.transpile();
                 expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
-                let a = getContents('source/VM.brs');
                 expect(
                     getContents('source/VM.brs')
                 ).to.eql(undent`
