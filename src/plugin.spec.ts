@@ -1541,7 +1541,7 @@ describe('MaestroPlugin', () => {
             `);
             program.validate();
             await builder.transpile();
-            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.not.empty;
+            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
 
         });
 
