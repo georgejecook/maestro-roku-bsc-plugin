@@ -146,6 +146,7 @@ export class MaestroPlugin implements CompilerPlugin {
         config.extraValidation.doExtraValidation = config.extraValidation.doExtraValidation === undefined ? true : config.extraValidation.doExtraValidation;
         config.extraValidation.doExtraImportValidation = config.extraValidation.doExtraImportValidation === undefined ? false : config.extraValidation.doExtraImportValidation;
         config.extraValidation.excludeFilters = config.extraValidation.excludeFilters === undefined ? [] : config.extraValidation.excludeFilters;
+        config.transpileAsNodeAsAA = config.transpileAsNodeAsAA ?? false;
         return config;
     }
 
@@ -463,6 +464,7 @@ export class MaestroPlugin implements CompilerPlugin {
 
     private updateAsFunctionCalls(file: BrsFile) {
         if (this.maestroConfig.updateAsFunctionCalls) {
+            let transpileAsNodeAsAA = this.maestroConfig.transpileAsNodeAsAA;
             for (let functionScope of file.functionScopes) {
 
                 // event.file.functionCalls
@@ -475,6 +477,9 @@ export class MaestroPlugin implements CompilerPlugin {
                                 let value = callExpression.args.shift() as DottedGetExpression;
                                 let stringPath = this.getStringPathFromDottedGet(value);
                                 name = `mc_get${name.match(regex)[1]}`;
+                                if (transpileAsNodeAsAA && name === 'mc_getNode') {
+                                    name = 'mc_getAA';
+                                }
                                 callExpression.callee.name.text = name;
                                 if (stringPath) {
                                     callExpression.args.unshift(stringPath);

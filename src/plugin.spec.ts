@@ -2913,6 +2913,47 @@ describe('MaestroPlugin', () => {
             `);
         });
 
+        it('converts asNode to mc_getAA, when transpileAsNodeAsAA is present', async () => {
+            plugin.afterProgramCreate(program);
+            plugin.maestroConfig.transpileAsNodeAsAA = true;
+            program.setFile('source/comp.bs', `
+                function notInClass()
+                    m.expectOnce(asNode(data.Schedules[0].Productions[0]))
+                    print asNode(data.Schedules[0].Productions[0])
+                    formatJson(asNode(json.user))
+                    print(asString(json.user.name, "default name"))
+                    if asBoolean(json.user.favorites[0].isActive)
+                        print asInteger(json.age[0].time[thing].other["this"])
+                    end if
+                    print m.items.getValue(asArray(items, ["none"]))
+                    print m.items.show(asNode(items[0].item))
+                    print m.items.show(asNode(items[0].item))
+                end function
+            `);
+            program.validate();
+            await builder.transpile();
+            //ignore diagnostics - need to import core
+
+            expect(
+                getContents('source/comp.brs')
+            ).to.eql(undent`
+                function notInClass()
+                    m.expectOnce(mc_getAA(data, "Schedules.0.Productions.0"))
+                    print mc_getAA(data, "Schedules.0.Productions.0")
+                    formatJson(mc_getAA(json, "user"))
+                    print (mc_getString(json, "user.name", "default name"))
+                    if mc_getBoolean(json, "user.favorites.0.isActive")
+                        print mc_getInteger(json, "age.0.time.thing.other.this")
+                    end if
+                    print m.items.getValue(mc_getArray(items, invalid, [
+                        "none"
+                    ]))
+                    print m.items.show(mc_getAA(items, "0.item"))
+                    print m.items.show(mc_getAA(items, "0.item"))
+                end function
+            `);
+        });
+
         it('ignores asXXX calls in that do not start with as_XXX', async () => {
             plugin.afterProgramCreate(program);
             program.setFile('source/comp.bs', `
