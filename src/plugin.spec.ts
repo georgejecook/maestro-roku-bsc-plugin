@@ -705,6 +705,156 @@ describe('MaestroPlugin', () => {
             `);
         });
 
+        it.only('ternary works with m.top substitution', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                @node("Comp", "Group")
+                class Comp
+
+                    public validText = ""
+                    public invalidText = ""
+                    public text = ""
+                    public isValid = false
+
+                    function new()
+                    end function
+
+                    public function someFunction()
+                        m.text = m.isValid ? m.validText : m.invalidText
+                    end function
+
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+
+            expect(
+                getContents('components/maestro/generated/Comp.xml')
+            ).to.eql(undent`
+                <?xml version="1.0" encoding="UTF-8" ?>
+                <component name="Comp" extends="Group">
+                    <interface>
+                        <field id="validText" type="string" />
+                        <field id="invalidText" type="string" />
+                        <field id="text" type="string" />
+                        <field id="isValid" type="boolean" />
+                        <function name="someFunction" />
+                    </interface>
+                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
+                    <children />
+                </component>
+            `);
+
+            expect(
+                getContents('components/maestro/generated/Comp.brs')
+            ).to.eql(undent`
+                'import "pkg:/source/comp.bs"
+
+                function init()
+                    m.top.validText = ""
+                    m.top.invalidText = ""
+                    m.top.text = ""
+                    m.top.isValid = false
+                    instance = __Comp_builder()
+                    instance.delete("top")
+                    instance.delete("global")
+                    top = m.top
+                    m.append(instance)
+                    m.__isVMCreated = true
+                    m.new()
+                    m.top = top
+                    m_wireUpObservers()
+                end function
+
+                function m_wireUpObservers()
+                end function
+
+                function __m_setTopField(field, value)
+                    if m.top.doesExist(field)
+                        m.top[field] = value
+                    end if
+                    return value
+                end function
+
+                function someFunction(dummy = invalid)
+                    return m.someFunction()
+                end function
+            `);
+            expect(
+                getContents('source/comp.brs')
+            ).to.eql(undent`
+            function __Comp_builder()
+                instance = {}
+                instance.new = function()
+                    m.validText = ""
+                    m.invalidText = ""
+                    m.text = ""
+                    m.isValid = false
+                    m.__classname = "Comp"
+                end function
+                instance.someFunction = function()
+                    m.top.text = (function(__bsCondition, )
+                            if __bsCondition then
+                                return m.top.validText
+                            else
+                                return m.top.invalidText
+                            end if
+                        end function)(m.top.isValid, )
+                end function
+                return instance
+            end function
+            function Comp()
+                instance = __Comp_builder()
+                instance.new()
+                return instance
+            end function
+
+            `);
+        });
+
+        it('does not generate code behind if nocode annotation is present', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                @nocode
+                @node("Comp", "Group")
+                class Comp
+
+                    public title = ""
+                    public content = ""
+
+                    function new()
+                    end function
+
+                    public function someFunction()
+                    end function
+
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+
+            expect(
+                getContents('components/maestro/generated/Comp.xml')
+            ).to.eql(undent`
+                <?xml version="1.0" encoding="UTF-8" ?>
+                <component name="Comp" extends="Group">
+                    <interface>
+                        <field id="title" type="string" />
+                        <field id="content" type="string" />
+                        <function name="someFunction" />
+                    </interface>
+                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
+                    <children />
+                </component>
+            `);
+
+            expect(fsExtra.pathExistsSync(path.join(_stagingFolderPath, 'components/maestro/generated/Comp.brs'))).to.be.false;
+        });
+
         it('parses tunnels public functions with parameter', async () => {
             plugin.afterProgramCreate(program);
             program.setFile('source/comp.bs', `
@@ -1224,7 +1374,7 @@ describe('MaestroPlugin', () => {
                 return value
             end function`);
         });
-        it.only('supports negative integers and floats in public fields', async () => {
+        it('supports negative integers and floats in public fields', async () => {
             plugin.afterProgramCreate(program);
             program.setFile('source/comp.bs', `
                 @node("Comp", "Group")
@@ -1373,6 +1523,34 @@ describe('MaestroPlugin', () => {
 
                     function new()
                     end function
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.not.empty;
+
+        });
+
+        it('gives diagnostics for missing new function', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                @node("Comp", "Group")
+                class Comp
+                    public content = ""
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.not.empty;
+
+        });
+
+        it('gives diagnostics for missing new function from task', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                @task("Comp", "Group")
+                class Comp
+                    public content = ""
                 end class
             `);
             program.validate();

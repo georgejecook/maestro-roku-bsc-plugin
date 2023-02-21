@@ -103,7 +103,8 @@ export class NodeClass {
         public annotation: AnnotationExpression,
         public fileMap: ProjectFileMap,
         public isLazy: boolean,
-        public observersWaitInit: boolean
+        public observersWaitInit: boolean,
+        public noCode: boolean
     ) {
         this.generatedNodeName = this.name.replace(/[^a-zA-Z0-9]/g, '_');
         this.bsPath = path.join('components', 'maestro', 'generated', `${this.generatedNodeName}.bs`);
@@ -350,7 +351,7 @@ export class NodeClass {
         //     console.log('Generating node class', this.name, 'isIDEBuild?', isIDEBuild
         //     );
         // }
-        if (!isIDEBuild) {
+        if (!isIDEBuild && !this.noCode) {
             //update node fields, in case of them being present in base classes
             this.nodeFields = this.getNodeFields(this.file, this.classStatement, fileMap);
             let source = `import "${sanitizePkgPath((this.file as any).destPath ?? this.file.pkgPath)}"\n`;
