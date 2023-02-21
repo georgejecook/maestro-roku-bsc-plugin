@@ -2,7 +2,7 @@ import type { BrsFile, FunctionStatement, Program } from 'brighterscript';
 import { ParseMode } from 'brighterscript';
 import type { ProjectFileMap } from '../files/ProjectFileMap';
 import type { File } from '../files/File';
-import { addNodeClassBadDeclaration, addNodeClassDuplicateName, addNodeClassNoExtendNodeFound, addNodeClassWrongNewSignature } from '../utils/Diagnostics';
+import { addNodeClassBadDeclaration, addNodeClassDoesNotOverrideNewError, addNodeClassDuplicateName, addNodeClassNoExtendNodeFound, addNodeClassWrongNewSignature } from '../utils/Diagnostics';
 import type { FileFactory } from '../utils/FileFactory';
 
 import { NodeClass, NodeClassType } from './NodeClass';
@@ -28,6 +28,7 @@ export default class NodeClassUtil {
             let annotation = cs.annotations?.find((a) => a.name.toLowerCase() === 'task' || a.name.toLowerCase() === 'node');
             let nodeType = NodeClassType.none;
             if (annotation) {
+                let noCodeAnnotation = cs.annotations?.find((a) => a.name.toLowerCase() === 'nocode');
                 let lazyAnnotation = cs.annotations?.find((a) => a.name.toLowerCase() === 'lazy');
                 let waitInitAnnotation = cs.annotations?.find((a) => a.name.toLowerCase() === 'observerswaitinitialize');
 
@@ -43,8 +44,11 @@ export default class NodeClassUtil {
                     console.log(' duplicate node in ', file.pkgPath);
                 } else {
                     let isValid = true;
+                    let newFunc = cs.memberMap.new as FunctionStatement;
+                    if (!newFunc) {
+                        addNodeClassDoesNotOverrideNewError(file, nodeName, annotation.range.start.line, annotation.range.start.character);
+                    }
                     if (nodeType === NodeClassType.node) {
-                        let newFunc = cs.memberMap.new as FunctionStatement;
                         if (newFunc && newFunc.func.parameters.length !== 0) {
                             addNodeClassWrongNewSignature(file, annotation.range.start.line, annotation.range.start.character);
                             isValid = false;
@@ -60,7 +64,7 @@ export default class NodeClassUtil {
 
                     if (isValid) {
                         //is valid
-                        let nodeClass = new NodeClass(nodeType, file, cs, nodeName, extendsName, annotation, this.fileMap, lazyAnnotation !== undefined, waitInitAnnotation !== undefined);
+                        let nodeClass = new NodeClass(nodeType, file, cs, nodeName, extendsName, annotation, this.fileMap, lazyAnnotation !== undefined, waitInitAnnotation !== undefined, noCodeAnnotation !== undefined);
                         this.fileMap.nodeClasses[nodeClass.generatedNodeName] = nodeClass;
                         let nodeClasses = this.fileMap.nodeClassesByPath[file.srcPath];
                         if (!nodeClasses) {
