@@ -881,7 +881,7 @@ export class MaestroPlugin implements CompilerPlugin {
                     let defaultValue;
                     try {
                         if (field?.initialValue) {
-                            defaultValue = field?.initialValue?.transpile(state) ?? 'invalid';
+                            defaultValue = field?.initialValue?.transpile(state)?.join('') ?? 'invalid';
                         } else if (field.as) {
                             defaultValue = typeToValueString(field.type);
                         }

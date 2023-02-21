@@ -2191,6 +2191,14 @@ describe('MaestroPlugin', () => {
                         public fieldJ as mc.types.assocarray
                         @inject("myKey")
                         public fieldK as mc.types.array
+                        @inject("myKey")
+                        public fieldL = []
+                        @inject("myKey")
+                        public fieldM = ["one", "two"]
+                        @inject("myKey")
+                        public fieldN = {}
+                        @inject("myKey")
+                        public fieldO = {"one": "two"}
                    end class
                    namespace mc.types
                         class Node
@@ -2234,6 +2242,15 @@ describe('MaestroPlugin', () => {
                     m.fieldI = mioc_getInstance("myKey", "fromHere", 0)
                     m.fieldJ = mioc_getInstance("myKey", invalid, {})
                     m.fieldK = mioc_getInstance("myKey", invalid, [])
+                    m.fieldL = mioc_getInstance("myKey", invalid, [])
+                    m.fieldM = mioc_getInstance("myKey", invalid, [
+                        "one"
+                        "two"
+                    ])
+                    m.fieldN = mioc_getInstance("myKey", invalid, {})
+                    m.fieldO = mioc_getInstance("myKey", invalid, {
+                        "one": "two"
+                    })
                     m.__classname = "VM"
                 end sub
                 return instance
