@@ -2139,7 +2139,7 @@ describe('MaestroPlugin', () => {
                     function __VM_builder()
                         instance = {}
                         instance.new = sub()
-                            m.fieldA = mioc_getInstance("Entitlements")
+                            m.fieldA = mioc_getInstance("Entitlements", invalid, invalid)
                             m.fieldB = mioc_getClassInstance("mc.collections.FieldMapper")
                             m.__classname = "VM"
                         end sub
@@ -2163,6 +2163,186 @@ describe('MaestroPlugin', () => {
                         return instance
                     end function
                 `);
+            });
+            it('wires up fields with inject annotations and uses default values', async () => {
+                plugin.afterProgramCreate(program);
+
+                program.setFile('source/VM.bs', `
+                    class VM
+                        @inject("myString")
+                        public fieldA = "defaultKey"
+                        @inject("myBool")
+                        public fieldB = true
+                        @inject("myKey", "fromHere")
+                        public fieldC = 23
+                        @inject("myKey")
+                        public fieldD as string
+                        @inject("myKey")
+                        public fieldE as boolean
+                        @inject("myKey")
+                        public fieldF as integer
+                        @inject("myKey", "fromHere")
+                        public fieldG as string
+                        @inject("myKey", "fromHere")
+                        public fieldH as boolean
+                        @inject("myKey", "fromHere")
+                        public fieldI as integer
+                        @inject("myKey")
+                        public fieldJ as mc.types.assocarray
+                        @inject("myKey")
+                        public fieldK as mc.types.array
+                   end class
+                   namespace mc.types
+                        class Node
+                            sub new()
+                            end sub
+                            public __classname as string
+                        end class
+                        class Array
+                            sub new()
+                            end sub
+                            public __classname as string
+                        end class
+                        class AssocArray
+                            sub new()
+                            end sub
+                            public __classname as string
+                        end class
+                    end namespace
+                   namespace mc.collections
+                    class FieldMapper
+                    end class
+                   end namespace
+                `);
+                program.validate();
+                await builder.transpile();
+                expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+                expect(
+                    getContents('source/VM.brs')
+                ).to.eql(undent`
+            function __VM_builder()
+                instance = {}
+                instance.new = sub()
+                    m.fieldA = mioc_getInstance("myString", invalid, "defaultKey")
+                    m.fieldB = mioc_getInstance("myBool", invalid, true)
+                    m.fieldC = mioc_getInstance("myKey", "fromHere", 23)
+                    m.fieldD = mioc_getInstance("myKey", invalid, "")
+                    m.fieldE = mioc_getInstance("myKey", invalid, false)
+                    m.fieldF = mioc_getInstance("myKey", invalid, 0)
+                    m.fieldG = mioc_getInstance("myKey", "fromHere", "")
+                    m.fieldH = mioc_getInstance("myKey", "fromHere", false)
+                    m.fieldI = mioc_getInstance("myKey", "fromHere", 0)
+                    m.fieldJ = mioc_getInstance("myKey", invalid, {})
+                    m.fieldK = mioc_getInstance("myKey", invalid, [])
+                    m.__classname = "VM"
+                end sub
+                return instance
+            end function
+            function VM()
+                instance = __VM_builder()
+                instance.new()
+                return instance
+            end function
+            function __mc_types_Node_builder()
+                instance = {}
+                instance.new = sub()
+                    m.__classname = invalid
+                    m.__className = "mc.types.Node"
+                end sub
+                return instance
+            end function
+            function mc_types_Node()
+                instance = __mc_types_Node_builder()
+                instance.new()
+                return instance
+            end function
+            function __mc_types_Array_builder()
+                instance = {}
+                instance.new = sub()
+                    m.__classname = invalid
+                    m.__className = "mc.types.Array"
+                end sub
+                return instance
+            end function
+            function mc_types_Array()
+                instance = __mc_types_Array_builder()
+                instance.new()
+                return instance
+            end function
+            function __mc_types_AssocArray_builder()
+                instance = {}
+                instance.new = sub()
+                    m.__classname = invalid
+                    m.__className = "mc.types.AssocArray"
+                end sub
+                return instance
+            end function
+            function mc_types_AssocArray()
+                instance = __mc_types_AssocArray_builder()
+                instance.new()
+                return instance
+            end function
+            function __mc_collections_FieldMapper_builder()
+                instance = {}
+                instance.new = sub()
+                    m.__classname = "mc.collections.FieldMapper"
+                end sub
+                return instance
+            end function
+            function mc_collections_FieldMapper()
+                instance = __mc_collections_FieldMapper_builder()
+                instance.new()
+                return instance
+            end function`);
+            });
+
+            it('honors enums as default values', async () => {
+                plugin.afterProgramCreate(program);
+
+                program.setFile('source/VM.bs', `
+                    class VM
+                        @inject("myEnum")
+                        public fieldA = mc.enumValue.first
+                        @inject("myEnum")
+                        public fieldB = mc.enumValue.second
+                        @inject("myEnum")
+                        public fieldC = mc.enumIntValue.first
+                        @inject("myEnum")
+                        public fieldD = mc.enumIntValue.second
+                   end class
+                   namespace mc
+                        enum enumValue
+                            first = "firstValue"
+                            second = "secondValue"
+                        end enum
+                        enum enumIntValue
+                            first = 1
+                            second = 2
+                        end enum
+                   end namespace
+                `);
+                program.validate();
+                await builder.transpile();
+                expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+                expect(
+                    getContents('source/VM.brs').trim()
+                ).to.eql(undent`
+                    function __VM_builder()
+                        instance = {}
+                        instance.new = sub()
+                            m.fieldA = mioc_getInstance("myEnum", invalid, "firstValue")
+                            m.fieldB = mioc_getInstance("myEnum", invalid, "secondValue")
+                            m.fieldC = mioc_getInstance("myEnum", invalid, 1)
+                            m.fieldD = mioc_getInstance("myEnum", invalid, 2)
+                            m.__classname = "VM"
+                        end sub
+                        return instance
+                    end function
+                    function VM()
+                        instance = __VM_builder()
+                        instance.new()
+                        return instance
+                    end function`.trim());
             });
 
             it('allows instantiation of class objects from annotation', async () => {
@@ -2189,7 +2369,7 @@ describe('MaestroPlugin', () => {
                     function __VM_builder()
                         instance = {}
                         instance.new = sub()
-                            m.fieldA = mioc_getInstance("Entitlements")
+                            m.fieldA = mioc_getInstance("Entitlements", invalid, invalid)
                             m.fieldB = mioc_createClassInstance("ChildVM")
                             m.fieldC = mioc_createClassInstance("ChildVM", ["arg1","arg2"])
                             m.__classname = "VM"
@@ -2355,9 +2535,9 @@ describe('MaestroPlugin', () => {
                             m.fieldA = m._addIOCObserver("fieldA", "Entitlements", "isLoggedIn", "", "isLoggedIn", invalid)
                             m.fieldB = m._addIOCObserver("fieldB", "user", "Entitlements.isLoggedIn", "Entitlements", "isLoggedIn", invalid)
                             m.fieldC = m._addIOCObserver("fieldC", "user", "Entitlements.valid.isLoggedIn", "Entitlements.valid", "isLoggedIn", invalid)
-                            m.fieldD = m._addIOCObserver("fieldD", "Entitlements", "isLoggedIn", "", "isLoggedIn", m.onfieldchange)
-                            m.fieldE = m._addIOCObserver("fieldE", "user", "Entitlements.isLoggedIn", "Entitlements", "isLoggedIn", m.onfieldchange)
-                            m.fieldF = m._addIOCObserver("fieldF", "user", "Entitlements.valid.isLoggedIn", "Entitlements.valid", "isLoggedIn", m.onfieldchange)
+                            m.fieldD = m._addIOCObserver("fieldD", "Entitlements", "isLoggedIn", "", "isLoggedIn", m.onfieldchange )
+                            m.fieldE = m._addIOCObserver("fieldE", "user", "Entitlements.isLoggedIn", "Entitlements", "isLoggedIn", m.onfieldchange )
+                            m.fieldF = m._addIOCObserver("fieldF", "user", "Entitlements.valid.isLoggedIn", "Entitlements.valid", "isLoggedIn", m.onfieldchange )
                             m.__classname = "MyView"
                         end sub
                         instance.onFieldChange = function(value)
@@ -2882,7 +3062,7 @@ describe('MaestroPlugin', () => {
                     formatJson(asAA(json.user))
                     print(asString(json.user.name, "default name"))
                     if asBoolean(json.user.favorites[0].isActive)
-                        print asInteger(json.age[0].time[thing].other["this"])
+                        print mc_getInteger(json, "age.0.time." + bslib_toString(thing) + ".other.this")
                     end if
                     print m.items.getValue(asArray(items, ["none"]))
                     print m.items.show(asNode(items[0].item))
@@ -2902,7 +3082,7 @@ describe('MaestroPlugin', () => {
                     formatJson(mc_getAA(json, "user"))
                     print (mc_getString(json, "user.name", "default name"))
                     if mc_getBoolean(json, "user.favorites.0.isActive")
-                        print mc_getInteger(json, "age.0.time.thing.other.this")
+                        print mc_getInteger(json, "age.0.time." + bslib_toString(thing) + ".other.this")
                     end if
                     print m.items.getValue(mc_getArray(items, invalid, [
                         "none"
@@ -2911,6 +3091,25 @@ describe('MaestroPlugin', () => {
                     print m.items.show(mc_getNode(items, "0.item"))
                 end function
             `);
+        });
+
+        it('supports dereferencing of variables', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                function notInClass()
+                    index
+                    a = asAA(data.Schedules[index].Productions[m.index]))
+                end function
+            `);
+            program.validate();
+            await builder.transpile();
+
+            expect(
+                getContents('source/comp.brs')
+            ).to.eql(undent`
+            function notInClass()
+                a = mc_getAA(data, "Schedules." + bslib_toString(index) + ".Productions." + bslib_toString(m.index) + "")
+            end function`);
         });
 
         it('converts asNode to mc_getAny, when transpileAsNodeAsAny is present', async () => {
@@ -2943,7 +3142,7 @@ describe('MaestroPlugin', () => {
                     formatJson(mc_getAA(json, "user"))
                     print (mc_getString(json, "user.name", "default name"))
                     if mc_getBoolean(json, "user.favorites.0.isActive")
-                        print mc_getInteger(json, "age.0.time.thing.other.this")
+                        print mc_getInteger(json, "age.0.time." + bslib_toString(thing) + ".other.this")
                     end if
                     print m.items.getValue(mc_getArray(items, invalid, [
                         "none"
@@ -3060,7 +3259,7 @@ describe('MaestroPlugin', () => {
                 function ns_inNAmespace()
                     formatJson(mc_getAA(json, "user"))
                     if mc_getBoolean(json, "user.favorites.0.isActive")
-                        print mc_getInteger(json, "age.0.time.thing.other.this")
+                        print mc_getInteger(json, "age.0.time." + bslib_toString(thing) + ".other.this")
                     end if
                     print m.items.getValue(mc_getArray(items, invalid))
                     print m.items.show(mc_getNode(items, "0.item"))
@@ -3076,7 +3275,7 @@ describe('MaestroPlugin', () => {
                     function classMethod()
                         formatJson(asAA(m.json.user))
                         if asBoolean(m.json.user.favorites[0].isActive)
-                            print asInteger(m.json.age[0].time[thing].other["this"])
+                            print mc_getInteger(m, "json.age.0.time." + bslib_toString(thing) + ".other.this")
                         end if
                         print m.items.getValue(asArray(items))
                         print m.items.show(asNode(items[0].item))
@@ -3099,7 +3298,7 @@ describe('MaestroPlugin', () => {
                     instance.classMethod = function()
                         formatJson(mc_getAA(m, "json.user"))
                         if mc_getBoolean(m, "json.user.favorites.0.isActive")
-                            print mc_getInteger(m, "json.age.0.time.thing.other.this")
+                            print mc_getInteger(m, "json.age.0.time." + bslib_toString(thing) + ".other.this")
                         end if
                         print m.items.getValue(mc_getArray(items, invalid))
                         print m.items.show(mc_getNode(items, "0.item"))
@@ -3474,7 +3673,6 @@ describe('MaestroPlugin', () => {
 
             await builder.transpile();
             //ignore diagnostics - need to import core
-
             expect(
                 getContents('source/comp.brs')
             ).to.eql(undent`

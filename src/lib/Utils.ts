@@ -1,4 +1,4 @@
-import type { BrsFile, ClassMethodStatement, ClassStatement, DottedGetExpression, Editor, Expression, FunctionStatement, LiteralExpression, Statement } from 'brighterscript';
+import type { BrsFile, ClassMethodStatement, ClassStatement, DottedGetExpression, Editor, Expression, FunctionStatement, LiteralExpression, Statement, Token } from 'brighterscript';
 import { isEnumMemberStatement, Range, createVariableExpression, isDottedGetExpression, isVariableExpression, BinaryExpression, Block, createStringLiteral, createToken, IfStatement, ImportStatement, isAALiteralExpression, isArrayLiteralExpression, isClassMethodStatement, isClassStatement, isCommentStatement, isImportStatement, isIntegerType, isLiteralBoolean, isLiteralNumber, isLiteralString, isLongIntegerType, isUnaryExpression, Lexer, ParseMode, Parser, Position, TokenKind } from 'brighterscript';
 import * as rokuDeploy from 'roku-deploy';
 import { createRange } from './utils/Utils';
@@ -165,7 +165,35 @@ function driveLetterToLower(fullPath: string) {
     }
     return fullPath;
 }
+export function typeToValueString(typeToken: Token): string {
+    switch (typeToken.kind) {
+        case TokenKind.Boolean:
+            return 'false';
+        case TokenKind.Integer:
+            return '0';
+        case TokenKind.Float:
+            return '0.0';
+        case TokenKind.Double:
+            return '0.0';
+        case TokenKind.LongInteger:
+            return '0';
+        case TokenKind.Object:
+            return '{}';
+        case TokenKind.String:
+            return '""';
+        default:
+            switch (typeToken.text.toLowerCase()) {
+                case 'mc.types.array':
+                    return '[]';
+                case 'mc.types.assocarray':
+                    return '{}';
+                //TODO look up an enum using this type
+                default:
+                    return 'invalid';
+            }
 
+    }
+}
 
 // eslint-disable-next-line @typescript-eslint/consistent-indexed-object-style
 export function expressionToString(expr: Expression): string {
