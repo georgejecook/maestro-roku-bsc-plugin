@@ -2913,14 +2913,14 @@ describe('MaestroPlugin', () => {
             `);
         });
 
-        it('converts asNode to mc_getAA, when transpileAsNodeAsAA is present', async () => {
+        it('converts asNode to mc_getAny, when transpileAsNodeAsAny is present', async () => {
             plugin.afterProgramCreate(program);
-            plugin.maestroConfig.transpileAsNodeAsAA = true;
+            plugin.maestroConfig.transpileAsNodeAsAny = true;
             program.setFile('source/comp.bs', `
                 function notInClass()
-                    m.expectOnce(asNode(data.Schedules[0].Productions[0]))
+                    m.expectOnce(asAA(data.Schedules[0].Productions[0]))
                     print asNode(data.Schedules[0].Productions[0])
-                    formatJson(asNode(json.user))
+                    formatJson(asAA(json.user))
                     print(asString(json.user.name, "default name"))
                     if asBoolean(json.user.favorites[0].isActive)
                         print asInteger(json.age[0].time[thing].other["this"])
@@ -2939,7 +2939,7 @@ describe('MaestroPlugin', () => {
             ).to.eql(undent`
                 function notInClass()
                     m.expectOnce(mc_getAA(data, "Schedules.0.Productions.0"))
-                    print mc_getAA(data, "Schedules.0.Productions.0")
+                    print mc_getAny(data, "Schedules.0.Productions.0")
                     formatJson(mc_getAA(json, "user"))
                     print (mc_getString(json, "user.name", "default name"))
                     if mc_getBoolean(json, "user.favorites.0.isActive")
@@ -2948,8 +2948,8 @@ describe('MaestroPlugin', () => {
                     print m.items.getValue(mc_getArray(items, invalid, [
                         "none"
                     ]))
-                    print m.items.show(mc_getAA(items, "0.item"))
-                    print m.items.show(mc_getAA(items, "0.item"))
+                    print m.items.show(mc_getAny(items, "0.item"))
+                    print m.items.show(mc_getAny(items, "0.item"))
                 end function
             `);
         });
