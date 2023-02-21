@@ -567,7 +567,7 @@ describe('MaestroPlugin', () => {
         });
     });
 
-    describe.only('node class tests', () => {
+    describe('node class tests', () => {
         it('parses a node class with no errors', async () => {
             plugin.afterProgramCreate(program);
             program.setFile('source/comp.bs', `
@@ -1203,6 +1203,72 @@ describe('MaestroPlugin', () => {
                 m.top.e1 = "v"
                 m.top.e2 = 1
                 m.top.e3 = 2
+                instance = __Comp_builder()
+                instance.delete("top")
+                instance.delete("global")
+                top = m.top
+                m.append(instance)
+                m.__isVMCreated = true
+                m.new()
+                m.top = top
+                m_wireUpObservers()
+            end function
+
+            function m_wireUpObservers()
+            end function
+
+            function __m_setTopField(field, value)
+                if m.top.doesExist(field)
+                    m.top[field] = value
+                end if
+                return value
+            end function`);
+        });
+        it.only('supports negative integers and floats in public fields', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                @node("Comp", "Group")
+                class Comp
+
+                    public e1 = -1
+                    public e2 = -100.0
+
+                    function new()
+                    end function
+
+                    private function onTitleChange(value)
+                    end function
+
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            expectZeroDiagnostics(builder);
+
+            expect(
+                getContents('components/maestro/generated/Comp.xml')
+            ).to.eql(undent`
+                <?xml version="1.0" encoding="UTF-8" ?>
+                <component name="Comp" extends="Group">
+                    <interface>
+                        <field id="e1" type="integer" />
+                        <field id="e2" type="float" />
+                    </interface>
+                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
+                    <children />
+                </component>
+            `);
+
+            expect(
+                getContents('components/maestro/generated/Comp.brs')
+            ).to.eql(undent`
+            'import "pkg:/source/comp.bs"
+
+            function init()
+                m.top.e1 = - 1
+                m.top.e2 = - 100
                 instance = __Comp_builder()
                 instance.delete("top")
                 instance.delete("global")
