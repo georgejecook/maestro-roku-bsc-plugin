@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/indent */
-import type { AnnotationExpression, BrsFile, ClassFieldStatement, ClassMethodStatement, ClassStatement, EnumMemberStatement, FieldStatement, FunctionParameterExpression, Program, XmlFile } from 'brighterscript';
+import type { AnnotationExpression, BrsFile, ClassFieldStatement, ClassMethodStatement, ClassStatement, CommentStatement, DottedGetExpression, EnumMemberStatement, FieldStatement, FunctionParameterExpression, Program, XmlFile } from 'brighterscript';
 import { isEnumMemberStatement, isDottedGetExpression, isEnumStatement, isNewExpression, TokenKind, isClassMethodStatement, ParseMode, createVisitor, isVariableExpression, WalkMode, isAALiteralExpression, isArrayLiteralExpression, isIntegerType, isLiteralExpression, isLiteralNumber, isLongIntegerType, isUnaryExpression } from 'brighterscript';
 import type { ProjectFileMap } from '../files/ProjectFileMap';
 import { expressionToString, expressionToValue, getAllDottedGetParts, sanitizePkgPath } from '../Utils';
@@ -103,7 +103,8 @@ export class NodeClass {
         public annotation: AnnotationExpression,
         public fileMap: ProjectFileMap,
         public isLazy: boolean,
-        public observersWaitInit: boolean
+        public observersWaitInit: boolean,
+        public noCode: boolean
     ) {
         this.generatedNodeName = this.name.replace(/[^a-zA-Z0-9]/g, '_');
         this.bsPath = path.join('components', 'maestro', 'generated', `${this.generatedNodeName}.bs`);
@@ -168,7 +169,7 @@ export class NodeClass {
       for each funcName in m.pendingCallbacks
         ${isLazy ? `_getVM()
         m.[funcName]()`
-        : 'm.[funcName]()'}
+                : 'm.[funcName]()'}
       end for
       m.pendingCallbacks = {}
     end function
@@ -230,7 +231,10 @@ export class NodeClass {
     }
     private getWrapperCallFuncParams(params: FunctionParameterExpression[]) {
         return `${params.map((p) => {
-            let defaultValue = expressionToValue(p.defaultValue);
+            let enumType = isDottedGetExpression(p.defaultValue) && this.getEnumFromDottedGetExpression(p.defaultValue);
+
+            let defaultValue = enumType ? expressionToValue(this.getEnumFromDottedGetExpression(p.defaultValue as DottedGetExpression
+            )) : expressionToValue(p.defaultValue);
             if (typeof defaultValue === 'string') {
                 defaultValue = `"${defaultValue}"`;
             }
@@ -347,7 +351,7 @@ export class NodeClass {
         //     console.log('Generating node class', this.name, 'isIDEBuild?', isIDEBuild
         //     );
         // }
-        if (!isIDEBuild) {
+        if (!isIDEBuild && !this.noCode) {
             //update node fields, in case of them being present in base classes
             this.nodeFields = this.getNodeFields(this.file, this.classStatement, fileMap);
             let source = `import "${sanitizePkgPath((this.file as any).destPath ?? this.file.pkgPath)}"\n`;
@@ -621,14 +625,18 @@ export class NodeClass {
 
     getEnumFromField(field: FieldStatement) {
         if (isDottedGetExpression(field.initialValue)) {
-            let enumMap = this.file.program.getFirstScopeForFile(this.file)?.getEnumMap();
-            let parts = getAllDottedGetParts(field.initialValue);
-            let namePart = parts.pop();
-            let enumStatement = enumMap.get(parts.join('.').toLowerCase())?.item;
-            if (isEnumStatement(enumStatement)) {
-                return enumStatement.body.find((value: EnumMemberStatement) => value.name.toLowerCase() === namePart.toLowerCase());
-            }
+            return this.getEnumFromDottedGetExpression(field.initialValue);
+        }
+        return undefined;
+    }
 
+    getEnumFromDottedGetExpression(expression: DottedGetExpression) {
+        let enumMap = this.file.program.getFirstScopeForFile(this.file)?.getEnumMap();
+        let parts = getAllDottedGetParts(expression);
+        let namePart = parts.pop();
+        let enumStatement = enumMap.get(parts.join('.').toLowerCase())?.item;
+        if (isEnumStatement(enumStatement)) {
+            return enumStatement.body.find((value: EnumMemberStatement) => value.name.toLowerCase() === namePart.toLowerCase());
         }
         return undefined;
     }
@@ -641,6 +649,10 @@ export class NodeClass {
 
     getEnumTypeFromField(field: FieldStatement) {
         let enumValue = this.getEnumFromField(field);
+        return this.getEnumTypeFromValue(enumValue);
+    }
+
+    getEnumTypeFromValue(enumValue: CommentStatement | EnumMemberStatement) {
         if (isEnumMemberStatement(enumValue)) {
             if (isLiteralExpression(enumValue.value)) {
                 return enumValue.value.type.toTypeString();

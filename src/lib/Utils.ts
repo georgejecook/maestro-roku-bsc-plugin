@@ -1,5 +1,5 @@
 import type { BrsFile, ClassMethodStatement, ClassStatement, DottedGetExpression, Editor, Expression, FunctionStatement, LiteralExpression, Statement } from 'brighterscript';
-import { Range, createVariableExpression, isDottedGetExpression, isVariableExpression, BinaryExpression, Block, createStringLiteral, createToken, IfStatement, ImportStatement, isAALiteralExpression, isArrayLiteralExpression, isClassMethodStatement, isClassStatement, isCommentStatement, isImportStatement, isIntegerType, isLiteralBoolean, isLiteralNumber, isLiteralString, isLongIntegerType, isUnaryExpression, Lexer, ParseMode, Parser, Position, TokenKind } from 'brighterscript';
+import { isEnumMemberStatement, Range, createVariableExpression, isDottedGetExpression, isVariableExpression, BinaryExpression, Block, createStringLiteral, createToken, IfStatement, ImportStatement, isAALiteralExpression, isArrayLiteralExpression, isClassMethodStatement, isClassStatement, isCommentStatement, isImportStatement, isIntegerType, isLiteralBoolean, isLiteralNumber, isLiteralString, isLongIntegerType, isUnaryExpression, Lexer, ParseMode, Parser, Position, TokenKind } from 'brighterscript';
 import * as rokuDeploy from 'roku-deploy';
 import { createRange } from './utils/Utils';
 
@@ -206,6 +206,9 @@ export function expressionToString(expr: Expression): string {
 export function expressionToValue(expr: Expression): any | undefined {
     if (!expr) {
         return undefined;
+    }
+    if (isEnumMemberStatement(expr)) {
+        return expressionToValue(expr.value);
     }
     if (isUnaryExpression(expr) && isLiteralNumber(expr.right)) {
         return numberExpressionToValue(expr.right, expr.operator.text);

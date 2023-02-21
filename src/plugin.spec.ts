@@ -705,6 +705,337 @@ describe('MaestroPlugin', () => {
             `);
         });
 
+        it('ternary works with m.top substitution', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                @node("Comp", "Group")
+                class Comp
+
+                    public validText = ""
+                    public invalidText = ""
+                    public text = ""
+                    public isValid = false
+
+                    function new()
+                    end function
+
+                    public function someFunction()
+                        m.text = m.isValid ? m.validText : m.invalidText
+                    end function
+
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+
+            expect(
+                getContents('components/maestro/generated/Comp.xml')
+            ).to.eql(undent`
+                <?xml version="1.0" encoding="UTF-8" ?>
+                <component name="Comp" extends="Group">
+                    <interface>
+                        <field id="validText" type="string" />
+                        <field id="invalidText" type="string" />
+                        <field id="text" type="string" />
+                        <field id="isValid" type="boolean" />
+                        <function name="someFunction" />
+                    </interface>
+                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
+                    <children />
+                </component>
+            `);
+
+            expect(
+                getContents('components/maestro/generated/Comp.brs')
+            ).to.eql(undent`
+                'import "pkg:/source/comp.bs"
+
+                function init()
+                    m.top.validText = ""
+                    m.top.invalidText = ""
+                    m.top.text = ""
+                    m.top.isValid = false
+                    instance = __Comp_builder()
+                    instance.delete("top")
+                    instance.delete("global")
+                    top = m.top
+                    m.append(instance)
+                    m.__isVMCreated = true
+                    m.new()
+                    m.top = top
+                    m_wireUpObservers()
+                end function
+
+                function m_wireUpObservers()
+                end function
+
+                function __m_setTopField(field, value)
+                    if m.top.doesExist(field)
+                        m.top[field] = value
+                    end if
+                    return value
+                end function
+
+                function someFunction(dummy = invalid)
+                    return m.someFunction()
+                end function
+            `);
+            expect(
+                getContents('source/comp.brs')
+            ).to.eql(undent`
+            function __Comp_builder()
+                instance = {}
+                instance.new = function()
+                    m.validText = ""
+                    m.invalidText = ""
+                    m.text = ""
+                    m.isValid = false
+                    m.__classname = "Comp"
+                end function
+                instance.someFunction = function()
+                    m.top.text = (function(__bsCondition, )
+                            if __bsCondition then
+                                return m.top.validText
+                            else
+                                return m.top.invalidText
+                            end if
+                        end function)(m.top.isValid, )
+                end function
+                return instance
+            end function
+            function Comp()
+                instance = __Comp_builder()
+                instance.new()
+                return instance
+            end function
+
+            `);
+        });
+
+        it('does not generate code behind if nocode annotation is present', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                @nocode
+                @node("Comp", "Group")
+                class Comp
+
+                    public title = ""
+                    public content = ""
+
+                    function new()
+                    end function
+
+                    public function someFunction()
+                    end function
+
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+
+            expect(
+                getContents('components/maestro/generated/Comp.xml')
+            ).to.eql(undent`
+                <?xml version="1.0" encoding="UTF-8" ?>
+                <component name="Comp" extends="Group">
+                    <interface>
+                        <field id="title" type="string" />
+                        <field id="content" type="string" />
+                        <function name="someFunction" />
+                    </interface>
+                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
+                    <children />
+                </component>
+            `);
+
+            expect(fsExtra.pathExistsSync(path.join(_stagingFolderPath, 'components/maestro/generated/Comp.brs'))).to.be.false;
+        });
+
+        it('parses tunnels public functions with parameter', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                @node("Comp", "Group")
+                class Comp
+
+                    public title = ""
+                    public content = ""
+
+                    function new()
+                    end function
+
+                    public function defaultAndType(x = 5 as integer, y = 10 as integer)
+                    end function
+
+                    public function defaultOnly(x = 5, y = 10)
+                    end function
+
+                    public function typeOnly(x as integer, y as integer)
+                    end function
+
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+
+            expect(
+                getContents('components/maestro/generated/Comp.xml')
+            ).to.eql(undent`
+                <?xml version="1.0" encoding="UTF-8" ?>
+                <component name="Comp" extends="Group">
+                    <interface>
+                        <field id="title" type="string" />
+                        <field id="content" type="string" />
+                        <function name="defaultAndType" />
+                        <function name="defaultOnly" />
+                        <function name="typeOnly" />
+                    </interface>
+                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
+                    <children />
+                </component>
+            `);
+            expect(
+                getContents('components/maestro/generated/Comp.brs')
+            ).to.eql(undent`
+            'import "pkg:/source/comp.bs"
+
+            function init()
+                m.top.title = ""
+                m.top.content = ""
+                instance = __Comp_builder()
+                instance.delete("top")
+                instance.delete("global")
+                top = m.top
+                m.append(instance)
+                m.__isVMCreated = true
+                m.new()
+                m.top = top
+                m_wireUpObservers()
+            end function
+
+            function m_wireUpObservers()
+            end function
+
+            function __m_setTopField(field, value)
+                if m.top.doesExist(field)
+                    m.top[field] = value
+                end if
+                return value
+            end function
+
+            function defaultAndType(x = 5, y = 10)
+                return m.defaultAndType(x, y)
+            end function
+
+            function defaultOnly(x = 5, y = 10)
+                return m.defaultOnly(x, y)
+            end function
+
+            function typeOnly(x = invalid, y = invalid)
+                return m.typeOnly(x, y)
+            end function`);
+        });
+
+        it('parses tunnels public functions with parameter, when enum or interface', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                @node("Comp", "Group")
+                class Comp
+
+                    public title = ""
+                    public content = ""
+
+                    function new()
+                    end function
+
+                    public function both(color = test.Color.red as test.Color, color2 = test.Color.green as test.Color)
+                    end function
+
+                    public function defaultOnly(color = test.Color.red, color2 = test.Color.green)
+                    end function
+
+                    public function typeOnly(color as test.Color, color2 as test.Color)
+                    end function
+
+                end class
+
+                namespace test
+                    enum Color
+                        red = 1
+                        green = 2
+                    end enum
+                end namespace
+            `);
+            program.validate();
+            await builder.transpile();
+            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+
+            expect(
+                getContents('components/maestro/generated/Comp.xml')
+            ).to.eql(undent`
+                <?xml version="1.0" encoding="UTF-8" ?>
+                <component name="Comp" extends="Group">
+                    <interface>
+                        <field id="title" type="string" />
+                        <field id="content" type="string" />
+                        <function name="both" />
+                        <function name="defaultOnly" />
+                        <function name="typeOnly" />
+                    </interface>
+                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
+                    <children />
+                </component>
+            `);
+            expect(
+                getContents('components/maestro/generated/Comp.brs')
+            ).to.eql(undent`
+            'import "pkg:/source/comp.bs"
+
+            function init()
+                m.top.title = ""
+                m.top.content = ""
+                instance = __Comp_builder()
+                instance.delete("top")
+                instance.delete("global")
+                top = m.top
+                m.append(instance)
+                m.__isVMCreated = true
+                m.new()
+                m.top = top
+                m_wireUpObservers()
+            end function
+
+            function m_wireUpObservers()
+            end function
+
+            function __m_setTopField(field, value)
+                if m.top.doesExist(field)
+                    m.top[field] = value
+                end if
+                return value
+            end function
+
+            function both(color = 1, color2 = 2)
+                return m.both(color, color2)
+            end function
+
+            function defaultOnly(color = 1, color2 = 2)
+                return m.defaultOnly(color, color2)
+            end function
+
+            function typeOnly(color = invalid, color2 = invalid)
+                return m.typeOnly(color, color2)
+            end function`);
+        });
+
         it('hooks up public fields with observers', async () => {
             plugin.afterProgramCreate(program);
             program.setFile('source/comp.bs', `
@@ -1043,6 +1374,72 @@ describe('MaestroPlugin', () => {
                 return value
             end function`);
         });
+        it('supports negative integers and floats in public fields', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                @node("Comp", "Group")
+                class Comp
+
+                    public e1 = -1
+                    public e2 = -100.0
+
+                    function new()
+                    end function
+
+                    private function onTitleChange(value)
+                    end function
+
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            expectZeroDiagnostics(builder);
+
+            expect(
+                getContents('components/maestro/generated/Comp.xml')
+            ).to.eql(undent`
+                <?xml version="1.0" encoding="UTF-8" ?>
+                <component name="Comp" extends="Group">
+                    <interface>
+                        <field id="e1" type="integer" />
+                        <field id="e2" type="float" />
+                    </interface>
+                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
+                    <children />
+                </component>
+            `);
+
+            expect(
+                getContents('components/maestro/generated/Comp.brs')
+            ).to.eql(undent`
+            'import "pkg:/source/comp.bs"
+
+            function init()
+                m.top.e1 = - 1
+                m.top.e2 = - 100
+                instance = __Comp_builder()
+                instance.delete("top")
+                instance.delete("global")
+                top = m.top
+                m.append(instance)
+                m.__isVMCreated = true
+                m.new()
+                m.top = top
+                m_wireUpObservers()
+            end function
+
+            function m_wireUpObservers()
+            end function
+
+            function __m_setTopField(field, value)
+                if m.top.doesExist(field)
+                    m.top[field] = value
+                end if
+                return value
+            end function`);
+        });
         it('supports interface type in public fields', async () => {
             plugin.afterProgramCreate(program);
             program.setFile('source/comp.bs', `
@@ -1126,6 +1523,34 @@ describe('MaestroPlugin', () => {
 
                     function new()
                     end function
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.not.empty;
+
+        });
+
+        it('gives diagnostics for missing new function', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                @node("Comp", "Group")
+                class Comp
+                    public content = ""
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.not.empty;
+
+        });
+
+        it('gives diagnostics for missing new function from task', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                @task("Comp", "Group")
+                class Comp
+                    public content = ""
                 end class
             `);
             program.validate();
@@ -1845,6 +2270,9 @@ describe('MaestroPlugin', () => {
                         @sync
                         @inject("user", "valid")
                         private fieldB as string
+
+                        function new()
+                        end function
                     end class
                 `);
                 program.validate();
@@ -1871,6 +2299,9 @@ describe('MaestroPlugin', () => {
                         function okay5(a1 as string, a2 as string, a3 as string, a4 as string, a5 as string)
                         end function
                         function tooManyArgs(a1 as string, a2 as string, a3 as string, a4 as string, a5 as string, a6 as string)
+                        end function
+
+                        function new()
                         end function
                     end class
                 `);
@@ -2482,6 +2913,47 @@ describe('MaestroPlugin', () => {
             `);
         });
 
+        it('converts asNode to mc_getAny, when transpileAsNodeAsAny is present', async () => {
+            plugin.afterProgramCreate(program);
+            plugin.maestroConfig.transpileAsNodeAsAny = true;
+            program.setFile('source/comp.bs', `
+                function notInClass()
+                    m.expectOnce(asAA(data.Schedules[0].Productions[0]))
+                    print asNode(data.Schedules[0].Productions[0])
+                    formatJson(asAA(json.user))
+                    print(asString(json.user.name, "default name"))
+                    if asBoolean(json.user.favorites[0].isActive)
+                        print asInteger(json.age[0].time[thing].other["this"])
+                    end if
+                    print m.items.getValue(asArray(items, ["none"]))
+                    print m.items.show(asNode(items[0].item))
+                    print m.items.show(asNode(items[0].item))
+                end function
+            `);
+            program.validate();
+            await builder.transpile();
+            //ignore diagnostics - need to import core
+
+            expect(
+                getContents('source/comp.brs')
+            ).to.eql(undent`
+                function notInClass()
+                    m.expectOnce(mc_getAA(data, "Schedules.0.Productions.0"))
+                    print mc_getAny(data, "Schedules.0.Productions.0")
+                    formatJson(mc_getAA(json, "user"))
+                    print (mc_getString(json, "user.name", "default name"))
+                    if mc_getBoolean(json, "user.favorites.0.isActive")
+                        print mc_getInteger(json, "age.0.time.thing.other.this")
+                    end if
+                    print m.items.getValue(mc_getArray(items, invalid, [
+                        "none"
+                    ]))
+                    print m.items.show(mc_getAny(items, "0.item"))
+                    print m.items.show(mc_getAny(items, "0.item"))
+                end function
+            `);
+        });
+
         it('ignores asXXX calls in that do not start with as_XXX', async () => {
             plugin.afterProgramCreate(program);
             program.setFile('source/comp.bs', `
@@ -3048,7 +3520,7 @@ function getContents(filename: string) {
     let name = path.join(_stagingFolderPath, filename);
     let contents = fsExtra.readFileSync(name).toString();
     contents = undent(contents);
-    return contents;
+    return contents.trim();
 }
 
 function checkDiagnostic(d: BsDiagnostic, expectedCode: number, line?: number) {

@@ -146,6 +146,7 @@ export class MaestroPlugin implements CompilerPlugin {
         config.extraValidation.doExtraValidation = config.extraValidation.doExtraValidation === undefined ? true : config.extraValidation.doExtraValidation;
         config.extraValidation.doExtraImportValidation = config.extraValidation.doExtraImportValidation === undefined ? false : config.extraValidation.doExtraImportValidation;
         config.extraValidation.excludeFilters = config.extraValidation.excludeFilters === undefined ? [] : config.extraValidation.excludeFilters;
+        config.transpileAsNodeAsAny = config.transpileAsNodeAsAny ?? false;
         return config;
     }
 
@@ -401,7 +402,7 @@ export class MaestroPlugin implements CompilerPlugin {
             // console.time('Validate bindings');
             let file = this.fileMap.allFiles[event.file.srcPath];
             if (this.maestroConfig.mvvm.insertXmlBindingsEarly && file.isValid) {
-                console.log('adding xml transpiled code for ', file.bscFile.pkgPath);
+                // console.log('adding xml transpiled code for ', file.bscFile.pkgPath);
                 this.bindingProcessor.generateCodeForXMLFile(file, this.program, event.editor);
             }
             // console.timeEnd('Validate bindings');
@@ -463,6 +464,7 @@ export class MaestroPlugin implements CompilerPlugin {
 
     private updateAsFunctionCalls(file: BrsFile) {
         if (this.maestroConfig.updateAsFunctionCalls) {
+            let transpileAsNodeAsAny = this.maestroConfig.transpileAsNodeAsAny;
             for (let functionScope of file.functionScopes) {
 
                 // event.file.functionCalls
@@ -475,6 +477,9 @@ export class MaestroPlugin implements CompilerPlugin {
                                 let value = callExpression.args.shift() as DottedGetExpression;
                                 let stringPath = this.getStringPathFromDottedGet(value);
                                 name = `mc_get${name.match(regex)[1]}`;
+                                if (transpileAsNodeAsAny && name === 'mc_getNode') {
+                                    name = 'mc_getAny';
+                                }
                                 callExpression.callee.name.text = name;
                                 if (stringPath) {
                                     callExpression.args.unshift(stringPath);
@@ -649,11 +654,11 @@ export class MaestroPlugin implements CompilerPlugin {
                     if (mFile.isValid) {
                         //it's a binding file
                         this.bindingProcessor.generateCodeForXMLFile(mFile, program, editor, entry);
-                        console.log('generating code for bindings ', entry.file.pkgPath);
+                        // console.log('generating code for bindings ', entry.file.pkgPath);
                         //it's a binding file
                     } else if (mFile.bindings.length === 0 && this.shouldParseFile(entry.file)) {
                         //check if we should add bindings to this anyhow)
-                        console.log('getting ids for regular xml file ', entry.file.pkgPath);
+                        // console.log('getting ids for regular xml file ', entry.file.pkgPath);
                         this.bindingProcessor.addNodeVarsMethodForRegularXMLFile(mFile, editor);
                         //check if we should add bindings to this anyhow)
                     } else {
