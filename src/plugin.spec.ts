@@ -1558,6 +1558,64 @@ describe('MaestroPlugin', () => {
             expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.not.empty;
 
         });
+
+        it('does not give diagnostics for missing new function, when it is present in super', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                class BaseClass
+                    function new()
+                    end function
+                end class
+                @node("Comp", "Group")
+                class Comp extends BaseClass
+                    public content = ""
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+
+        });
+
+        it('does not give diagnostics for missing new function, when it is present in super from task', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                class BaseClass
+                    function new()
+                    end function
+                end class
+                @task("Comp", "Group")
+                class Comp extends BaseClass
+                    public content = ""
+                    function execute(args)
+                    end function
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+
+        });
+
+        it('does not give diagnostics for missing new function or execute function, when it is present in super from task', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                class BaseClass
+                    function new()
+                    end function
+                    function execute(args)
+                    end function
+                end class
+                @task("Comp", "Group")
+                class Comp extends BaseClass
+                    public content = ""
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+
+        });
         it('does not produce diagnostics for missing observer function when extra validation is enabled', async () => {
             plugin.maestroConfig.extraValidation.doExtraValidation = false;
             plugin.afterProgramCreate(program);

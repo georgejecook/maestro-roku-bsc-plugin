@@ -197,6 +197,19 @@ export class File {
         return result;
     }
 
+    public getFuncInThisOrItsParents(cs: ClassStatement, funcName: string) {
+        while (cs) {
+            for (let method of cs.methods) {
+                if (method.name.text.toLowerCase() === funcName.toLowerCase()) {
+                    return method;
+                }
+            }
+            cs = cs.parentClassName ? this.fileMap.allClasses[cs.parentClassName.getName(ParseMode.BrighterScript).replace(/_/g, '.')] : null;
+        }
+
+        return undefined;
+    }
+
     public getParents(): ClassStatement[] {
         if (!this.parents || this.parents.length === 0) {
             this.parents = [];

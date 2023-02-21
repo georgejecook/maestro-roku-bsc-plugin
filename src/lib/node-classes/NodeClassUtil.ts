@@ -1,8 +1,8 @@
-import type { BrsFile, FunctionStatement, Program } from 'brighterscript';
+import type { BrsFile, ClassStatement, FunctionStatement, Program } from 'brighterscript';
 import { ParseMode } from 'brighterscript';
 import type { ProjectFileMap } from '../files/ProjectFileMap';
 import type { File } from '../files/File';
-import { addNodeClassBadDeclaration, addNodeClassDoesNotOverrideNewError, addNodeClassDuplicateName, addNodeClassNoExtendNodeFound, addNodeClassWrongNewSignature } from '../utils/Diagnostics';
+import { addNodeClassBadDeclaration, addNodeClassDoesNotOverrideNewError, addNodeClassDuplicateName, addNodeClassNoExecuteMethod, addNodeClassNoExtendNodeFound, addNodeClassWrongNewSignature } from '../utils/Diagnostics';
 import type { FileFactory } from '../utils/FileFactory';
 
 import { NodeClass, NodeClassType } from './NodeClass';
@@ -44,7 +44,8 @@ export default class NodeClassUtil {
                     console.log(' duplicate node in ', file.pkgPath);
                 } else {
                     let isValid = true;
-                    let newFunc = cs.memberMap.new as FunctionStatement;
+                    let newFunc = this.getFuncInThisOrItsParents(cs, 'new');
+
                     if (!newFunc) {
                         addNodeClassDoesNotOverrideNewError(file, nodeName, annotation.range.start.line, annotation.range.start.character);
                     }
@@ -56,9 +57,9 @@ export default class NodeClassUtil {
                         }
                     }
                     if (nodeType === NodeClassType.task) {
-                        let executeFunction = cs.memberMap.execute as FunctionStatement;
+                        let executeFunction = this.getFuncInThisOrItsParents(cs, 'execute');
                         if (!executeFunction || executeFunction.func.parameters.length !== 1) {
-                            addNodeClassNoExtendNodeFound(file, nodeName, extendsName, annotation.range.start.line, annotation.range.start.character + 1);
+                            addNodeClassNoExecuteMethod(file, annotation.range.start.line, annotation.range.start.character + 1);
                         }
                     }
 
@@ -81,6 +82,18 @@ export default class NodeClassUtil {
                 }
             }
         }
+    }
+    getFuncInThisOrItsParents(cs: ClassStatement, funcName: string) {
+        while (cs) {
+            for (let method of cs.methods) {
+                if (method.name.text.toLowerCase() === funcName.toLowerCase()) {
+                    return method;
+                }
+            }
+            cs = cs.parentClassName ? this.fileMap.allClasses[cs.parentClassName.getName(ParseMode.BrighterScript).replace(/_/g, '.')] : null;
+        }
+
+        return undefined;
     }
 
     generateTestCode(program: Program) {

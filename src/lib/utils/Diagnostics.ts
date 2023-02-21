@@ -191,7 +191,7 @@ export function addBuildTimeErrorImportNoImports(file: BrsFile | XmlFile, buildK
 }
 
 export function addNodeClassNoExecuteMethod(file: BrsFile, line = 0, col = 0) {
-    file.addDiagnostics([createDiagnostic(file, 1028, `Node classes must declare a function name execute(args as assoccarray), which returns dynamic`, line, col)]);
+    file.addDiagnostics([createDiagnostic(file, 1028, `@task components must declare a function name execute(args as assoccarray), which returns dynamic`, line, col)]);
 }
 
 export function addNodeClassNoExtendNodeFound(file: BrsFile, name: string, extendsName: string, line = 0, col = 0) {
