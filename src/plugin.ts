@@ -401,7 +401,7 @@ export class MaestroPlugin implements CompilerPlugin {
             // console.time('Validate bindings');
             let file = this.fileMap.allFiles[event.file.srcPath];
             if (this.maestroConfig.mvvm.insertXmlBindingsEarly && file.isValid) {
-                console.log('adding xml transpiled code for ', file.bscFile.pkgPath);
+                // console.log('adding xml transpiled code for ', file.bscFile.pkgPath);
                 this.bindingProcessor.generateCodeForXMLFile(file, this.program, event.editor);
             }
             // console.timeEnd('Validate bindings');
@@ -649,11 +649,11 @@ export class MaestroPlugin implements CompilerPlugin {
                     if (mFile.isValid) {
                         //it's a binding file
                         this.bindingProcessor.generateCodeForXMLFile(mFile, program, editor, entry);
-                        console.log('generating code for bindings ', entry.file.pkgPath);
+                        // console.log('generating code for bindings ', entry.file.pkgPath);
                         //it's a binding file
                     } else if (mFile.bindings.length === 0 && this.shouldParseFile(entry.file)) {
                         //check if we should add bindings to this anyhow)
-                        console.log('getting ids for regular xml file ', entry.file.pkgPath);
+                        // console.log('getting ids for regular xml file ', entry.file.pkgPath);
                         this.bindingProcessor.addNodeVarsMethodForRegularXMLFile(mFile, editor);
                         //check if we should add bindings to this anyhow)
                     } else {
