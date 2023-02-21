@@ -3142,7 +3142,7 @@ describe('MaestroPlugin', () => {
                     formatJson(mc_getAA(json, "user"))
                     print (mc_getString(json, "user.name", "default name"))
                     if mc_getBoolean(json, "user.favorites.0.isActive")
-                        print mc_getInteger(json, "age.0.time.thing.other.this")
+                        print mc_getInteger(json, "age.0.time." + bslib_toString(thing) + ".other.this")
                     end if
                     print m.items.getValue(mc_getArray(items, invalid, [
                         "none"
