@@ -705,7 +705,7 @@ describe('MaestroPlugin', () => {
             `);
         });
 
-        it.only('ternary works with m.top substitution', async () => {
+        it('ternary works with m.top substitution', async () => {
             plugin.afterProgramCreate(program);
             program.setFile('source/comp.bs', `
                 @node("Comp", "Group")
@@ -2270,6 +2270,9 @@ describe('MaestroPlugin', () => {
                         @sync
                         @inject("user", "valid")
                         private fieldB as string
+
+                        function new()
+                        end function
                     end class
                 `);
                 program.validate();
@@ -2296,6 +2299,9 @@ describe('MaestroPlugin', () => {
                         function okay5(a1 as string, a2 as string, a3 as string, a4 as string, a5 as string)
                         end function
                         function tooManyArgs(a1 as string, a2 as string, a3 as string, a4 as string, a5 as string, a6 as string)
+                        end function
+
+                        function new()
                         end function
                     end class
                 `);

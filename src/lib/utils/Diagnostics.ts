@@ -408,6 +408,6 @@ export function observeFunctionNameWrongArgs(funcName: string, nodeName: string,
 }
 
 export function addNodeClassDoesNotOverrideNewError(file: BrsFile, name: string, line = 0, col = 0) {
-    file.addDiagnostics([createDiagnostic(file, 1064, `Node class "${name}" does not override the new method. All node classes must override the new method, and call super with their class name`, line, col)]);
+    file.addDiagnostics([createDiagnostic(file, 1064, `Node class "${name}" does not override or implement the new method. All node classes must have a new method with no arguments`, line, col)]);
 }
 
