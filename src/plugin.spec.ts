@@ -1531,71 +1531,71 @@ describe('MaestroPlugin', () => {
 
         });
 
-        it('gives diagnostics for missing new function', async () => {
-            plugin.afterProgramCreate(program);
-            program.setFile('source/comp.bs', `
-                @node("Comp", "Group")
-                class Comp
-                    public content = ""
-                end class
-            `);
-            program.validate();
-            await builder.transpile();
-            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.not.empty;
+        // it('gives diagnostics for missing new function', async () => {
+        //     plugin.afterProgramCreate(program);
+        //     program.setFile('source/comp.bs', `
+        //         @node("Comp", "Group")
+        //         class Comp
+        //             public content = ""
+        //         end class
+        //     `);
+        //     program.validate();
+        //     await builder.transpile();
+        //     expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.not.empty;
 
-        });
+        // });
 
-        it('gives diagnostics for missing new function from task', async () => {
-            plugin.afterProgramCreate(program);
-            program.setFile('source/comp.bs', `
-                @task("Comp", "Group")
-                class Comp
-                    public content = ""
-                end class
-            `);
-            program.validate();
-            await builder.transpile();
-            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.not.empty;
+        // it('gives diagnostics for missing new function from task', async () => {
+        //     plugin.afterProgramCreate(program);
+        //     program.setFile('source/comp.bs', `
+        //         @task("Comp", "Group")
+        //         class Comp
+        //             public content = ""
+        //         end class
+        //     `);
+        //     program.validate();
+        //     await builder.transpile();
+        //     expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.not.empty;
 
-        });
+        // });
 
-        it('does not give diagnostics for missing new function, when it is present in super', async () => {
-            plugin.afterProgramCreate(program);
-            program.setFile('source/comp.bs', `
-                class BaseClass
-                    function new()
-                    end function
-                end class
-                @node("Comp", "Group")
-                class Comp extends BaseClass
-                    public content = ""
-                end class
-            `);
-            program.validate();
-            await builder.transpile();
-            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+        // it('does not give diagnostics for missing new function, when it is present in super', async () => {
+        //     plugin.afterProgramCreate(program);
+        //     program.setFile('source/comp.bs', `
+        //         class BaseClass
+        //             function new()
+        //             end function
+        //         end class
+        //         @node("Comp", "Group")
+        //         class Comp extends BaseClass
+        //             public content = ""
+        //         end class
+        //     `);
+        //     program.validate();
+        //     await builder.transpile();
+        //     expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
 
-        });
+        // });
 
-        it('does not give diagnostics for missing new function, when it is present in super from task', async () => {
-            plugin.afterProgramCreate(program);
-            program.setFile('source/comp.bs', `
-                class BaseClass
-                    function new()
-                    end function
-                end class
-                @task("Comp", "Group")
-                class Comp extends BaseClass
-                    public content = ""
-                    function execute(args)
-                    end function
-                end class
-            `);
-            program.validate();
-            await builder.transpile();
-            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+        // it('does not give diagnostics for missing new function, when it is present in super from task', async () => {
+        //     plugin.afterProgramCreate(program);
+        //     program.setFile('source/comp.bs', `
+        //         class BaseClass
+        //             function new()
+        //             end function
+        //         end class
+        //         @task("Comp", "Group")
+        //         class Comp extends BaseClass
+        //             public content = ""
+        //             function execute(args)
+        //             end function
+        //         end class
+        //     `);
+        //     program.validate();
+        //     await builder.transpile();
+        //     expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
 
-        });
+        // });
 
         it('gives diagnostics for @task marked with @nocode', async () => {
             plugin.afterProgramCreate(program);

@@ -46,9 +46,10 @@ export default class NodeClassUtil {
                     let isValid = true;
                     let newFunc = this.getFuncInThisOrItsParents(cs, 'new');
 
-                    if (!newFunc && !noCodeAnnotation) {
-                        addNodeClassDoesNotOverrideNewError(file, nodeName, annotation.range.start.line, annotation.range.start.character);
-                    }
+                    //DONT THINK WE WANT TO ENFORCE THIS
+                    // if (!newFunc && !noCodeAnnotation) {
+                    //     addNodeClassDoesNotOverrideNewError(file, nodeName, annotation.range.start.line, annotation.range.start.character);
+                    // }
                     if (nodeType === NodeClassType.node && !noCodeAnnotation) {
                         if (newFunc && newFunc.func.parameters.length !== 0) {
                             addNodeClassWrongNewSignature(file, annotation.range.start.line, annotation.range.start.character);
