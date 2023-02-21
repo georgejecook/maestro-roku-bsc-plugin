@@ -411,3 +411,7 @@ export function addNodeClassDoesNotOverrideNewError(file: BrsFile, name: string,
     file.addDiagnostics([createDiagnostic(file, 1064, `Node class "${name}" does not override or implement the new method. All node classes must have a new method with no arguments`, line, col)]);
 }
 
+export function addNoCodeAndTaskAnnotation(file: BrsFile, name: string, line = 0, col = 0) {
+    file.addDiagnostics([createDiagnostic(file, 1064, `Node task "${name}" is marked with @nocode annotation. That makes no sense! Please remove the annotation, or did you mean for this to be an @node?`, line, col)]);
+}
+

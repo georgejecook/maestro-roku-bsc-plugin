@@ -2,7 +2,7 @@ import type { BrsFile, ClassStatement, Program } from 'brighterscript';
 import { ParseMode } from 'brighterscript';
 import type { ProjectFileMap } from '../files/ProjectFileMap';
 import type { File } from '../files/File';
-import { addNodeClassBadDeclaration, addNodeClassDoesNotOverrideNewError, addNodeClassDuplicateName, addNodeClassNoExecuteMethod, addNodeClassWrongNewSignature } from '../utils/Diagnostics';
+import { addNoCodeAndTaskAnnotation, addNodeClassBadDeclaration, addNodeClassDoesNotOverrideNewError, addNodeClassDuplicateName, addNodeClassNoExecuteMethod, addNodeClassWrongNewSignature } from '../utils/Diagnostics';
 import type { FileFactory } from '../utils/FileFactory';
 
 import { NodeClass, NodeClassType } from './NodeClass';
@@ -46,10 +46,10 @@ export default class NodeClassUtil {
                     let isValid = true;
                     let newFunc = this.getFuncInThisOrItsParents(cs, 'new');
 
-                    if (!newFunc) {
+                    if (!newFunc && !noCodeAnnotation) {
                         addNodeClassDoesNotOverrideNewError(file, nodeName, annotation.range.start.line, annotation.range.start.character);
                     }
-                    if (nodeType === NodeClassType.node) {
+                    if (nodeType === NodeClassType.node && !noCodeAnnotation) {
                         if (newFunc && newFunc.func.parameters.length !== 0) {
                             addNodeClassWrongNewSignature(file, annotation.range.start.line, annotation.range.start.character);
                             isValid = false;
@@ -57,6 +57,9 @@ export default class NodeClassUtil {
                         }
                     }
                     if (nodeType === NodeClassType.task) {
+                        if (noCodeAnnotation) {
+                            addNoCodeAndTaskAnnotation(file, nodeName, annotation.range.start.line, annotation.range.start.character + 1);
+                        }
                         let executeFunction = this.getFuncInThisOrItsParents(cs, 'execute');
                         if (!executeFunction || executeFunction.func.parameters.length !== 1) {
                             addNodeClassNoExecuteMethod(file, annotation.range.start.line, annotation.range.start.character + 1);

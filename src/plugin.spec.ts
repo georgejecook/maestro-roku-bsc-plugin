@@ -1597,6 +1597,25 @@ describe('MaestroPlugin', () => {
 
         });
 
+        it('gives diagnostics for @task marked with @nocode', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                @nocode
+                @task("Comp", "Group")
+                class Comp
+                    public content = ""
+                    function new()
+                    end function
+                    function execute(args)
+                    end function
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.not.be.empty;
+
+        });
+
         it('does not give diagnostics for missing new function or execute function, when it is present in super from task', async () => {
             plugin.afterProgramCreate(program);
             program.setFile('source/comp.bs', `
