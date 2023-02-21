@@ -69,8 +69,8 @@ export function createProcessorConfig(config: any): MaestroConfig {
         throw new Error('Config does not contain bsConfig' + docsLink);
     }
 
-    if (!config.bsConfig.stagingFolderPath) {
-        throw new Error('bsconfig does not contain stagingFolderPath' + docsLink);
+    if (!config.bsConfig.stagingFolderPath && !config.bsConfig.stagingDir) {
+        throw new Error('bsconfig does not contain stagingDir or deprecated stagingFolderPath' + docsLink);
     }
 
     if (!config.logLevel) {

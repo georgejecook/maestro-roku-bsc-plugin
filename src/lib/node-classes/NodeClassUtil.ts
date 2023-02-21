@@ -2,7 +2,7 @@ import type { BrsFile, ClassStatement, Program } from 'brighterscript';
 import { ParseMode } from 'brighterscript';
 import type { ProjectFileMap } from '../files/ProjectFileMap';
 import type { File } from '../files/File';
-import { addNoCodeAndTaskAnnotation, addNodeClassBadDeclaration, addNodeClassDoesNotOverrideNewError, addNodeClassDuplicateName, addNodeClassNoExecuteMethod, addNodeClassWrongNewSignature } from '../utils/Diagnostics';
+import { addNoCodeAndTaskAnnotation, addNodeClassBadDeclaration, addNodeClassDuplicateName, addNodeClassNoExecuteMethod, addNodeClassWrongNewSignature } from '../utils/Diagnostics';
 import type { FileFactory } from '../utils/FileFactory';
 
 import { NodeClass, NodeClassType } from './NodeClass';
