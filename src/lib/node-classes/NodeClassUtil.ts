@@ -2,7 +2,7 @@ import type { BrsFile, FunctionStatement, Program } from 'brighterscript';
 import { ParseMode } from 'brighterscript';
 import type { ProjectFileMap } from '../files/ProjectFileMap';
 import type { File } from '../files/File';
-import { addNodeClassBadDeclaration, addNodeClassDoesNotOverrideNewError, addNodeClassDuplicateName, addNodeClassNoExtendNodeFound, addNodeClassWrongNewSignature } from '../utils/Diagnostics';
+import { addNodeClassBadDeclaration, addNodeClassDuplicateName, addNodeClassNoExtendNodeFound, addNodeClassWrongNewSignature } from '../utils/Diagnostics';
 import type { FileFactory } from '../utils/FileFactory';
 
 import { NodeClass, NodeClassType } from './NodeClass';
@@ -45,9 +45,9 @@ export default class NodeClassUtil {
                 } else {
                     let isValid = true;
                     let newFunc = cs.memberMap.new as FunctionStatement;
-                    if (!newFunc) {
-                        addNodeClassDoesNotOverrideNewError(file, nodeName, annotation.range.start.line, annotation.range.start.character);
-                    }
+                    // if (!newFunc) {
+                    //     addNodeClassDoesNotOverrideNewError(file, nodeName, annotation.range.start.line, annotation.range.start.character);
+                    // }
                     if (nodeType === NodeClassType.node) {
                         if (newFunc && newFunc.func.parameters.length !== 0) {
                             addNodeClassWrongNewSignature(file, annotation.range.start.line, annotation.range.start.character);
