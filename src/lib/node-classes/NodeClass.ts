@@ -3,7 +3,7 @@ import type { AnnotationExpression, BrsFile, ClassFieldStatement, ClassMethodSta
 import { isEnumMemberStatement, isDottedGetExpression, isEnumStatement, isNewExpression, TokenKind, isClassMethodStatement, ParseMode, createVisitor, isVariableExpression, WalkMode, isAALiteralExpression, isArrayLiteralExpression, isIntegerType, isLiteralExpression, isLiteralNumber, isLongIntegerType, isUnaryExpression } from 'brighterscript';
 import type { ProjectFileMap } from '../files/ProjectFileMap';
 import { expressionToString, expressionToValue, getAllDottedGetParts, sanitizePkgPath } from '../Utils';
-import { addNodeClassCallbackNotDefined, addNodeClassCallbackNotFound, addNodeClassCallbackWrongParams, addNodeClassFieldNoFieldType, addNodeClassNoExtendNodeFound, addNodeClassUnknownClassType, addTooManyPublicParams } from '../utils/Diagnostics';
+import { addNodeClassCallbackNotDefined, addNodeClassCallbackNotFound, addNodeClassCallbackWrongParams, addNodeClassFieldNoFieldType, addNodeClassNoExtendNodeFound, addNodeClassUnknownClassType, addNodeTaskMustExtendTaskComponent, addTooManyPublicParams } from '../utils/Diagnostics';
 import type { FileFactory } from '../utils/FileFactory';
 import { RawCodeStatement } from '../utils/RawCodeStatement';
 import { getAllFields } from '../utils/Utils';
@@ -191,7 +191,12 @@ export class NodeClass {
     m.new()
     m.top = top
     try
-      m.top.output = m.execute(m.top.args)
+      result = m.execute(m.top.args)
+      if type(result) <> "<uninitialized>" and result <> invalid and GetInterface(result, "ifAssociativeArray") <> invalid and result.isOk <> invalid
+        m.top.output = result
+      else
+        m.top.output = {isOk: true, data: result}
+      end if
     catch error
       m.log.error("error occurred executing task", mc_dv(m.top), error)
       m.top.output = {isOk:false, data: error, message: mc_getString(error, "message")}
@@ -345,6 +350,21 @@ export class NodeClass {
         return false;
     }
 
+
+    private getParentComponentOfType(name: string, program: Program) {
+        let comp = program.getComponent(this.extendsName.toLowerCase());
+        while (comp) {
+            if (comp.file.parser.ast.component.name === name) {
+                return true;
+            }
+            if (comp.file.parser.ast.component.getAttributeValue('extends') === name) {
+                return true;
+            }
+            comp = program.getComponent(comp.file.parser?.references?.extends?.text?.toLowerCase());
+        }
+        return undefined;
+    }
+
     generateCode(fileFactory: FileFactory, program: Program, fileMap: ProjectFileMap, isIDEBuild: boolean) {
         let members = this.type === NodeClassType.task ? [] : [...this.getClassMembers(this.classStatement, fileMap).values()];
         // if (!isIDEBuild) {
@@ -487,6 +507,13 @@ export class NodeClass {
         if (!(comp?.file?.componentName?.text === this.extendsName || fileMap.validComps.has(this.extendsName) || fileMap.nodeClasses[this.extendsName])) {
             addNodeClassNoExtendNodeFound(this.file, this.name, this.extendsName, this.annotation.range.start.line, this.annotation.range.start.character);
         }
+
+        if (this.type === NodeClassType.task) {
+            if (this.extendsName !== 'Task' && !this.getParentComponentOfType('Task', this.file.program)) {
+                addNodeTaskMustExtendTaskComponent(this.file, this.name, this.annotation.range.start.line, this.annotation.range.start.character);
+            }
+        }
+
     }
 
     public validate() {
