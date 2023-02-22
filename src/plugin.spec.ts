@@ -1531,7 +1531,7 @@ describe('MaestroPlugin', () => {
 
         });
 
-        it('gives diagnostics for missing new function', async () => {
+        it('does not gives diagnostics for missing new function', async () => {
             plugin.afterProgramCreate(program);
             program.setFile('source/comp.bs', `
                 @node("Comp", "Group")
@@ -1545,18 +1545,69 @@ describe('MaestroPlugin', () => {
 
         });
 
-        it('gives diagnostics for missing new function from task', async () => {
+        it('gives diagnostics when a task does not extend task', async () => {
             plugin.afterProgramCreate(program);
             program.setFile('source/comp.bs', `
                 @task("Comp", "Group")
                 class Comp
-                    public content = ""
+                    function execute(args)
+                    end function
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.have.lengthOf(1);
+        });
+
+        it('gives diagnostics when a task nor parent extending component does not extend task', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                @node("ParentTask", "Group")
+                class Extended
+                end class
+
+                @task("Comp", "ParentTask")
+                class Comp
+                    function execute(args)
+                    end function
                 end class
             `);
             program.validate();
             await builder.transpile();
             expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.not.empty;
+        });
+        it('does not gives diagnostics when parent extends Task', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                @task("ParentTask", "Task")
+                class Extended
+                    function execute(args)
+                    end function
+                end class
 
+                @task("Comp", "ParentTask")
+                class Comp
+                    function execute(args)
+                    end function
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+        });
+
+        it('does not gives diagnostics when task extends Task', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                @task("Comp", "Task")
+                class Comp
+                    function execute(args)
+                    end function
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
         });
         it('does not produce diagnostics for missing observer function when extra validation is enabled', async () => {
             plugin.maestroConfig.extraValidation.doExtraValidation = false;
@@ -1774,7 +1825,7 @@ describe('MaestroPlugin', () => {
 
         describe('extra validation', () => {
 
-            it('gives diagostic for unknown field', () => {
+            it('gives diagnostic for unknown field', () => {
                 plugin.afterProgramCreate(program);
 
                 program.setFile('source/VM.bs', `
@@ -1791,7 +1842,7 @@ describe('MaestroPlugin', () => {
                 expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.not.be.empty;
             });
 
-            it('gives diagostic for unknown field; but skips valid skips', () => {
+            it('gives diagnostic for unknown field; but skips valid skips', () => {
                 plugin.afterProgramCreate(program);
 
                 program.setFile('source/VM.bs', `
