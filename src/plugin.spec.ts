@@ -1531,7 +1531,7 @@ describe('MaestroPlugin', () => {
 
         });
 
-        it('does not gives diagnostics for missing new function', async () => {
+        it('does not give diagnostics for missing new function', async () => {
             plugin.afterProgramCreate(program);
             program.setFile('source/comp.bs', `
                 @node("Comp", "Group")
@@ -1542,77 +1542,178 @@ describe('MaestroPlugin', () => {
             program.validate();
             await builder.transpile();
             expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+            expect(
+                getContents('components/maestro/generated/Comp.brs')
+            ).to.eql(undent`
+            'import "pkg:/source/comp.bs"
 
+            function init()
+                m.top.content = ""
+                instance = __Comp_builder()
+                instance.delete("top")
+                instance.delete("global")
+                top = m.top
+                m.append(instance)
+                m.__isVMCreated = true
+                m.new()
+                m.top = top
+                m_wireUpObservers()
+            end function
+
+            function m_wireUpObservers()
+            end function
+
+            function __m_setTopField(field, value)
+                if m.top.doesExist(field)
+                    m.top[field] = value
+                end if
+                return value
+            end function
+            `);
         });
 
-        it('gives diagnostics when a task does not extend task', async () => {
-            plugin.afterProgramCreate(program);
-            program.setFile('source/comp.bs', `
-                @task("Comp", "Group")
+    });
+
+    it('gives diagnostics when a task does not extend task', async () => {
+        plugin.afterProgramCreate(program);
+        program.setFile('source/comp.bs', `
+                @task("TaskTest", "Group")
                 class Comp
                     function execute(args)
                     end function
                 end class
             `);
-            program.validate();
-            await builder.transpile();
-            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.have.lengthOf(1);
-        });
+        program.validate();
+        await builder.transpile();
+        expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.have.lengthOf(1);
+    });
 
-        it('gives diagnostics when a task nor parent extending component does not extend task', async () => {
-            plugin.afterProgramCreate(program);
-            program.setFile('source/comp.bs', `
+    it('gives diagnostics when a task nor parent extending component does not extend task', async () => {
+        plugin.afterProgramCreate(program);
+        program.setFile('source/comp.bs', `
                 @node("ParentTask", "Group")
                 class Extended
                 end class
 
-                @task("Comp", "ParentTask")
+                @task("TaskTest", "ParentTask")
                 class Comp
                     function execute(args)
                     end function
                 end class
             `);
-            program.validate();
-            await builder.transpile();
-            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.not.empty;
-        });
-        it('does not gives diagnostics when parent extends Task', async () => {
-            plugin.afterProgramCreate(program);
-            program.setFile('source/comp.bs', `
+        program.validate();
+        await builder.transpile();
+        expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.not.empty;
+    });
+    it('does not give diagnostics when parent extends Task', async () => {
+        plugin.afterProgramCreate(program);
+        program.setFile('source/comp.bs', `
                 @task("ParentTask", "Task")
                 class Extended
                     function execute(args)
                     end function
                 end class
 
-                @task("Comp", "ParentTask")
+                @task("TaskTest", "ParentTask")
                 class Comp
                     function execute(args)
                     end function
                 end class
             `);
-            program.validate();
-            await builder.transpile();
-            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
-        });
+        program.validate();
+        await builder.transpile();
+        expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+        expect(
+            getContents('components/maestro/generated/TaskTest.brs')
+        ).to.eql(undent`
+        'import "pkg:/source/comp.bs"
 
-        it('does not gives diagnostics when task extends Task', async () => {
-            plugin.afterProgramCreate(program);
-            program.setFile('source/comp.bs', `
-                @task("Comp", "Task")
+        function __m_setTopField(field, value)
+            if m.top.doesExist(field)
+                m.top[field] = value
+            end if
+            return value
+        end function
+
+        function init()
+            m.top.functionName = "exec"
+        end function
+
+        function exec()
+            instance = __Comp_builder()
+            m.top.output = mc_private_taskExec(instance)
+        end function`);
+        expect(
+            getContents('components/maestro/generated/TaskTest.xml')
+        ).to.eql(undent`
+        <?xml version="1.0" encoding="UTF-8" ?>
+        <component name="TaskTest" extends="ParentTask">
+            <interface>
+                <field id="args" type="assocarray" />
+                <field id="output" type="assocarray" />
+                <function name="exec" />
+            </interface>
+            <script type="text/brightscript" uri="pkg:/source/roku_modules/maestro/private/MaestroPluginUtils.brs" />
+            <script type="text/brightscript" uri="pkg:/components/maestro/generated/TaskTest.brs" />
+            <children />
+        </component>`);
+    });
+
+    it('does not give diagnostics when regular component extends Task', async () => {
+        plugin.afterProgramCreate(program);
+        program.setFile('source/comp.bs', `
+                @task("TaskTest", "Task")
                 class Comp
                     function execute(args)
                     end function
                 end class
             `);
-            program.validate();
-            await builder.transpile();
-            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
-        });
-        it('does not produce diagnostics for missing observer function when extra validation is enabled', async () => {
-            plugin.maestroConfig.extraValidation.doExtraValidation = false;
-            plugin.afterProgramCreate(program);
-            program.setFile('source/comp.bs', `
+        program.validate();
+        await builder.transpile();
+        expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+        expect(
+            getContents('components/maestro/generated/TaskTest.brs')
+        ).to.eql(undent(`
+        'import "pkg:/source/comp.bs"
+
+        function __m_setTopField(field, value)
+            if m.top.doesExist(field)
+                m.top[field] = value
+            end if
+            return value
+        end function
+
+        function init()
+            m.top.functionName = "exec"
+        end function
+
+        function exec()
+            instance = __Comp_builder()
+            m.top.output = mc_private_taskExec(instance)
+        end function`));
+        expect(
+            getContents('components/maestro/generated/TaskTest.xml')
+        ).to.eql(undent(`
+        <?xml version="1.0" encoding="UTF-8" ?>
+        <component name="TaskTest" extends="Task">
+            <interface>
+                <field id="args" type="assocarray" />
+                <field id="output" type="assocarray" />
+                <function name="exec" />
+            </interface>
+            <script type="text/brightscript" uri="pkg:/source/roku_modules/maestro/private/MaestroPluginUtils.brs" />
+            <script type="text/brightscript" uri="pkg:/components/maestro/generated/TaskTest.brs" />
+            <script type="text/brightscript" uri="pkg:/source/comp.brs" />
+            <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
+            <children />
+        </component>
+        `));
+
+    });
+    it('does not produce diagnostics for missing observer function when extra validation is enabled', async () => {
+        plugin.maestroConfig.extraValidation.doExtraValidation = false;
+        plugin.afterProgramCreate(program);
+        program.setFile('source/comp.bs', `
                 @node("Comp", "Group")
                 class Comp
 
@@ -1624,14 +1725,47 @@ describe('MaestroPlugin', () => {
                     end function
                 end class
             `);
-            program.validate();
-            await builder.transpile();
-            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+        program.validate();
+        await builder.transpile();
+        expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+        expect(
+            getContents('components/maestro/generated/Comp.brs')
+        ).to.eql(undent`
+        'import "pkg:/source/comp.bs"
 
-        });
-        it('gives diagnostics for wrong observer function params', async () => {
-            plugin.afterProgramCreate(program);
-            program.setFile('source/comp.bs', `
+        function init()
+            m.top.title = ""
+            m.top.content = ""
+            instance = __Comp_builder()
+            instance.delete("top")
+            instance.delete("global")
+            top = m.top
+            m.append(instance)
+            m.__isVMCreated = true
+            m.new()
+            m.top = top
+            m_wireUpObservers()
+        end function
+
+        function on_title(event)
+            m.onTitleChange()
+        end function
+
+        function m_wireUpObservers()
+            m.top.observeField("title", "on_title")
+        end function
+
+        function __m_setTopField(field, value)
+            if m.top.doesExist(field)
+                m.top[field] = value
+            end if
+            return value
+        end function`);
+    });
+
+    it('gives diagnostics for wrong observer function params', async () => {
+        plugin.afterProgramCreate(program);
+        program.setFile('source/comp.bs', `
                 @node("Comp", "Group")
                 class Comp
 
@@ -1647,14 +1781,14 @@ describe('MaestroPlugin', () => {
 
                 end class
             `);
-            program.validate();
-            await builder.transpile();
-            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.not.empty;
+        program.validate();
+        await builder.transpile();
+        expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.not.empty;
 
-        });
-        it('gives diagnostics for wrong constructor function params', async () => {
-            plugin.afterProgramCreate(program);
-            program.setFile('source/comp.bs', `
+    });
+    it('gives diagnostics for wrong constructor function params', async () => {
+        plugin.afterProgramCreate(program);
+        program.setFile('source/comp.bs', `
                 @node("Comp", "Group")
                 class Comp
 
@@ -1666,14 +1800,14 @@ describe('MaestroPlugin', () => {
                     end function
                 end class
             `);
-            program.validate();
-            await builder.transpile();
-            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.not.empty;
+        program.validate();
+        await builder.transpile();
+        expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.not.empty;
 
-        });
-        it('gives diagnostics for no constructor', async () => {
-            plugin.afterProgramCreate(program);
-            program.setFile('source/comp.bs', `
+    });
+    it('gives diagnostics for no constructor', async () => {
+        plugin.afterProgramCreate(program);
+        program.setFile('source/comp.bs', `
                 @node("Comp", "Group")
                 class Comp
 
@@ -1683,11 +1817,10 @@ describe('MaestroPlugin', () => {
 
                 end class
             `);
-            program.validate();
-            await builder.transpile();
-            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.not.empty;
+        program.validate();
+        await builder.transpile();
+        expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.not.empty;
 
-        });
     });
     describe('reflection', () => {
 
@@ -1880,7 +2013,7 @@ describe('MaestroPlugin', () => {
                 program.validate();
                 expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.not.be.empty;
             });
-            it('does not gives diagnostic for field in superclass', () => {
+            it('does not give diagnostic for field in superclass', () => {
                 plugin.afterProgramCreate(program);
 
                 program.setFile('source/VM.bs', `
@@ -1921,7 +2054,7 @@ describe('MaestroPlugin', () => {
                 expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
             });
 
-            it('does not gives diagnostic for function in superclass', () => {
+            it('does not give diagnostic for function in superclass', () => {
                 plugin.afterProgramCreate(program);
 
                 program.setFile('source/VM.bs', `
@@ -2893,60 +3026,60 @@ describe('MaestroPlugin', () => {
                 console.error(e);
             });
         });
-    });
-
-    it('MV', () => {
-        let config = {
-            'rootDir': 'src',
-            'files': [
-                'manifest',
-                'source/**/*.*',
-                'components/**/*.*'
-            ],
-            'autoImportComponentScript': true,
-            'createPackage': false,
-            'stagingFolderPath': 'build',
-            'diagnosticFilters': [
-                {
-                    'src': '**/roku_modules/**/*.*'
-                },
-                {
-                    'src': '**/WhiteList.xml',
-                    'codes': [
-                        1067
-                    ]
-                },
-                1120
-            ],
-            'emitDefinitions': true,
-            'plugins': [
-                '/home/george/hope/open-source/maestro/maestro-roku-bsc-plugin/dist/plugin.js',
-                '/home/george/hope/open-source/rooibos/bsc-plugin/dist/plugin.js'
-            ],
-            'rooibos': {
-                'isRecordingCodeCoverage': false,
-                'testsFilePattern': null,
-                'tags': [
-                    '!integration',
-                    '!deprecated',
-                    '!fixme'
+        it('MV', () => {
+            let config = {
+                'rootDir': 'src',
+                'files': [
+                    'manifest',
+                    'source/**/*.*',
+                    'components/**/*.*'
                 ],
-                'showOnlyFailures': true,
-                'catchCrashes': true,
-                'lineWidth': 70
-            },
-            'rokuLog': {
-                'strip': false,
-                'insertPkgPath': true
-            },
-            'sourceMap': true
-        };
-        let programBuilder = new ProgramBuilder();
-        programBuilder.run(config as any).catch(e => {
-            console.error(e);
-        });
+                'autoImportComponentScript': true,
+                'createPackage': false,
+                'stagingFolderPath': 'build',
+                'diagnosticFilters': [
+                    {
+                        'src': '**/roku_modules/**/*.*'
+                    },
+                    {
+                        'src': '**/WhiteList.xml',
+                        'codes': [
+                            1067
+                        ]
+                    },
+                    1120
+                ],
+                'emitDefinitions': true,
+                'plugins': [
+                    '/home/george/hope/open-source/maestro/maestro-roku-bsc-plugin/dist/plugin.js',
+                    '/home/george/hope/open-source/rooibos/bsc-plugin/dist/plugin.js'
+                ],
+                'rooibos': {
+                    'isRecordingCodeCoverage': false,
+                    'testsFilePattern': null,
+                    'tags': [
+                        '!integration',
+                        '!deprecated',
+                        '!fixme'
+                    ],
+                    'showOnlyFailures': true,
+                    'catchCrashes': true,
+                    'lineWidth': 70
+                },
+                'rokuLog': {
+                    'strip': false,
+                    'insertPkgPath': true
+                },
+                'sourceMap': true
+            };
+            let programBuilder = new ProgramBuilder();
+            programBuilder.run(config as any).catch(e => {
+                console.error(e);
+            });
 
+        });
     });
+
 
     describe('auto inject m into namespace function call support', () => {
         beforeEach(() => {
