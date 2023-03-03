@@ -10,7 +10,8 @@ export class FileFactory {
     }
     public ignoredFilePaths = [];
     private frameworkFiles = {
-        'Reflection.brs': 'source/roku_modules/maestro/reflection/Reflection.brs'
+        'Reflection.brs': 'source/roku_modules/maestro/reflection/Reflection.brs',
+        'MaestroPluginUtils.brs': 'source/roku_modules/maestro/private/MaestroPluginUtils.brs'
     };
 
     public sourcePath = path.join(__dirname, '../framework');

@@ -183,41 +183,7 @@ export class NodeClass {
 
   function exec()
     instance = __${nodeFile.classStatement.getName(ParseMode.BrightScript)}_builder()
-    instance.delete("top")
-    instance.delete("global")
-    top = m.top
-    m.append(instance)
-    m.__isVMCreated = true
-    m.new()
-    m.top = top
-    args = m.top.args
-    maxTaskRetries = 1
-    if args <> invalid  and args.maxTaskRetries <> invalid
-        maxTaskRetries = args.maxTaskRetries
-    end if
-    lastError = invalid
-    attempt = 0
-    while attempt < maxTaskRetries
-        try
-            if m._execute <> invalid
-                result = m._execute(args)
-            else
-                result = m.execute(args)
-            end if
-            if type(result) <> "<uninitialized>" and result <> invalid and GetInterface(result, "ifAssociativeArray") <> invalid and result.isOk <> invalid
-                m.top.output = result
-            else
-                m.top.output = {isOk: true, data: result}
-            end if
-        catch error
-            m.log.error("error occurred executing task", mc_dv(m.top), error)
-            lastError = error
-            lastErrorMessage = mc_getString(error, "message")
-        end try
-        attempt++
-    end while
-
-    m.top.output = {isOk:false, data: error, message: lastErrorMessage}
+    m.top.output = mc_private_taskExec(instance)
   end function
     `;
         return text;
@@ -312,6 +278,7 @@ export class NodeClass {
     <field id="output" type="assocarray"/>
     <function name="exec"/>
     </interface>
+    <script type="text/brightscript" uri="pkg:/source/roku_modules/maestro/private/MaestroPluginUtils.brs" />
     <children>
     </children>
     </component>
