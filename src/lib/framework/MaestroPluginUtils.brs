@@ -33,7 +33,7 @@ function mc_private_taskExec(instance as dynamic)
         catch error
             m.log.error("error occurred executing task", m.top.subType(), m.top.id, error)
             if error <> invalid
-                errorMessage = errorMessage.message
+                errorMessage = error.message
             else
                 errorMessage = ""
             end if
