@@ -838,7 +838,7 @@ export class MaestroPlugin implements CompilerPlugin {
                         continue;
                     }
                     let syncAnnotation = (field.annotations || []).find((a) => a.name.toLowerCase() === 'sync');
-                    if (syncAnnotation && args.length < 2) {
+                    if (syncAnnotation && args.length < 2 && !(args[0] as string).includes('.')) {
                         file.addDiagnostics([{
                             ...noPathForIOCSync(),
                             range: cs.range,
@@ -852,7 +852,7 @@ export class MaestroPlugin implements CompilerPlugin {
                     let observeField;
                     let observePath;
                     if (args1.length > 1) {
-                        iocKey = args1.splice(0);
+                        iocKey = args1.splice(0, 1);
                         iocPath = args1.join('.');
                     } else {
                         iocKey = args1;

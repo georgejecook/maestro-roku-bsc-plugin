@@ -2752,6 +2752,54 @@ describe('MaestroPlugin', () => {
                     end function
                 `);
             });
+
+            it('allows injecting with a dot value', async () => {
+                plugin.afterProgramCreate(program);
+
+                program.setFile('source/VM.bs', `
+                    class MyView
+                        @inject("Entitlements.isLoggedIn")
+                        private fieldA
+                        @inject("user.Entitlements.isLoggedIn")
+                        private fieldB
+
+                        @sync
+                        @inject("Entitlements.isLoggedIn")
+                        private fieldC
+
+                        @sync
+                        @inject("user.Entitlements.isLoggedIn")
+                        private fieldD
+
+                        function onFieldChange(value)
+                        end function
+                    end class
+                `);
+                program.validate();
+                await builder.transpile();
+                expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+                expect(
+                    getContents('source/VM.brs')
+                ).to.eql(undent`
+                function __MyView_builder()
+                    instance = {}
+                    instance.new = sub()
+                        m.fieldA = mioc_getInstance("Entitlements", "isLoggedIn", invalid)
+                        m.fieldB = mioc_getInstance("user", "Entitlements.isLoggedIn", invalid)
+                        m.fieldC = m._addIOCObserver("fieldC", "Entitlements", "isLoggedIn", "", "isLoggedIn", invalid)
+                        m.fieldD = m._addIOCObserver("fieldD", "user", "Entitlements.isLoggedIn", "Entitlements", "isLoggedIn", invalid)
+                        m.__classname = "MyView"
+                    end sub
+                    instance.onFieldChange = function(value)
+                    end function
+                    return instance
+                end function
+                function MyView()
+                    instance = __MyView_builder()
+                    instance.new()
+                    return instance
+                end function`);
+            });
         });
     });
 
