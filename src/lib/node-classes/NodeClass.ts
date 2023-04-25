@@ -653,8 +653,13 @@ export class NodeClass {
     }
 
     getInterfaceFromFieldType(fieldType: string) {
-        let interfaceMap = this.file.program.getFirstScopeForFile(this.file)?.getInterfaceMap();
-        return interfaceMap.get(fieldType.toLowerCase())?.item;
+        try {
+
+            let interfaceMap = this.file.program.getFirstScopeForFile(this.file)?.getInterfaceMap();
+            return interfaceMap.get(fieldType.toLowerCase())?.item;
+        } catch (e) {
+            console.log(e);
+        }
     }
 
 
