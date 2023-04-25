@@ -486,6 +486,7 @@ export class MaestroPlugin implements CompilerPlugin {
                                 }
                                 callExpression.callee.name.text = name;
                                 if (stringPath) {
+                                    //FIXME do not use a raw code expression here
                                     let rawCode = new RawCodeExpression(`"${stringPath}"`, file, value.range);
                                     callExpression.args.unshift(rawCode);
                                 } else {
@@ -645,7 +646,7 @@ export class MaestroPlugin implements CompilerPlugin {
                 // } else if (isVariableExpression(expr.index)) {
                 // return expr.index.name.text;
             } else {
-                return `" + bslib_toString(${expr.index.transpile(state).join('')}) + "`;
+                return `" + rokucommunity_bslib_toString(${expr.index.transpile(state).join('')}) + "`;
                 // return `\${m.text}}`;
             }
         }

@@ -3311,7 +3311,7 @@ describe('MaestroPlugin', () => {
                     formatJson(asAA(json.user))
                     print(asString(json.user.name, "default name"))
                     if asBoolean(json.user.favorites[0].isActive)
-                        print mc_getInteger(json, "age.0.time." + bslib_toString(thing) + ".other.this")
+                        print mc_getInteger(json, "age.0.time." + rokucommunity_bslib_toString(thing) + ".other.this")
                     end if
                     print m.items.getValue(asArray(items, ["none"]))
                     print m.items.show(asNode(items[0].item))
@@ -3331,7 +3331,7 @@ describe('MaestroPlugin', () => {
                     formatJson(mc_getAA(json, "user"))
                     print (mc_getString(json, "user.name", "default name"))
                     if mc_getBoolean(json, "user.favorites.0.isActive")
-                        print mc_getInteger(json, "age.0.time." + bslib_toString(thing) + ".other.this")
+                        print mc_getInteger(json, "age.0.time." + rokucommunity_bslib_toString(thing) + ".other.this")
                     end if
                     print m.items.getValue(mc_getArray(items, invalid, [
                         "none"
@@ -3357,7 +3357,7 @@ describe('MaestroPlugin', () => {
                 getContents('source/comp.brs')
             ).to.eql(undent`
             function notInClass()
-                a = mc_getAA(data, "Schedules." + bslib_toString(index) + ".Productions." + bslib_toString(m.index) + "")
+                a = mc_getAA(data, "Schedules." + rokucommunity_bslib_toString(index) + ".Productions." + rokucommunity_bslib_toString(m.index) + "")
             end function`);
         });
 
@@ -3391,7 +3391,7 @@ describe('MaestroPlugin', () => {
                     formatJson(mc_getAA(json, "user"))
                     print (mc_getString(json, "user.name", "default name"))
                     if mc_getBoolean(json, "user.favorites.0.isActive")
-                        print mc_getInteger(json, "age.0.time." + bslib_toString(thing) + ".other.this")
+                        print mc_getInteger(json, "age.0.time." + rokucommunity_bslib_toString(thing) + ".other.this")
                     end if
                     print m.items.getValue(mc_getArray(items, invalid, [
                         "none"
@@ -3508,7 +3508,7 @@ describe('MaestroPlugin', () => {
                 function ns_inNAmespace()
                     formatJson(mc_getAA(json, "user"))
                     if mc_getBoolean(json, "user.favorites.0.isActive")
-                        print mc_getInteger(json, "age.0.time." + bslib_toString(thing) + ".other.this")
+                        print mc_getInteger(json, "age.0.time." + rokucommunity_bslib_toString(thing) + ".other.this")
                     end if
                     print m.items.getValue(mc_getArray(items, invalid))
                     print m.items.show(mc_getNode(items, "0.item"))
@@ -3524,7 +3524,7 @@ describe('MaestroPlugin', () => {
                     function classMethod()
                         formatJson(asAA(m.json.user))
                         if asBoolean(m.json.user.favorites[0].isActive)
-                            print mc_getInteger(m, "json.age.0.time." + bslib_toString(thing) + ".other.this")
+                            print mc_getInteger(m, "json.age.0.time." + rokucommunity_bslib_toString(thing) + ".other.this")
                         end if
                         print m.items.getValue(asArray(items))
                         print m.items.show(asNode(items[0].item))
@@ -3547,7 +3547,7 @@ describe('MaestroPlugin', () => {
                     instance.classMethod = function()
                         formatJson(mc_getAA(m, "json.user"))
                         if mc_getBoolean(m, "json.user.favorites.0.isActive")
-                            print mc_getInteger(m, "json.age.0.time." + bslib_toString(thing) + ".other.this")
+                            print mc_getInteger(m, "json.age.0.time." + rokucommunity_bslib_toString(thing) + ".other.this")
                         end if
                         print m.items.getValue(mc_getArray(items, invalid))
                         print m.items.show(mc_getNode(items, "0.item"))
