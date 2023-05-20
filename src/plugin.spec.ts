@@ -670,7 +670,7 @@ describe('MaestroPlugin', () => {
             expect(builder.getDiagnostics().length).to.equal(1);
 
         });
-        it('validates callFunc calls on a node class -good', async () => {
+        it('validates callFunc calls on a node class - diagnostics, on different comp', async () => {
             plugin.afterProgramCreate(program);
             program.setFile('source/comp1.bs', `
                 @node("Comp", "Group")
@@ -722,10 +722,10 @@ describe('MaestroPlugin', () => {
             `);
             program.validate();
             await builder.transpile();
-            expect(builder.getDiagnostics().length).to.equal(1);
+            expect(builder.getDiagnostics().length).to.equal(3);
 
         });
-        it.only('warns for unknown asType', async () => {
+        it('warns for unknown asType', async () => {
             plugin.afterProgramCreate(program);
             program.setFile('source/comp1.bs', `
                 @node("Comp", "Group")
