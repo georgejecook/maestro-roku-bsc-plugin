@@ -75,6 +75,8 @@ export default class NodeClassUtil {
                         nodeClasses.push(nodeClass);
                         // eslint-disable-next-line @typescript-eslint/dot-notation
                         cs['_isNodeClass'] = true;
+                        // eslint-disable-next-line @typescript-eslint/dot-notation
+                        cs['_nodeClass'] = nodeClass;
                     } else {
                         console.log('not adding invalid class', cs.name.text);
                     }

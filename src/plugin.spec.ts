@@ -632,6 +632,232 @@ describe('MaestroPlugin', () => {
             `);
         });
 
+        it('validates callFunc calls on a node class -good', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                @node("Comp", "Group")
+                class Comp
+
+                    public title = ""
+                    public content = ""
+
+                    function new()
+                    end function
+
+                    function getName()
+                    end function
+
+                    function setAge(defaultAge = 20 as integer)
+                    end function
+                end class
+            `);
+            program.setFile('source/TestClass.bs', `
+                class TestClass
+                    @subType("Comp")
+                    private myNode
+                    function new()
+                        ? m.myNode@.getName()
+                        m.myNode@.setAge(30)
+
+                        localNode = createObject("Comp")
+                        ? localNode@.getName()
+                        localNode@.setAge(30)
+                    end function
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            expect(builder.getDiagnostics().length).to.equal(1);
+
+        });
+        it('validates callFunc calls on a node class -good', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp1.bs', `
+                @node("Comp", "Group")
+                class Comp
+
+                    public title = ""
+                    public content = ""
+
+                    function new()
+                    end function
+
+                    function getName()
+                    end function
+
+                    function setAge(defaultAge = 20 as integer)
+                    end function
+                end class
+            `);
+            program.setFile('source/comp2.bs', `
+                @node("Comp2", "Group")
+                class Comp2
+
+                    public title = ""
+                    public content = ""
+
+                    function new()
+                    end function
+
+                    function getName2()
+                    end function
+
+                    function setAge2(defaultAge = 20 as integer)
+                    end function
+                end class
+            `);
+            program.setFile('source/TestClass.bs', `
+                class TestClass
+                    @subType("Comp2")
+                    private myNode
+                    function new()
+                        ? m.myNode@.getName()
+                        m.myNode@.setAge(30)
+
+                        localNode = createObject("Comp")
+                        ? localNode@.getName()
+                        localNode@.setAge(30)
+                    end function
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            expect(builder.getDiagnostics().length).to.equal(1);
+
+        });
+        it.only('warns for unknown asType', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp1.bs', `
+                @node("Comp", "Group")
+                class Comp
+
+                    @subType("Bad1")
+                    private myNode
+
+                    @type("Bad1")
+                    private myNode2
+
+                    @nodeType("Bad1")
+                    private myNode3
+
+                    @subType("Bad1")
+                    private myNodeA = invalid
+
+                    @type("Bad1")
+                    private myNodeA2 = invalid
+
+                    @nodeType("Bad1")
+                    private myNodeA3 = invalid
+
+                    function new()
+                    end function
+
+                    function getName()
+                    end function
+
+                    function setAge(defaultAge = 20 as integer)
+                    end function
+                end class
+            `);
+            program.setFile('source/TestClass.bs', `
+                class TestClass
+                    @subType("Bad1")
+                    private myNode
+
+                    @type("Bad1")
+                    private myNode2
+
+                    @nodeType("Bad1")
+                    private myNode3
+
+                    function new()
+                        ? m.myNode@.getName()
+                        m.myNode@.setAge(30)
+
+                        localNode = createObject("Comp")
+                        ? localNode@.getName()
+                        localNode@.setAge(30)
+                    end function
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            expect(builder.getDiagnostics().length).to.equal(7);
+
+        });
+
+        it('validates callFunc calls on a node class - errors', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                @node("Comp", "Group")
+                class Comp
+
+                    public title = ""
+                    public content = ""
+
+                    function new()
+                    end function
+
+                    function getName()
+                    end function
+
+                    function setAge(defaultAge = 20 as integer)
+                    end function
+                end class
+            `);
+            program.setFile('source/TestClass.bs', `
+                class TestClass
+                    @subType("Comp")
+                    private myNode
+                    function new()
+                        ? m.myNode@.getName()
+                        m.myNode@.setName(30)
+
+                        localNode = createObject("Comp")
+                        ? localNode@.getName()
+                        localNode@.setName(30)
+                    end function
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            expect(builder.getDiagnostics().length).to.equal(3);
+
+        });
+
+        it('validates callFunc calls on known xml file', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('components/XMLComp.xml', `<?xml version="1.0" encoding="UTF-8" ?>
+            <component name="XMLComp" extends="Group">
+                <interface>
+                    <field id="title" type="string" />
+                    <field id="content" type="string" />
+                    <function name="setName2" />
+                </interface>
+                <children />
+            </component>
+            `);
+            program.setFile('source/TestClass.bs', `
+                class TestClass
+                    @subType("XMLComp")
+                    private myNode
+                    function new()
+                        ? m.myNode@.getName()
+                        m.myNode@.setName(30)
+
+                        localNode = createObject("XMLComp")
+                        ? localNode@.getName()
+                        localNode@.setName2(30)
+                    end function
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            expect(builder.getDiagnostics().length).to.equal(5);
+
+        });
+
+
         it('parses tunnels public functions', async () => {
             plugin.afterProgramCreate(program);
             program.setFile('source/comp.bs', `

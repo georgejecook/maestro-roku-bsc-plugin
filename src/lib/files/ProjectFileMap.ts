@@ -1,4 +1,4 @@
-import type { BrsFile, BscFile, ClassStatement, FunctionStatement, XmlFile } from 'brighterscript';
+import type { BrsFile, BscFile, ClassStatement, FunctionStatement, Program, XmlFile, XmlScope } from 'brighterscript';
 import { isFunctionStatement } from 'brighterscript';
 import * as brighterscript from 'brighterscript';
 
@@ -6,7 +6,8 @@ import { File } from './File';
 import { FileType } from './FileType';
 
 import { addProjectFileMapErrorDuplicateXMLComp } from '../utils/Diagnostics';
-import type { NodeClass } from '../node-classes/NodeClass';
+import type { NodeClass, NodeClassMemberRef } from '../node-classes/NodeClass';
+
 
 export class ProjectFileMap {
 
@@ -99,6 +100,63 @@ export class ProjectFileMap {
             'ZoomRowList']
     );
 
+    getAllNodeMembers(program: Program): Map<string, NodeClassMemberRef[]> {
+        const membersMap = new Map<string, NodeClassMemberRef[]>();
+
+        for (const className in this.nodeClasses) {
+            const nodeClass = this.nodeClasses[className];
+            const nodeMembers = nodeClass.nodeMembersByName;
+
+            for (const [memberName, ref] of nodeMembers) {
+                if (!membersMap.has(memberName)) {
+                    membersMap.set(memberName, []);
+                }
+
+                membersMap.get(memberName).push(ref);
+            }
+        }
+
+        let scopes = program.getScopes();
+        for (const scope of scopes.filter((scope) => brighterscript.isXmlScope(scope))) {
+            let xmlFile = (scope as XmlScope).xmlFile;
+            let key = xmlFile?.componentName?.text;
+            if (!key) {
+                console.warn('found xml file with no component name', xmlFile.srcPath);
+                continue;
+            }
+            // `key` represents the key or filename
+            // `value` represents the corresponding `File` object
+
+            // Perform operations using the `key` and `value` here
+            for (let sgFunction of xmlFile.ast.component.api.functions) {
+
+                if (!membersMap.has(sgFunction.name)) {
+                    membersMap.set(sgFunction.name, []);
+                }
+
+                const ref: NodeClassMemberRef = {
+                    nodeClass: xmlFile,
+                    member: sgFunction
+                };
+                membersMap.get(sgFunction.name).push(ref);
+            }
+            for (let sgField of xmlFile.ast.component.api.fields) {
+
+                if (!membersMap.has(sgField.id)) {
+                    membersMap.set(sgField.id, []);
+                }
+
+                const ref: NodeClassMemberRef = {
+                    nodeClass: xmlFile,
+                    member: sgField
+                };
+                membersMap.get(sgField.id).push(ref);
+            }
+        }
+        //and add all xml files in scope
+
+        return membersMap;
+    }
 
     public addXMLComponent(file: File) {
         if (file.fileType === FileType.Xml) {
