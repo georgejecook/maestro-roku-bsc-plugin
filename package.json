@@ -11,6 +11,7 @@
         "test": "test"
     },
     "dependencies": {
+        "cz-conventional-changelog": "^3.3.0",
         "debounce": "^1.2.0",
         "roku-deploy": "^3.2.4",
         "source-map": "^0.7.3",
@@ -36,6 +37,7 @@
         "minimatch": "^3.0.4",
         "mocha": "^8.1.3",
         "nyc": "^15.1.0",
+        "release-it": "^15.10.3",
         "rimraf": "^3.0.2",
         "sax": "^1.2.4",
         "source-map-support": "^0.5.21",
@@ -107,7 +109,7 @@
     },
     "scripts": {
         "preversion": "npm run build && npm run lint && npm run test",
-        "clean": "rimraf ./dist && mkdir dist",
+        "clean": "npx rimraf ./dist && mkdir dist",
         "compile": "npm run clean && tsc -p .",
         "prepublishOnly": "npm run build",
         "build": "npm run compile && cpx \"src/lib/framework/**/*\" ./dist/lib/framework",
@@ -120,6 +122,12 @@
         "publish-npm:beta": "npm run test && npm publish --tag=beta",
         "local": "ts-node scripts/install-local.js",
         "remote": "ts-node scripts/install-npm.js",
-        "changelog": "npx auto-changelog"
+        "changelog": "npx auto-changelog",
+        "commit": "cz"
+    },
+    "config": {
+        "commitizen": {
+            "path": "./node_modules/cz-conventional-changelog"
+        }
     }
 }
