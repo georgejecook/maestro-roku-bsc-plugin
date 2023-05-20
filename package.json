@@ -109,7 +109,7 @@
     },
     "scripts": {
         "preversion": "npm run build && npm run lint && npm run test",
-        "clean": "rimraf ./dist && mkdir dist",
+        "clean": "npx rimraf ./dist && mkdir dist",
         "compile": "npm run clean && tsc -p .",
         "prepublishOnly": "npm run build",
         "build": "npm run compile && cpx \"src/lib/framework/**/*\" ./dist/lib/framework",
