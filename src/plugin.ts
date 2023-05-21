@@ -27,7 +27,10 @@ import {
     createVariableExpression,
     isFunctionStatement,
     CallExpression,
-    isSGFunction
+    InterfaceFieldStatement,
+    isSGFunction,
+    InterfaceStatement,
+    Position
 } from 'brighterscript';
 import type {
     BrsFile,
@@ -64,14 +67,16 @@ import { FileFactory } from './lib/utils/FileFactory';
 import NodeClassUtil from './lib/node-classes/NodeClassUtil';
 import { RawCodeStatement, RawCodeExpression } from './lib/utils/RawCodeStatement';
 import { addClassFieldsNotFoundOnSetOrGet, addIOCNoTypeSupplied, addIOCWrongArgs, noCallsInAsXXXAllowed, functionNotImported, IOCClassNotInScope, namespaceNotImported, noPathForInject, noPathForIOCSync, unknownClassMethod, unknownConstructorMethod, unknownSuperClass, unknownType, wrongConstructorArgs, wrongMethodArgs, observeRequiresFirstArgumentIsField, observeRequiresFirstArgumentIsNotM, observeFunctionNameNotFound, observeFunctionNameWrongArgs, unknownCallFuncMethod, accessCallFuncWithField, unknownAsType } from './lib/utils/Diagnostics';
-import { getAllAnnotations, getAllFields } from './lib/utils/Utils';
+import { createRange, getAllAnnotations, getAllFields } from './lib/utils/Utils';
 import { getSGMembersLookup } from './SGApi';
 import { DynamicType } from 'brighterscript/dist/types/DynamicType';
 import { BrsTranspileState } from 'brighterscript/dist/parser/BrsTranspileState';
 import { typeToValueString } from './lib/Utils';
-import type { NodeClassMemberRef } from './lib/node-classes/NodeClass';
+import type { NodeClass, NodeClassMemberRef } from './lib/node-classes/NodeClass';
 import type { SGFunction } from 'brighterscript/dist/parser/SGTypes';
-
+import * as fs from 'fs';
+import * as path from 'path';
+import { StringType } from 'brighterscript/dist/types/StringType';
 interface FunctionInfo {
     minArgs: number;
     maxArgs: number;
@@ -87,6 +92,7 @@ interface NamespaceContainer {
     functionStatements: Record<string, FunctionStatement>;
     namespaces: Record<string, NamespaceContainer>;
 }
+
 
 export class MaestroPlugin implements CompilerPlugin {
     public name = 'maestroPlugin';
@@ -121,6 +127,7 @@ export class MaestroPlugin implements CompilerPlugin {
     };
 
     nodeUtilRefMap: Map<string, NodeClassMemberRef[]>;
+    sceneGraph: Record<string, any>;
 
     private getConfig(config: any) {
         //ignore roku modules by default
@@ -163,8 +170,9 @@ export class MaestroPlugin implements CompilerPlugin {
     afterProgramCreate(program: Program): void {
         this.program = program;
         if (!this.fileMap) {
-            this.fileMap = new ProjectFileMap();
+            this.fileMap = new ProjectFileMap(program);
             this.fileFactory = new FileFactory(program);
+            this.loadBrighterscriptJson();
             this.maestroConfig = this.getConfig(program.options as any);
             this.bindingProcessor = new BindingProcessor(this.fileMap, this.fileFactory, this.maestroConfig);
             this.reflectionUtil = new ReflectionUtil(this.fileMap, program, this.maestroConfig);
@@ -176,6 +184,30 @@ export class MaestroPlugin implements CompilerPlugin {
             this.fileFactory.addFrameworkFiles();
             this.isFrameworkAdded = true;
         }
+    }
+    private loadBrighterscriptJson() {
+        try {
+            // Read the JSON file synchronously
+            const sourcePath = path.join(__dirname, 'lib', 'scenegraph.json');
+
+            const data = fs.readFileSync(sourcePath, 'utf8');
+
+            // Parse the JSON data into a JavaScript object
+            this.sceneGraph = JSON.parse(data);
+            console.log('read scenegraph json');
+        } catch (error) {
+            console.error('Error reading or parsing the file:', error);
+        }
+    }
+
+    private createSceneGraphInterfaces() {
+        let interfaceFile = this.fileMap.interfaceFile;
+        interfaceFile.parser.statements.splice(0, interfaceFile.parser.statements.length);
+        for (let component of Object.values(this.sceneGraph.brightScriptNodes)) {
+            this.addInterfaceForComponent((component as any).name);
+            console.log('added interface ', (component as any).name);
+        }
+
     }
 
     afterFileParse(file: (BrsFile | XmlFile)): void {
@@ -198,6 +230,8 @@ export class MaestroPlugin implements CompilerPlugin {
             // this.reflectionUtil.addFile(file);
             this.filesThatNeedAddingBeforeProgramValidate.set(mFile.fullPath, mFile);
             if (this.shouldParseFile(file)) {
+                // TODO - need to identify it's a nodeclass, and get it's name here..
+                this.registerNodeClassInterfaces(file);
                 this.filesThatNeedParsingInBeforeProgramValidate.set(mFile.fullPath, mFile);
             }
 
@@ -205,7 +239,23 @@ export class MaestroPlugin implements CompilerPlugin {
             mFile.loadXmlContents();
         }
     }
+    registerNodeClassInterfaces(file: BrsFile) {
+        for (let cs of file.parser.references.classStatements) {
+            let annotation = cs.annotations?.find((a) => a.name.toLowerCase() === 'node');
+            if (annotation) {
+                let args = annotation.getArguments();
+                let nodeName = args.length === 2 ? (args[0] as string)?.trim() : undefined;
+                if (nodeName) {
+                    this.addInterfaceForComponent(nodeName);
+                }
+            }
+        }
 
+    }
+
+    beforeProgramValidate(program: Program) {
+        this.createSceneGraphInterfaces();
+    }
     ncValidation(program: Program) {
         for (let [, mFile] of this.filesThatNeedAddingBeforeProgramValidate) {
             let file = mFile.bscFile as BrsFile;
@@ -229,6 +279,17 @@ export class MaestroPlugin implements CompilerPlugin {
             this.mFilesToValidate.set(file.pkgPath, file);
         }
         this.filesThatNeedParsingInBeforeProgramValidate.clear();
+    }
+    addInterfaceForComponent(name: string) {
+        let interfaceFile = this.fileMap.interfaceFile;
+        const nameIdentifier = createIdentifier(name, createRange(Position.create(1, 1)));
+        let interfaceStatement = new InterfaceStatement(createToken(TokenKind.Interface, 'interface'), nameIdentifier, undefined, undefined, [
+            new InterfaceFieldStatement(createIdentifier('id'), createToken(TokenKind.As, 'as'), createIdentifier('string'), new StringType('string'))
+        ], createToken(TokenKind.EndInterface, 'end interface'));
+        interfaceFile.parser.statements.push(interfaceStatement);
+
+        // eslint-disable-next-line @typescript-eslint/dot-notation
+        interfaceFile.parser['_references'].interfaceStatements.push(interfaceStatement);
     }
 
     afterFileValidate(file: BscFile) {

@@ -670,6 +670,48 @@ describe('MaestroPlugin', () => {
             expect(builder.getDiagnostics().length).to.equal(1);
 
         });
+        it.only('allows custom as types', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                namespace ns
+                    @node("Comp", "Group")
+                    class Comp
+
+                        public title = ""
+                        public content = ""
+
+                        function new()
+                        end function
+
+                        function getName()
+                        end function
+
+                        function setAge(defaultAge = 20 as integer)
+                        end function
+                    end class
+                end namespace
+            `);
+            program.setFile('source/TestClass.bs', `
+                class TestClass
+                    @subType("Comp")
+                    private comp as Comp
+                    private group as Group
+                    private rectangle as Rectangle
+                    function new()
+                        ? m.comp@.getName()
+                        m.comp@.setAge(30)
+
+                        localNode = createObject("Comp")
+                        ? localNode@.getName()
+                        localNode@.setAge(30)
+                    end function
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            expect(builder.getDiagnostics().length).to.equal(1);
+
+        });
         it('validates callFunc calls on a node class - diagnostics, on different comp', async () => {
             plugin.afterProgramCreate(program);
             program.setFile('source/comp1.bs', `

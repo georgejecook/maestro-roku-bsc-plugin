@@ -132,6 +132,13 @@ export class NodeClass {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     public classMemberFilter = (m: MethodStatement) => isClassMethodStatement(m) && (!m.accessModifier || m.accessModifier.kind === TokenKind.Public) && m.name.text !== 'new';
 
+    public getInterfaceText() {
+        return `\
+        interface ${this.name}
+         id as string
+        end interface`;
+    }
+
     private knownFieldTypes = {
         'integer': true,
         'longinteger': true,

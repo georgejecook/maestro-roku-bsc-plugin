@@ -10,11 +10,14 @@ import type { NodeClass, NodeClassMemberRef } from '../node-classes/NodeClass';
 
 
 export class ProjectFileMap {
+    program: Program;
+    private _interfaceFile: any;
 
-    constructor() {
+    constructor(program: Program) {
         this.allFiles = {};
         this.allXMLComponentFiles = {};
         this.allClassNames = new Set<string>();
+        this.program = program;
     }
 
     public allClasses: Record<string, ClassStatement> = {};
@@ -26,6 +29,13 @@ export class ProjectFileMap {
     public nodeClassesByPath: Record<string, NodeClass[]> = {};
     public pathsByNamespace: Record<string, Record<string, boolean>> = {};
     public allAutoInjectedNamespaceMethods: Record<string, FunctionStatement> = {};
+
+    get interfaceFile(): BrsFile {
+        if (!this._interfaceFile) {
+            this._interfaceFile = this.program.getFile('source/roku_modules/maestro/private/MaestroFakeInterfaces.bs');
+        }
+        return this._interfaceFile;
+    }
 
     get XMLComponentNames(): string[] {
         return Object.keys(this.allXMLComponentFiles);
