@@ -1,3 +1,32 @@
+import type {
+    InterfaceMethodStatement
+    ,
+    BrsFile,
+    BscFile,
+    ClassStatement,
+    CompilerPlugin,
+    FileObj,
+    Program, ProgramBuilder,
+    TranspileObj,
+    XmlFile,
+    Scope,
+    CallableContainerMap,
+    FunctionStatement,
+    Statement,
+    MethodStatement,
+    BeforeFileTranspileEvent,
+    Expression,
+    Editor,
+    AstEditor
+    ,
+    MemberStatement
+    ,
+    Callable,
+    ProvideCompletionsEvent
+} from 'brighterscript';
+import {
+    isNamespacedVariableNameExpression
+} from 'brighterscript';
 import {
     isVariableExpression,
     createIdentifier,
@@ -30,30 +59,9 @@ import {
     InterfaceFieldStatement,
     isSGFunction,
     InterfaceStatement,
-    Position
-} from 'brighterscript';
-import type {
-    BrsFile,
-    BscFile,
-    ClassStatement,
-    CompilerPlugin,
-    FileObj,
-    Program, ProgramBuilder,
-    TranspileObj,
-    XmlFile,
-    Scope,
-    CallableContainerMap,
-    FunctionStatement,
-    Statement,
-    MethodStatement,
-    BeforeFileTranspileEvent,
-    Expression,
-    Editor,
-    AstEditor
-    ,
-    MemberStatement
-    ,
-    Callable
+    Position,
+    isFieldStatement,
+    isInterfaceMethodStatement
 } from 'brighterscript';
 import { ProjectFileMap } from './lib/files/ProjectFileMap';
 import type { MaestroConfig } from './lib/files/MaestroConfig';
@@ -66,13 +74,13 @@ import ReflectionUtil from './lib/reflection/ReflectionUtil';
 import { FileFactory } from './lib/utils/FileFactory';
 import NodeClassUtil from './lib/node-classes/NodeClassUtil';
 import { RawCodeStatement, RawCodeExpression } from './lib/utils/RawCodeStatement';
-import { addClassFieldsNotFoundOnSetOrGet, addIOCNoTypeSupplied, addIOCWrongArgs, noCallsInAsXXXAllowed, functionNotImported, IOCClassNotInScope, namespaceNotImported, noPathForInject, noPathForIOCSync, unknownClassMethod, unknownConstructorMethod, unknownSuperClass, unknownType, wrongConstructorArgs, wrongMethodArgs, observeRequiresFirstArgumentIsField, observeRequiresFirstArgumentIsNotM, observeFunctionNameNotFound, observeFunctionNameWrongArgs, unknownCallFuncMethod, accessCallFuncWithField, unknownAsType } from './lib/utils/Diagnostics';
+import { addClassFieldsNotFoundOnSetOrGet, addIOCNoTypeSupplied, addIOCWrongArgs, noCallsInAsXXXAllowed, functionNotImported, IOCClassNotInScope, namespaceNotImported, noPathForInject, noPathForIOCSync, unknownClassMethod, unknownConstructorMethod, unknownSuperClass, unknownType, wrongConstructorArgs, wrongMethodArgs, observeRequiresFirstArgumentIsField, observeRequiresFirstArgumentIsNotM, observeFunctionNameNotFound, observeFunctionNameWrongArgs, unknownCallFuncMethod, accessCallFuncWithField, unknownAsType, unknownField } from './lib/utils/Diagnostics';
 import { createRange, getAllAnnotations, getAllFields } from './lib/utils/Utils';
 import { getSGMembersLookup } from './SGApi';
 import { DynamicType } from 'brighterscript/dist/types/DynamicType';
 import { BrsTranspileState } from 'brighterscript/dist/parser/BrsTranspileState';
 import { typeToValueString } from './lib/Utils';
-import type { NodeClass, NodeClassMemberRef } from './lib/node-classes/NodeClass';
+import type { NodeClassMemberRef } from './lib/node-classes/NodeClass';
 import type { SGFunction } from 'brighterscript/dist/parser/SGTypes';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -204,8 +212,10 @@ export class MaestroPlugin implements CompilerPlugin {
         let interfaceFile = this.fileMap.interfaceFile;
         interfaceFile.parser.statements.splice(0, interfaceFile.parser.statements.length);
         for (let component of Object.values(this.sceneGraph.brightScriptNodes)) {
-            this.addInterfaceForComponent((component as any).name);
-            console.log('added interface ', (component as any).name);
+            let name = (component as any).name;
+            this.addInterfaceForComponent(name);
+            this.fileMap.sceneGraphComponentNames.add(name);
+            console.log('added interface ', name);
         }
 
     }
@@ -246,6 +256,7 @@ export class MaestroPlugin implements CompilerPlugin {
                 let args = annotation.getArguments();
                 let nodeName = args.length === 2 ? (args[0] as string)?.trim() : undefined;
                 if (nodeName) {
+                    console.log('adding interface for name', nodeName.trim());
                     this.addInterfaceForComponent(nodeName);
                 }
             }
@@ -290,6 +301,8 @@ export class MaestroPlugin implements CompilerPlugin {
 
         // eslint-disable-next-line @typescript-eslint/dot-notation
         interfaceFile.parser['_references'].interfaceStatements.push(interfaceStatement);
+        //add to our refs map
+
     }
 
     afterFileValidate(file: BscFile) {
@@ -1042,24 +1055,29 @@ export class MaestroPlugin implements CompilerPlugin {
         //ensure we have all lookups
         let scopeNamespaces = new Map<string, NamespaceContainer>();
         let classMethodLookup: Record<string, FunctionInfo | boolean> = {};
+        let interfaceLookup: Record<string, FunctionInfo | boolean> = {};
+        let classLookup: Record<string, ClassStatement> = {};
         for (let scope of this.program.getScopesForFile(file)) {
             let scopeMap = this.getNamespaceLookup(scope);
             scopeNamespaces = new Map<string, NamespaceContainer>([...Array.from(scopeMap.entries())]);
             classMethodLookup = { ...this.buildClassMethodLookup(scope), ...classMethodLookup };
+            classLookup = { ...this.buildClassLookup(scope), ...classLookup };
+            interfaceLookup = { ...this.buildInterfaceLookup(scope), ...interfaceLookup };
         }
         this.validateFunctionCalls(file, scopeNamespaces, classMethodLookup);
         this.validateCallFuncs(file);
-        this.validateAsTypes(file);
+        this.validateAsTypes(file, interfaceLookup, classLookup);
+        this.validateFields(file, interfaceLookup, classLookup);
     }
 
-    public validateAsTypes(file: BrsFile) {
+    public validateAsTypes(file: BrsFile, interfaceLookup: Record<string, FunctionInfo | boolean>, classLookup: Record<string, ClassStatement>) {
         if (isBrsFile(file)) {
             let classes = file.parser.references.classStatements;
             for (let cs of classes) {
                 for (let field of cs.fields) {
                     let subType = this.getSubType(field);
                     if (subType !== 'node') {
-                        if (!this.fileMap.nodeClasses[subType] && !this.fileMap.allXMLComponentFiles[subType]) {
+                        if (!this.fileMap.nodeClasses[subType] && !this.fileMap.allXMLComponentFiles[subType] && !this.fileMap.sceneGraphComponentNames.has(subType) && !interfaceLookup[subType.toLowerCase()] && !classLookup[subType]) {
                             file.addDiagnostics([{
                                 ...unknownAsType(field.name.text, subType),
                                 range: field.range,
@@ -1293,7 +1311,7 @@ export class MaestroPlugin implements CompilerPlugin {
         // console.log('doing call func validation');
         for (let cs of file.parser.references.classStatements) {
             cs.walk(createVisitor({
-                CallfuncExpression: (callFuncExpression, parent) => {
+                CallfuncExpression: (callFuncExpression, parent, owner) => {
                     let nodeType = 'node'; //work out what it is
                     if (isDottedGetExpression(callFuncExpression.callee)) {
                         let nameParts = this.getAllDottedGetParts(callFuncExpression.callee);
@@ -1301,6 +1319,9 @@ export class MaestroPlugin implements CompilerPlugin {
                             let field = cs.memberMap[nameParts[1].toLowerCase()];
                             nodeType = this.getSubType(field);
                         }
+                    } else if (isVariableExpression(callFuncExpression.callee)) {
+                        //try to get the name from the parent
+                        nodeType = (callFuncExpression.getSymbolTable()?.getSymbol(callFuncExpression.callee.name.text)?.[0] as any)?.type?.name || 'node';
                     }
 
                     let refs: NodeClassMemberRef[] = [];
@@ -1328,12 +1349,13 @@ export class MaestroPlugin implements CompilerPlugin {
                             range: callFuncExpression.range,
                             file: file
                         }]);
+                        return;
                     } else {
                         let isGood = false;
                         //check if was a function
                         for (let ref of refs) {
 
-                            if (isMethodStatement(ref.member as MemberStatement) || isFunctionStatement((ref.member as Callable).functionStatement) || isSGFunction(ref.member as SGFunction)) {
+                            if (isMethodStatement(ref.member as MemberStatement) || isFunctionStatement((ref.member as Callable).functionStatement) || isSGFunction(ref.member as SGFunction) || isInterfaceMethodStatement(ref.member as InterfaceMethodStatement)) {
                                 isGood = true;
                                 break;
                             }
@@ -1344,139 +1366,63 @@ export class MaestroPlugin implements CompilerPlugin {
                                 range: callFuncExpression.range,
                                 file: file
                             }]);
+                            return;
                         }
                     }
-                }
-                // else if (!ns.functionStatements[name.toLowerCase()] && !ns.classStatements[name.toLowerCase()]) {
-                //             file.addDiagnostics([{
-                //                 ...unknownType(`${fullPathName}.${name} `, this.name),
-                //                 range: ce.range,
-                //                 file: file
-                //             }]);
-                //             // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-                //         } else {
-                //             let member = ns.functionStatements[name.toLowerCase()];
-                //             if (member) {
-                //                 // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-                //                 if (this.maestroConfig.extraValidation.doExtraImportValidation && !this.isNamespaceImported(ns, importedPkgPaths)) {
-                //                     file.addDiagnostics([{
-                //                         ...namespaceNotImported(`${fullPathName}.${name} `),
-                //                         range: ce.range,
-                //                         file: file
-                //                     }]);
-                //                 }
-                //                 let numArgs = ce.args.length;
-                //                 let minArgs = member.func.parameters.filter((p) => !p.defaultValue).length;
-                //                 let maxArgs = member.func.parameters.length;
-                //                 if (numArgs < minArgs || numArgs > maxArgs) {
-                //                     file.addDiagnostics([{
-                //                         // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-                //                         ...wrongMethodArgs(`${name} `, numArgs, minArgs, maxArgs),
-                //                         range: ce.range,
-                //                         file: file
-                //                     }]);
-                //                 }
+                    //check the params
+                    let numArgs = callFuncExpression.args.length;
+                    let [minArgs, maxArgs] = this.getMinMaxArgs(refs);
 
-                //             }
-                //         }
-                //     } else if (nameParts.length > 0) {
-                //         //is a class method?
-                //         if (this.maestroConfig.extraValidation.doExtraImportValidation && !methodLookup[name.toLowerCase()]) {
-                //             // console.log('>> ' + name.toLowerCase());
-                //             file.addDiagnostics([{
-                //                 ...unknownClassMethod(`${name} `, this.name),
-                //                 range: ce.range,
-                //                 file: file
-                //             }]);
-                //         } else {
-                //             let member = methodLookup[name.toLowerCase()] as FunctionInfo;
-                //             if (member && typeof member !== 'boolean') {
-                //                 let numArgs = ce.args.length;
-                //                 if (numArgs < member.minArgs || numArgs > member.maxArgs) {
-                //                     file.addDiagnostics([{
-                //                         ...wrongMethodArgs(`${name} `, numArgs, member.minArgs, member.maxArgs),
-                //                         range: ce.range,
-                //                         file: file
-                //                     }]);
-                //                 }
-                //                 // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-                //                 if (this.maestroConfig.extraValidation.doExtraImportValidation && !this.isImported(member, importedPkgPaths)) {
-                //                     file.addDiagnostics([{
-                //                         ...functionNotImported(`${name} `),
-                //                         range: ce.range,
-                //                         file: file
-                //                     }]);
-                //                 }
-                //             }
-                //             if (this.maestroConfig.updateObserveCalls) {
-                //                 //CHECK that first argument of observe function is a dotted get
-                //                 if (name === 'observe') {
-                //                     if (!isDottedGetExpression(ce.args[0])) {
-                //                         file.addDiagnostics([{
-                //                             ...observeRequiresFirstArgumentIsField(),
-                //                             range: ce.range,
-                //                             file: file
-                //                         }]);
-                //                     } else {
-                //                         let arg0 = ce.args[0];
-                //                         let objectName = isVariableExpression(arg0.obj) ? arg0.obj.name.text : '';
-                //                         let fieldName;
-                //                         let name;
-                //                         if (isDottedGetExpression(ce.args[1]) && isVariableExpression(ce.args[1].obj)) {
-                //                             fieldName = ce.args[1].obj.name.text;
-                //                             name = ce.args[1].name.text;
-                //                         }
-                //                         if (objectName === 'm') {
-                //                             file.addDiagnostics([{
-                //                                 ...observeRequiresFirstArgumentIsNotM(),
-                //                                 range: ce.range,
-                //                                 file: file
-                //                             }]);
-                //                         } else if (fieldName) {
-                //                             let memberStatement = cs.memberMap[name.toLowerCase()];
-                //                             if (isMethodStatement(memberStatement)) {
-                //                                 let numArgs = memberStatement.func.parameters.length;
-                //                                 let sendMode = isLiteralString(ce.args[2]) ? ce.args[2].token.text : '"value"';
-                //                                 let expectedArgs = 0;
-                //                                 if (sendMode === '"none"') {
-                //                                     expectedArgs = 0;
-                //                                 } else if (sendMode === '"value"' || sendMode === '"node"') {
-                //                                     expectedArgs = 1;
-                //                                 } else {
-                //                                     expectedArgs = 2;
-                //                                 }
-                //                                 if (numArgs !== expectedArgs) {
-                //                                     file.addDiagnostics([{
-                //                                         ...observeFunctionNameWrongArgs(name, objectName, fieldName, sendMode, expectedArgs, numArgs),
-                //                                         range: ce.range,
-                //                                         file: file
-                //                                     }]);
-                //                                 }
-                //                             } else {
-                //                                 file.addDiagnostics([{
-                //                                     ...observeFunctionNameNotFound(name, objectName),
-                //                                     range: ce.range,
-                //                                     file: file
-                //                                 }]);
-                //                             }
-                //                         }
-                //                     }
-                //                 }
-                //             }
-                //         }
-                //     }
-                // }
+                    if (numArgs < minArgs || numArgs > maxArgs) {
+                        file.addDiagnostics([{
+                            // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+                            ...wrongMethodArgs(`${callFuncExpression.methodName.text} `, numArgs, minArgs, maxArgs),
+                            range: callFuncExpression.range,
+                            file: file
+                        }]);
+
+                    }
+                }
+
+
             }), { walkMode: WalkMode.visitAllRecursive });
         }
+    }
+
+
+    getMinMaxArgs(refs: NodeClassMemberRef[]): [any, any] {
+        let minArgs = 999;
+        let maxArgs = 0;
+        for (let ref of refs) {
+            // Callable | InterfaceFieldStatement | InterfaceMethodStatement | MethodStatement | NodeField | SGField | SGFunction;
+            let refMinArgs = 0;
+            let refMaxArgs = 0;
+            if (isMethodStatement(ref.member as MethodStatement)) {
+                refMinArgs = (ref.member as MethodStatement).func.parameters.filter((p) => !p.defaultValue).length;
+                refMaxArgs = (ref.member as MethodStatement).func.parameters.length;
+            } else if (isSGFunction(ref.member as SGFunction)) {
+                //TODO - can we know this
+                refMinArgs = 0;
+                refMaxArgs = 6;
+            } else if (isInterfaceMethodStatement((ref.member as Callable).functionStatement)) {
+                //TODO - can we know this
+                refMinArgs = 0;
+                refMaxArgs = 6;
+            }
+            minArgs = refMinArgs < minArgs ? refMinArgs : minArgs;
+            maxArgs = maxArgs > refMaxArgs ? maxArgs : refMaxArgs;
+        }
+        return [minArgs === 999 ? maxArgs : minArgs, maxArgs];
 
     }
     getSubType(field: MemberStatement): string {
-        let nodeType;
-        if (field) {
-            let subType = field.annotations?.find((a) => a?.name?.toLowerCase() === 'subtype' || a?.name?.toLowerCase() === 'nodeType' || a?.name?.toLowerCase() === 'type');
-            nodeType = (subType?.getArguments()[0] as string);
-        }
-        return nodeType || 'node';
+        // let nodeType;
+        // if (field) {
+        //     let subType = field.annotations?.find((a) => a?.name?.toLowerCase() === 'subtype' || a?.name?.toLowerCase() === 'nodeType' || a?.name?.toLowerCase() === 'type');
+        //     nodeType = (subType?.getArguments()[0] as string);
+        // }
+
+        return isFieldStatement(field) ? (field?.type?.text || 'node') : 'node';
     }
 
     private isImported(info: FunctionInfo, importedPkgPaths: string[]) {
@@ -1524,6 +1470,43 @@ export class MaestroPlugin implements CompilerPlugin {
                     let lowerName = s.name.text.toLowerCase();
                     lookup[lowerName] = s;
                 }
+            }
+        }
+        return lookup;
+    }
+    public buildInterfaceLookup(scope: Scope): Record<string, FunctionInfo | boolean> {
+        let lookup = {};
+        let ifaceMap = scope.getInterfaceMap();
+        let keys = [...ifaceMap.keys()];
+        for (let key of keys) {
+            lookup[key] = ifaceMap.get(key);
+        }
+        lookup['mc.types.array'] = true;
+        lookup['mc.types.assocarray'] = true;
+        lookup['mc.types.node'] = true;
+        // eslint-disable-next-line @typescript-eslint/dot-notation
+        lookup['string'] = true;
+        // eslint-disable-next-line @typescript-eslint/dot-notation
+        lookup['integer'] = true;
+        // eslint-disable-next-line @typescript-eslint/dot-notation
+        lookup['float'] = true;
+        // eslint-disable-next-line @typescript-eslint/dot-notation
+        lookup['number'] = true;
+        // eslint-disable-next-line @typescript-eslint/dot-notation
+        lookup['boolean'] = true;
+        return lookup;
+    }
+    public buildClassLookup(scope: Scope): Record<string, ClassStatement> {
+        let lookup = {};
+        let filesSearched = new Set<BscFile>();
+        //TODO -needs ALL known SG functions!
+        for (const file of scope.getAllFiles()) {
+            if (!isBrsFile(file) || filesSearched.has(file)) {
+                continue;
+            }
+            filesSearched.add(file);
+            for (let cs of file.parser.references.classStatements) {
+                lookup[cs.getName(ParseMode.BrighterScript)] = cs;
             }
         }
         return lookup;
@@ -1588,6 +1571,73 @@ export class MaestroPlugin implements CompilerPlugin {
         }
         return parts.reverse();
     }
+
+    public validateFields(file: BrsFile, interfaceLookup: Record<string, FunctionInfo | boolean>, classLookup: Record<string, ClassStatement>) {
+        for (let cs of file.parser.references.classStatements) {
+            cs.walk(createVisitor({
+                DottedGetExpression: (dottedGetExpression, parent, owner) => {
+                    if (isNamespacedVariableNameExpression(parent)) {
+                        return;
+                    }
+                    let fieldName = '';
+                    let objName = '';
+                    let objType = ''; //work out what it is
+                    let nameParts = this.getAllDottedGetParts(dottedGetExpression);
+                    if (nameParts.length === 1) {
+                        fieldName = nameParts[0];
+                    } else if (nameParts.length > 1) {
+                        fieldName = nameParts[1];
+                        objName = nameParts[0];
+                    }
+                    if (objName === 'm') {
+                        //handled elsewhere
+                        return;
+                    }
+                    if (objName === '' || fieldName === '') {
+                        //we don't know what it is
+                        return;
+                    }
+                    objType = (dottedGetExpression.getSymbolTable()?.getSymbol(objName)?.[0] as any)?.type?.name || '';
+                    if (objType === '') {
+                        //we dont' know what it is.. let's not worry
+                        return;
+                    } else if (objType === 'mc.types.assocarray' || objType === 'mc.types.array' || objType === 'mc.types.node') {
+                        //fully dynamic for now
+                        return;
+                    } else {
+                        // let's work out what it is
+                        let nodeClass = this.fileMap.nodeClasses[objType];
+                        if (nodeClass) {
+                            if (nodeClass?.nodeMembersByName.get(fieldName)) {
+                                //we are good
+                                return;
+                            }
+                        } else {
+                            if (classLookup[objType]?.memberMap[fieldName]) {
+                                //we are good
+                                return;
+                            }
+                        }
+                        if (interfaceLookup[objType]?.[fieldName]) {
+                            //we are good
+                            return;
+                        }
+                    }
+                    file.addDiagnostics([{
+                        ...unknownField(fieldName, objType),
+                        range: dottedGetExpression.range,
+                        file: file
+                    }]);
+                }
+
+            }), { walkMode: WalkMode.visitAllRecursive });
+        }
+    }
+
+    provideCompletions(event: ProvideCompletionsEvent) {
+        //TODO - get callfunc completions, for nodeclasses
+    }
+
 
 }
 

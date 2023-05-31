@@ -12,7 +12,7 @@ describe('File', () => {
     let projectFileMap;
     let program = new Program({});
     beforeEach(() => {
-        projectFileMap = new ProjectFileMap();
+        projectFileMap = new ProjectFileMap(program);
     });
     describe('Initialization', () => {
         it('correctly sets directory', () => {

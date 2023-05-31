@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/indent */
-import type { AnnotationExpression, BrsFile, MethodStatement, ClassStatement, CommentStatement, DottedGetExpression, EnumMemberStatement, FieldStatement, FunctionParameterExpression, Program, XmlFile, Callable } from 'brighterscript';
+import type { AnnotationExpression, BrsFile, MethodStatement, ClassStatement, CommentStatement, DottedGetExpression, EnumMemberStatement, FieldStatement, FunctionParameterExpression, Program, XmlFile, Callable, InterfaceStatement, InterfaceFieldStatement, InterfaceMethodStatement } from 'brighterscript';
 import { isEnumMemberStatement, isDottedGetExpression, isEnumStatement, isNewExpression, TokenKind, isClassMethodStatement, ParseMode, createVisitor, isVariableExpression, WalkMode, isAALiteralExpression, isArrayLiteralExpression, isIntegerType, isLiteralExpression, isLiteralNumber, isLongIntegerType, isUnaryExpression } from 'brighterscript';
 import type { ProjectFileMap } from '../files/ProjectFileMap';
 import { expressionToString, expressionToValue, getAllDottedGetParts, sanitizePkgPath } from '../Utils';
@@ -26,8 +26,8 @@ export enum NodeClassType {
 
 
 export interface NodeClassMemberRef {
-    nodeClass: NodeClass | XmlFile;
-    member: Callable | MethodStatement | NodeField | SGField | SGFunction;
+    nodeClass: InterfaceStatement | NodeClass | XmlFile | 'scenegraph';
+    member: Callable | InterfaceFieldStatement | InterfaceMethodStatement | MethodStatement | NodeField | SGField | SGFunction;
 }
 
 export class NodeField {
@@ -519,7 +519,7 @@ export class NodeClass {
     public validateBaseComponent(fileMap: ProjectFileMap) {
         let comp = this.file.program.getComponent(this.extendsName.toLowerCase());
 
-        if (!(comp?.file?.componentName?.text === this.extendsName || fileMap.validComps.has(this.extendsName) || fileMap.nodeClasses[this.extendsName])) {
+        if (!(comp?.file?.componentName?.text === this.extendsName || fileMap.sceneGraphComponentNames.has(this.extendsName) || fileMap.nodeClasses[this.extendsName])) {
             addNodeClassNoExtendNodeFound(this.file, this.name, this.extendsName, this.annotation.range.start.line, this.annotation.range.start.character);
         }
 

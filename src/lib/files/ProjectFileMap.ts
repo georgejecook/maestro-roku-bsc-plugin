@@ -1,4 +1,4 @@
-import type { BrsFile, BscFile, ClassStatement, FunctionStatement, Program, XmlFile, XmlScope } from 'brighterscript';
+import type { BrsFile, BscFile, ClassStatement, FunctionStatement, InterfaceStatement, Program, XmlFile, XmlScope } from 'brighterscript';
 import { isFunctionStatement } from 'brighterscript';
 import * as brighterscript from 'brighterscript';
 
@@ -49,66 +49,67 @@ export class ProjectFileMap {
         return [...this.allClassNames.values()];
     }
 
-    public validComps = new Set<string>(
-        ['Animation',
-            'AnimationBase',
-            'ArrayGrid',
-            'Audio',
-            'BusySpinner',
-            'Button',
-            'ButtonGroup',
-            'ChannelStore',
-            'CheckList',
-            'ColorFieldInterpolator',
-            'ComponentLibrary',
-            'ContentNode',
-            'Dialog',
-            'FloatFieldInterpolator',
-            'Font',
-            'GridPanel',
-            'Group',
-            'Keyboard',
-            'KeyboardDialog',
-            'Label',
-            'LabelList',
-            'LayoutGroup',
-            'ListPanel',
-            'MarkupGrid',
-            'MarkupList',
-            'MaskGroup',
-            'MiniKeyboard',
-            'Node',
-            'Overhang',
-            'OverhangPanelSetScene',
-            'Panel',
-            'PanelSet',
-            'ParallelAnimation',
-            'ParentalControlPinPad',
-            'PinDialog',
-            'PinPad',
-            'Poster',
-            'PosterGrid',
-            'ProgressDialog',
-            'RadioButtonList',
-            'Rectangle',
-            'RowList',
-            'Scene',
-            'ScrollableText',
-            'ScrollingLabel',
-            'SequentialAnimation',
-            'SimpleLabel',
-            'SoundEffect',
-            'TargetGroup',
-            'TargetList',
-            'TargetSet',
-            'Task',
-            'TextEditBox',
-            'TimeGrid',
-            'Timer',
-            'Vector2DFieldInterpolator',
-            'Video',
-            'ZoomRowList']
-    );
+    public sceneGraphComponentNames = new Set<string>();
+    // public sceneGraphComponentNames = new Set<string>(
+    //     ['Animation',
+    //         'AnimationBase',
+    //         'ArrayGrid',
+    //         'Audio',
+    //         'BusySpinner',
+    //         'Button',
+    //         'ButtonGroup',
+    //         'ChannelStore',
+    //         'CheckList',
+    //         'ColorFieldInterpolator',
+    //         'ComponentLibrary',
+    //         'ContentNode',
+    //         'Dialog',
+    //         'FloatFieldInterpolator',
+    //         'Font',
+    //         'GridPanel',
+    //         'Group',
+    //         'Keyboard',
+    //         'KeyboardDialog',
+    //         'Label',
+    //         'LabelList',
+    //         'LayoutGroup',
+    //         'ListPanel',
+    //         'MarkupGrid',
+    //         'MarkupList',
+    //         'MaskGroup',
+    //         'MiniKeyboard',
+    //         'Node',
+    //         'Overhang',
+    //         'OverhangPanelSetScene',
+    //         'Panel',
+    //         'PanelSet',
+    //         'ParallelAnimation',
+    //         'ParentalControlPinPad',
+    //         'PinDialog',
+    //         'PinPad',
+    //         'Poster',
+    //         'PosterGrid',
+    //         'ProgressDialog',
+    //         'RadioButtonList',
+    //         'Rectangle',
+    //         'RowList',
+    //         'Scene',
+    //         'ScrollableText',
+    //         'ScrollingLabel',
+    //         'SequentialAnimation',
+    //         'SimpleLabel',
+    //         'SoundEffect',
+    //         'TargetGroup',
+    //         'TargetList',
+    //         'TargetSet',
+    //         'Task',
+    //         'TextEditBox',
+    //         'TimeGrid',
+    //         'Timer',
+    //         'Vector2DFieldInterpolator',
+    //         'Video',
+    //         'ZoomRowList']
+    // );
 
     getAllNodeMembers(program: Program): Map<string, NodeClassMemberRef[]> {
         const membersMap = new Map<string, NodeClassMemberRef[]>();
@@ -126,10 +127,17 @@ export class ProjectFileMap {
             }
         }
 
+        //and add all xml files in scope
         let scopes = program.getScopes();
         for (const scope of scopes.filter((scope) => brighterscript.isXmlScope(scope))) {
             let xmlFile = (scope as XmlScope).xmlFile;
             let key = xmlFile?.componentName?.text;
+
+            //do not add duplicates for xml comp that has a nodeclass
+            //nodeclass will always take precedence!
+            if (this.nodeClasses[key]) {
+                continue;
+            }
             if (!key) {
                 console.warn('found xml file with no component name', xmlFile.srcPath);
                 continue;
@@ -163,7 +171,41 @@ export class ProjectFileMap {
                 membersMap.get(sgField.id).push(ref);
             }
         }
-        //and add all xml files in scope
+
+        //and add all interfaces in the interfaces file
+        let interfaceFile = this.interfaceFile;
+        // eslint-disable-next-line @typescript-eslint/dot-notation
+        let interfaceReferences = interfaceFile.parser['_references'].interfaceStatements;
+        for (const item of interfaceReferences) {
+            let interfaceStatement: InterfaceStatement = item as InterfaceStatement;
+            for (let interfaceMethod of interfaceStatement.methods) {
+                let method = (interfaceMethod as brighterscript.InterfaceMethodStatement);
+                let name = method.tokens.name.text;
+                if (!membersMap.has(name)) {
+                    membersMap.set(name, []);
+                }
+
+                const ref: NodeClassMemberRef = {
+                    nodeClass: 'scenegraph',
+                    member: method
+                };
+                membersMap.get(name).push(ref);
+            }
+            for (let interfaceField of interfaceStatement.fields) {
+                let field = (interfaceField as brighterscript.InterfaceFieldStatement);
+
+                let name = field.tokens.name.text;
+                if (!membersMap.has(name)) {
+                    membersMap.set(name, []);
+                }
+
+                const ref: NodeClassMemberRef = {
+                    nodeClass: 'scenegraph',
+                    member: field
+                };
+                membersMap.get(name).push(ref);
+            }
+        }
 
         return membersMap;
     }

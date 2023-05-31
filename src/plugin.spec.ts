@@ -670,7 +670,7 @@ describe('MaestroPlugin', () => {
             expect(builder.getDiagnostics().length).to.equal(1);
 
         });
-        it.only('allows custom as types', async () => {
+        it('allows custom as types', async () => {
             plugin.afterProgramCreate(program);
             program.setFile('source/comp.bs', `
                 namespace ns
@@ -693,7 +693,6 @@ describe('MaestroPlugin', () => {
             `);
             program.setFile('source/TestClass.bs', `
                 class TestClass
-                    @subType("Comp")
                     private comp as Comp
                     private group as Group
                     private rectangle as Rectangle
@@ -709,7 +708,7 @@ describe('MaestroPlugin', () => {
             `);
             program.validate();
             await builder.transpile();
-            expect(builder.getDiagnostics().length).to.equal(1);
+            expect(builder.getDiagnostics().filter((d) => d.code !== 1129).length).to.equal(0);
 
         });
         it('validates callFunc calls on a node class - diagnostics, on different comp', async () => {
@@ -750,8 +749,7 @@ describe('MaestroPlugin', () => {
             `);
             program.setFile('source/TestClass.bs', `
                 class TestClass
-                    @subType("Comp2")
-                    private myNode
+                    private myNode as Comp2
                     function new()
                         ? m.myNode@.getName()
                         m.myNode@.setAge(30)
@@ -764,7 +762,7 @@ describe('MaestroPlugin', () => {
             `);
             program.validate();
             await builder.transpile();
-            expect(builder.getDiagnostics().length).to.equal(3);
+            expect(builder.getDiagnostics().filter((d) => d.code !== 1129).length).to.equal(2);
 
         });
         it('warns for unknown asType', async () => {
@@ -773,23 +771,8 @@ describe('MaestroPlugin', () => {
                 @node("Comp", "Group")
                 class Comp
 
-                    @subType("Bad1")
-                    private myNode
-
-                    @type("Bad1")
-                    private myNode2
-
-                    @nodeType("Bad1")
-                    private myNode3
-
-                    @subType("Bad1")
+                    private myNode as Bad1
                     private myNodeA = invalid
-
-                    @type("Bad1")
-                    private myNodeA2 = invalid
-
-                    @nodeType("Bad1")
-                    private myNodeA3 = invalid
 
                     function new()
                     end function
@@ -803,15 +786,7 @@ describe('MaestroPlugin', () => {
             `);
             program.setFile('source/TestClass.bs', `
                 class TestClass
-                    @subType("Bad1")
-                    private myNode
-
-                    @type("Bad1")
-                    private myNode2
-
-                    @nodeType("Bad1")
-                    private myNode3
-
+                    private myNode as Bad1
                     function new()
                         ? m.myNode@.getName()
                         m.myNode@.setAge(30)
@@ -824,11 +799,212 @@ describe('MaestroPlugin', () => {
             `);
             program.validate();
             await builder.transpile();
-            expect(builder.getDiagnostics().length).to.equal(7);
+            expect(builder.getDiagnostics().length).to.equal(5);
 
         });
 
-        it('validates callFunc calls on a node class - errors', async () => {
+        it('validates callFunc calls on a node class - unknown functions', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                @node("Comp", "Group")
+                class Comp
+
+                    public title = ""
+                    public content = ""
+
+                    function new()
+                    end function
+
+                    function getName()
+                    end function
+
+                    function setAge(defaultAge as integer)
+                    end function
+                end class
+            `);
+            program.setFile('source/TestClass.bs', `
+                class TestClass
+                    private myNode as Comp
+                    function new()
+                        ? m.myNode@.getName()
+                        m.myNode@.setName(30)
+
+                        localNode = createObject("Comp")
+                        ? localNode@.getName()
+                        localNode@.setName(30)
+                    end function
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            expect(builder.getDiagnostics().filter((d) => d.code !== 1129).length).to.equal(2);
+
+        });
+
+        it('validates callFunc calls on a node class - unknown functions, type discovered by param', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                @node("Comp", "Group")
+                class Comp
+
+                    public title = ""
+                    public content = ""
+
+                    function new()
+                    end function
+
+                    function getName()
+                    end function
+
+                    function setAge(defaultAge as integer)
+                    end function
+                end class
+            `);
+            program.setFile('source/TestClass.bs', `
+                class TestClass
+                    function new(myNode as Comp)
+                        myNode@.setAge()
+                        myNode@.setAge(30, 50)
+                        myNode@.setName(30)
+                        ? myNode@.getName()
+                    end function
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            expect(builder.getDiagnostics().filter((d) => d.code !== 1129).length).to.equal(3);
+
+        });
+
+        it('node fields - unknown functions, type discovered by param', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                @node("Comp", "Group")
+                class Comp
+
+                    public myField as string
+                    public myField2 as float
+                    public myField3 as integer
+                    public myField4 as mc.types.node
+                    public myField5 as mc.types.array
+                    public myField6 as mc.types.assocarray
+                    public title = ""
+                    public content = ""
+
+                    function new()
+                    end function
+
+                    function getName()
+                    end function
+
+                    function setAge(defaultAge as integer)
+                    end function
+                end class
+            `);
+            program.setFile('source/TestClass.bs', `
+                class TestClass
+                    function new(myNode as Comp)
+
+                        ? myNode.title
+                        ? myNode.content
+                        ? myNode.notThere
+                    end function
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            expect(builder.getDiagnostics().filter((d) => d.code !== 1129).length).to.equal(3);
+
+        });
+
+        it.only('node fields - does not validate new', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+
+                namespace lib.stuff
+                    class Comp
+
+                        public title = ""
+                        public content = ""
+
+                        function new()
+                        end function
+
+                        function getName()
+                        end function
+
+                        function setAge(defaultAge as integer)
+                        end function
+                    end class
+                end namespace
+            `);
+            program.setFile('source/TestClass.bs', `
+                class TestClass
+                    function new(myNode as Comp)
+                        a = new lib.stuff.Comp()
+                    end function
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            expect(builder.getDiagnostics().filter((d) => d.code !== 1129).length).to.equal(1);
+
+        });
+
+        it.only('correctly validates mc.types.assocarrray', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/TestClass.bs', `
+            class TestClass
+                    private data as mc.types.assocarray
+                    function new(myData as mc.types.assocarray)
+                        ? myData.name
+                        ? myData.count()
+                        myData.append({})
+                        ? m.data.name
+                        ? m.data.count()
+                        m.data.append({})
+                    end function
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            expect(builder.getDiagnostics().filter((d) => d.code !== 1129 && d.code !== 1123 && d.code !== 1044).length).to.equal(0);
+
+        });
+        it('successfully validates callFunc calls on a node class - unknown functions, type discovered by param', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                @node("Comp", "Group")
+                class Comp
+
+                    public title = ""
+                    public content = ""
+
+                    function new()
+                    end function
+
+                    function getName()
+                    end function
+
+                    function setAge(defaultAge as integer)
+                    end function
+                end class
+            `);
+            program.setFile('source/TestClass.bs', `
+                class TestClass
+                    function new(myNode as Comp)
+                        ? myNode@.getName()
+                        myNode@.setAge(30)
+                    end function
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            expect(builder.getDiagnostics().filter((d) => d.code !== 1129).length).to.equal(0);
+
+        });
+
+        it('validates callFunc calls on a node class - wrong params on m field', async () => {
             plugin.afterProgramCreate(program);
             program.setFile('source/comp.bs', `
                 @node("Comp", "Group")
@@ -849,15 +1025,43 @@ describe('MaestroPlugin', () => {
             `);
             program.setFile('source/TestClass.bs', `
                 class TestClass
-                    @subType("Comp")
-                    private myNode
                     function new()
-                        ? m.myNode@.getName()
-                        m.myNode@.setName(30)
-
                         localNode = createObject("Comp")
-                        ? localNode@.getName()
-                        localNode@.setName(30)
+                        localNode@.setAge()
+                        localNode@.setAge(30, 50)
+                    end function
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            expect(builder.getDiagnostics().filter((d) => d.code !== 1129).length).to.equal(1);
+
+        });
+
+        it('validates callFunc calls on a node class - wrong params on local var', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                @node("Comp", "Group")
+                class Comp
+
+                    public title = ""
+                    public content = ""
+
+                    function new()
+                    end function
+
+                    function getName()
+                    end function
+
+                    function setAge(defaultAge = 20 as integer)
+                    end function
+                end class
+            `);
+            program.setFile('source/TestClass.bs', `
+                class TestClass
+                    function new()
+                        m.myNode@.setAge()
+                        m.myNode@.setAge(30, 50)
                     end function
                 end class
             `);
@@ -867,13 +1071,14 @@ describe('MaestroPlugin', () => {
 
         });
 
-        it('validates callFunc calls on known xml file', async () => {
+        it('validates callFunc calls on known xml file, on local var', async () => {
             plugin.afterProgramCreate(program);
             program.setFile('components/XMLComp.xml', `<?xml version="1.0" encoding="UTF-8" ?>
             <component name="XMLComp" extends="Group">
                 <interface>
                     <field id="title" type="string" />
                     <field id="content" type="string" />
+                    <function name="getName" />
                     <function name="setName2" />
                 </interface>
                 <children />
@@ -881,12 +1086,7 @@ describe('MaestroPlugin', () => {
             `);
             program.setFile('source/TestClass.bs', `
                 class TestClass
-                    @subType("XMLComp")
-                    private myNode
                     function new()
-                        ? m.myNode@.getName()
-                        m.myNode@.setName(30)
-
                         localNode = createObject("XMLComp")
                         ? localNode@.getName()
                         localNode@.setName2(30)
@@ -895,7 +1095,35 @@ describe('MaestroPlugin', () => {
             `);
             program.validate();
             await builder.transpile();
-            expect(builder.getDiagnostics().length).to.equal(5);
+            expect(builder.getDiagnostics().filter((d) => d.code !== 1129 && d.code !== 1067).length).to.equal(0);
+
+        });
+
+        it('validates callFunc calls on known xml file, on m field', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('components/XMLComp.xml', `<?xml version="1.0" encoding="UTF-8" ?>
+            <component name="XMLComp" extends="Group">
+                <interface>
+                    <field id="title" type="string" />
+                    <field id="content" type="string" />
+                    <function name="getName" />
+                    <function name="setName2" />
+                </interface>
+                <children />
+            </component>
+            `);
+            program.setFile('source/TestClass.bs', `
+                class TestClass
+                    private myNode as XMLComp
+                    function new()
+                        ? m.myNode@.getName()
+                        m.myNode@.setName(30)
+                    end function
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            expect(builder.getDiagnostics().filter((d) => d.code !== 1129 && d.code !== 1067).length).to.equal(2);
 
         });
 
@@ -1461,10 +1689,10 @@ describe('MaestroPlugin', () => {
             program.setFile('source/comp.bs', `
                 class TestClass
                 end class
+
                 @node("Comp", "Group")
                 class Comp
-
-                public clazzTyped as TestClass
+                    public clazzTyped as TestClass
                     public s = "string"
                     public num = 2
                     public numFloat = 2.5
@@ -1487,7 +1715,7 @@ describe('MaestroPlugin', () => {
             `);
             program.validate();
             await builder.transpile();
-            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error && !d.message.includes('mc.types.'))).to.be.empty;
+            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error && d.code !== 1123)).to.be.empty;
 
             expect(
                 getContents('components/maestro/generated/Comp.xml')
@@ -1710,7 +1938,7 @@ describe('MaestroPlugin', () => {
         });
         it('supports interface type in public fields', async () => {
             plugin.afterProgramCreate(program);
-            program.setFile('source/comp.bs', `
+            program.setFile('source/interfaces.bs', `
                 interface myInterface
                     text as string
                 end interface
@@ -1719,6 +1947,10 @@ describe('MaestroPlugin', () => {
                         text as string
                     end interface
                 end namespace
+            `);
+            program.setFile('source/comp.bs', `
+                import "pkg:/source/interfaces.bs"
+
                 @node("Comp", "Group")
                 class Comp
 
@@ -1731,7 +1963,7 @@ describe('MaestroPlugin', () => {
             `);
             program.validate();
             await builder.transpile();
-            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error && !d.message.includes('mc.types.'))).to.be.empty;
+            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
 
             expect(
                 getContents('components/maestro/generated/Comp.xml')
@@ -1744,6 +1976,7 @@ describe('MaestroPlugin', () => {
                     </interface>
                     <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
                     <script type="text/brightscript" uri="pkg:/source/comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/interfaces.brs" />
                     <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
                     <children />
                 </component>

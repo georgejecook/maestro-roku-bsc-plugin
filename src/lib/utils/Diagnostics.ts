@@ -423,10 +423,11 @@ export function unknownCallFuncMethod(methodName: string, nodeName = 'node') {
         severity: DiagnosticSeverity.Error
     };
 }
+
 export function accessCallFuncWithField(methodName: string, nodeName = 'node') {
 
     return {
-        message: `Attempting to access callFunc method '${methodName}'${getNodeNameText(nodeName)}`,
+        message: `Attempting to access unknown callFunc method '${methodName}'${getNodeNameText(nodeName)}`,
         code: `MSTO${1066}`,
         severity: DiagnosticSeverity.Error
     };
@@ -436,13 +437,20 @@ function getNodeNameText(nodeName = 'node') {
     return nodeName === 'node' ? ', in any component' : `, in component: '${nodeName}'`;
 }
 
-
 export function unknownAsType(fieldName: string, nodeName = 'node') {
 
     return {
         message: `Unknown node type assigned to field '${fieldName}': '${nodeName}'. Please ensure a valid Component name is used`,
-        code: `MSTO${1066}`,
+        code: `MSTO${1067}`,
         severity: DiagnosticSeverity.Error
     };
 }
 
+export function unknownField(fieldName: string, nodeName = 'node') {
+
+    return {
+        message: `Cannot find field with name '${fieldName}'${getNodeNameText(nodeName)}`,
+        code: `MSTO${1068}`,
+        severity: DiagnosticSeverity.Error
+    };
+}
