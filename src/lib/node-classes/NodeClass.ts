@@ -602,11 +602,11 @@ export class NodeClass {
         let fieldType: string;
         if (field.type) {
             fieldType = field.type.text.toLowerCase();
-            if (fieldType === 'mc.types.assocarray') {
+            if (fieldType === 'mc.types.assocarray' || fieldType === 'sc.types.assocarray') {
                 fieldType = 'assocarray';
-            } else if (fieldType === 'mc.types.node') {
+            } else if (fieldType === 'mc.types.node' || fieldType === 'sc.types.node') {
                 fieldType = 'node';
-            } else if (fieldType === 'mc.types.array') {
+            } else if (fieldType === 'mc.types.array' || fieldType === 'sc.types.array') {
                 fieldType = 'array';
             } else if (this.getInterfaceFromFieldType(fieldType)) {
                 fieldType = 'assocarray';
