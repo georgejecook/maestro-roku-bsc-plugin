@@ -184,8 +184,10 @@ export function typeToValueString(typeToken: Token): string {
         default:
             switch (typeToken.text.toLowerCase()) {
                 case 'mc.types.array':
+                case 'sc.types.array':
                     return '[]';
                 case 'mc.types.assocarray':
+                case 'sc.types.assocarray':
                     return '{}';
                 //TODO look up an enum using this type
                 default:
