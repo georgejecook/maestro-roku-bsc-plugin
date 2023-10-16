@@ -3574,6 +3574,7 @@ describe('MaestroPlugin', () => {
                     if asBoolean(isActive)
                         print asInteger(numSeconds, -1)
                         print asNumber(numSeconds, -1)
+                        print asLong(numSeconds, -1)
                     end if
                     print m.items.getValue(asArray(items))
                     print m.items.show(asArray(items, ["first]))
@@ -3597,6 +3598,7 @@ describe('MaestroPlugin', () => {
                 if mc_getBoolean(isActive, invalid)
                     print mc_getInteger(numSeconds, invalid, - 1)
                     print mc_getNumber(numSeconds, invalid, - 1)
+                    print mc_getLong(numSeconds, invalid, - 1)
                 end if
                 print m.items.getValue(mc_getArray(items, invalid))
             end function
