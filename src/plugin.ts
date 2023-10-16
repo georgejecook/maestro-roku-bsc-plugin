@@ -256,7 +256,7 @@ export class MaestroPlugin implements CompilerPlugin {
             for (let functionScope of file.functionScopes) {
                 // event.file.functionCalls
                 for (let callExpression of functionScope.func.callExpressions) {
-                    let regex = /as(Any|Array|AA|Boolean|Float|Integer|Node|Point|String)/i;
+                    let regex = /as(Any|Array|AA|Boolean|Float|Integer|Long|Node|Point|String)/i;
                     if (isVariableExpression(callExpression.callee) && isExpression(callExpression.args[0])) {
                         let name = callExpression.callee.name.text;
                         if (regex.test(name)) {
@@ -473,7 +473,7 @@ export class MaestroPlugin implements CompilerPlugin {
 
                 // event.file.functionCalls
                 for (let callExpression of functionScope.func.callExpressions) {
-                    let regex = /^as(Any|Array|AA|Boolean|Number|Float|Integer|Node|Point|String)/i;
+                    let regex = /^as(Any|Array|AA|Boolean|Number|Float|Long|Integer|Node|Point|String)/i;
                     if (isVariableExpression(callExpression.callee) && isExpression(callExpression.args[0])) {
                         let name = callExpression.callee.name.text;
                         if (regex.test(name)) {
