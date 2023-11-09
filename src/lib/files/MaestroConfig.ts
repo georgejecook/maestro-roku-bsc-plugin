@@ -11,6 +11,9 @@ export enum MaestroLogLevel {
 export interface MaestroConfig {
     updateObserveCalls?: boolean;
     updateAsFunctionCalls?: boolean;
+    validateAnnotations?: boolean;
+    knownAnnotations?: Set<string>;
+    customAnnotations?: string[];
     transpileAsNodeAsAny?: boolean;
     logLevel?: MaestroLogLevel;
     buildTimeImports?: any;

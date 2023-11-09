@@ -230,4 +230,42 @@ export function getAllAnnotations(fileMap: ProjectFileMap, cs: ClassStatement) {
     return result;
 }
 
-
+export let knownAnnotations = [
+    'todo',
+    'fixme',
+    'deprecated',
+    'rootOnly',
+    'node',
+    'observersWaitInitialize',
+    'task',
+    'inject',
+    'alwaysnotify',
+    'debounce',
+    'observer',
+    'usesetfield',
+    'strict',
+    'nocode',
+    'lazy',
+    'injectclass',
+    'injectLocalM',
+    'createclass',
+    'sync',
+    'None',
+    'TestSuite',
+    'Describe',
+    'It',
+    'Ignore',
+    'Solo',
+    'NodeTest',
+    'Setup',
+    'TearDown',
+    'BeforeEach',
+    'AfterEach',
+    'Params',
+    'IgnoreParams',
+    'SoloParams',
+    'Async',
+    'Tags',
+    'NoCatch',
+    'NoEarlyExit'
+];

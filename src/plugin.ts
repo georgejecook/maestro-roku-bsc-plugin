@@ -33,6 +33,7 @@ import type {
     BscFile,
     ClassStatement,
     CompilerPlugin,
+    AnnotationExpression,
     FileObj,
     Program, ProgramBuilder,
     TranspileObj,
@@ -58,8 +59,8 @@ import ReflectionUtil from './lib/reflection/ReflectionUtil';
 import { FileFactory } from './lib/utils/FileFactory';
 import NodeClassUtil from './lib/node-classes/NodeClassUtil';
 import { RawCodeStatement, RawCodeExpression } from './lib/utils/RawCodeStatement';
-import { addClassFieldsNotFoundOnSetOrGet, addIOCNoTypeSupplied, addIOCWrongArgs, noCallsInAsXXXAllowed, functionNotImported, IOCClassNotInScope, namespaceNotImported, noPathForInject, noPathForIOCSync, unknownClassMethod, unknownConstructorMethod, unknownSuperClass, unknownType, wrongConstructorArgs, wrongMethodArgs, observeRequiresFirstArgumentIsField, observeRequiresFirstArgumentIsNotM, observeFunctionNameNotFound, observeFunctionNameWrongArgs } from './lib/utils/Diagnostics';
-import { getAllAnnotations, getAllFields } from './lib/utils/Utils';
+import { addClassFieldsNotFoundOnSetOrGet, addIOCNoTypeSupplied, addIOCWrongArgs, noCallsInAsXXXAllowed, functionNotImported, IOCClassNotInScope, namespaceNotImported, noPathForInject, noPathForIOCSync, unknownClassMethod, unknownConstructorMethod, unknownSuperClass, unknownType, wrongConstructorArgs, wrongMethodArgs, observeRequiresFirstArgumentIsField, observeRequiresFirstArgumentIsNotM, observeFunctionNameNotFound, observeFunctionNameWrongArgs, addWrongAnnotation } from './lib/utils/Diagnostics';
+import { getAllAnnotations, getAllFields, knownAnnotations } from './lib/utils/Utils';
 import { getSGMembersLookup } from './SGApi';
 import { DynamicType } from 'brighterscript/dist/types/DynamicType';
 import { BrsTranspileState } from 'brighterscript/dist/parser/BrsTranspileState';
@@ -97,6 +98,7 @@ export class MaestroPlugin implements CompilerPlugin {
     private dirtyNodeClassPaths = new Set<string>();
     private filesThatNeedAddingBeforeProgramValidate = new Map<string, File>();
     private filesThatNeedParsingInBeforeProgramValidate = new Map<string, File>();
+    private checkedAnnotations = new Set<string>();
 
     private skips = {
         '__classname': true,
@@ -148,7 +150,20 @@ export class MaestroPlugin implements CompilerPlugin {
         config.extraValidation.doExtraImportValidation = config.extraValidation.doExtraImportValidation === undefined ? false : config.extraValidation.doExtraImportValidation;
         config.extraValidation.excludeFilters = config.extraValidation.excludeFilters === undefined ? [] : config.extraValidation.excludeFilters;
         config.transpileAsNodeAsAny = config.transpileAsNodeAsAny ?? false;
+        config.validateAnnotations = config.validateAnnotations ?? true;
+        config.knownAnnotations = this.getKnownAnnotations(config);
         return config;
+    }
+
+    private getKnownAnnotations(config: any): any {
+        let annotation = config.knownAnnotations ?? knownAnnotations;
+        let set = new Set(annotation.map((x) => x.toLowerCase()));
+        if (config.customAnnotations) {
+            for (let ca of config.customAnnotations) {
+                set.add(ca.toLowerCase());
+            }
+        }
+        return set;
     }
 
     afterProgramCreate(program: Program): void {
@@ -245,8 +260,64 @@ export class MaestroPlugin implements CompilerPlugin {
                 }
             }
         }
-        if (isBrsFile(file) && this.maestroConfig.updateAsFunctionCalls) {
-            this.validateAsXXXCalls(file);
+        if (isBrsFile(file)) {
+            if (this.maestroConfig.updateAsFunctionCalls) {
+                this.validateAsXXXCalls(file);
+            }
+            if (this.maestroConfig.validateAnnotations) {
+                this.validateAnnotations(file);
+            }
+        }
+    }
+
+    private validateAnnotations(file: BrsFile) {
+        if (this.maestroConfig.updateAsFunctionCalls && this.shouldDoExtraValidationsOnFile(file)) {
+            for (let cs of file.parser.references.classStatements) {
+                this.checkAnnotations(file, cs.annotations);
+                this.checkAnnotations(file, this.findAnnotations(cs.fields));
+                this.checkAnnotations(file, this.findAnnotations(cs.methods));
+            }
+            this.checkAnnotations(file, this.findAnnotations(file.parser.references.namespaceStatements));
+        }
+    }
+
+    private findAnnotations(obj: any): any[] {
+        const foundOccurrences: AnnotationExpression[] = [];
+        const visitedObjects = new Set<any>();
+
+        function search(obj: any) {
+            if (visitedObjects.has(obj)) {
+                return; // Skip if object has already been visited
+            }
+            visitedObjects.add(obj);
+            if (typeof obj === 'object') {
+                if ('annotations' in obj) {
+                    foundOccurrences.push(...obj.annotations);
+                }
+                for (const key in obj) {
+                    if ((Object.prototype.hasOwnProperty.call(obj, key))) {
+                        search(obj[key]);
+                    }
+                }
+            }
+        }
+
+        if (typeof obj === 'object') {
+            search(obj);
+        }
+        return foundOccurrences;
+    }
+
+
+    private checkAnnotations(file: BrsFile, annotations: AnnotationExpression[]): void {
+        if (annotations) {
+            for (let annotation of annotations) {
+                let annotationName = annotation.name.toLowerCase();
+                if ((!this.maestroConfig.knownAnnotations.has(annotationName)) && (!this.checkedAnnotations.has(annotationName))) {
+                    addWrongAnnotation(file, annotation.name, annotation.range.start.line, annotation.range.start.character);
+                    this.checkedAnnotations.add(annotationName);
+                }
+            }
         }
     }
 
