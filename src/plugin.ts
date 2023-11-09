@@ -98,7 +98,6 @@ export class MaestroPlugin implements CompilerPlugin {
     private dirtyNodeClassPaths = new Set<string>();
     private filesThatNeedAddingBeforeProgramValidate = new Map<string, File>();
     private filesThatNeedParsingInBeforeProgramValidate = new Map<string, File>();
-    private checkedAnnotations = new Set<string>();
 
     private skips = {
         '__classname': true,
@@ -272,11 +271,7 @@ export class MaestroPlugin implements CompilerPlugin {
 
     private validateAnnotations(file: BrsFile) {
         if (this.maestroConfig.updateAsFunctionCalls && this.shouldDoExtraValidationsOnFile(file)) {
-            for (let cs of file.parser.references.classStatements) {
-                this.checkAnnotations(file, cs.annotations);
-                this.checkAnnotations(file, this.findAnnotations(cs.fields));
-                this.checkAnnotations(file, this.findAnnotations(cs.methods));
-            }
+            this.checkAnnotations(file, this.findAnnotations(file.parser.references.classStatements));
             this.checkAnnotations(file, this.findAnnotations(file.parser.references.namespaceStatements));
         }
     }
@@ -313,9 +308,8 @@ export class MaestroPlugin implements CompilerPlugin {
         if (annotations) {
             for (let annotation of annotations) {
                 let annotationName = annotation.name.toLowerCase();
-                if ((!this.maestroConfig.knownAnnotations.has(annotationName)) && (!this.checkedAnnotations.has(annotationName))) {
+                if (!this.maestroConfig.knownAnnotations.has(annotationName)) {
                     addWrongAnnotation(file, annotation.name, annotation.range.start.line, annotation.range.start.character);
-                    this.checkedAnnotations.add(annotationName);
                 }
             }
         }

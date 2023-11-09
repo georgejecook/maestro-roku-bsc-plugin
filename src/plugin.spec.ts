@@ -4095,7 +4095,7 @@ describe('MaestroPlugin', () => {
             await builder.transpile();
 
             let diagnostics = program.getDiagnostics();
-            expect(diagnostics).to.have.lengthOf(2);
+            expect(diagnostics).to.have.lengthOf(4);
             checkDiagnostic(diagnostics[0], 1065, 2);
             checkDiagnostic(diagnostics[1], 1065, 4);
         });
