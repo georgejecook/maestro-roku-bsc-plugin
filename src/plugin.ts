@@ -60,7 +60,7 @@ import { FileFactory } from './lib/utils/FileFactory';
 import NodeClassUtil from './lib/node-classes/NodeClassUtil';
 import { RawCodeStatement, RawCodeExpression } from './lib/utils/RawCodeStatement';
 import { addClassFieldsNotFoundOnSetOrGet, addIOCNoTypeSupplied, addIOCWrongArgs, noCallsInAsXXXAllowed, functionNotImported, IOCClassNotInScope, namespaceNotImported, noPathForInject, noPathForIOCSync, unknownClassMethod, unknownConstructorMethod, unknownSuperClass, unknownType, wrongConstructorArgs, wrongMethodArgs, observeRequiresFirstArgumentIsField, observeRequiresFirstArgumentIsNotM, observeFunctionNameNotFound, observeFunctionNameWrongArgs, addWrongAnnotation } from './lib/utils/Diagnostics';
-import { getAllAnnotations, getAllFields, knownAnnotations } from './lib/utils/Utils';
+import { getAllAnnotations, getAllFields, defaultAnnotations } from './lib/utils/Utils';
 import { getSGMembersLookup } from './SGApi';
 import { DynamicType } from 'brighterscript/dist/types/DynamicType';
 import { BrsTranspileState } from 'brighterscript/dist/parser/BrsTranspileState';
@@ -150,13 +150,13 @@ export class MaestroPlugin implements CompilerPlugin {
         config.extraValidation.excludeFilters = config.extraValidation.excludeFilters === undefined ? [] : config.extraValidation.excludeFilters;
         config.transpileAsNodeAsAny = config.transpileAsNodeAsAny ?? false;
         config.validateAnnotations = config.validateAnnotations ?? true;
-        config.knownAnnotations = this.getKnownAnnotations(config);
+        config.defaultAnnotations = this.getDefaultAnnotations(config);
         return config;
     }
 
-    private getKnownAnnotations(config: any): any {
-        let annotation = config.knownAnnotations ?? knownAnnotations;
-        let set = new Set(annotation.map((x) => x.toLowerCase()));
+    private getDefaultAnnotations(config: any): any {
+        let annotations = config.defaultAnnotations ?? defaultAnnotations;
+        let set = new Set(annotations.map((x) => x.toLowerCase()));
         if (config.customAnnotations) {
             for (let ca of config.customAnnotations) {
                 set.add(ca.toLowerCase());
@@ -285,7 +285,7 @@ export class MaestroPlugin implements CompilerPlugin {
                 return; // Skip if object has already been visited
             }
             visitedObjects.add(obj);
-            if (typeof obj === 'object') {
+            if (typeof obj === 'object' && obj !== null) {
                 if ('annotations' in obj) {
                     foundOccurrences.push(...obj.annotations);
                 }
@@ -308,7 +308,7 @@ export class MaestroPlugin implements CompilerPlugin {
         if (annotations) {
             for (let annotation of annotations) {
                 let annotationName = annotation.name.toLowerCase();
-                if (!this.maestroConfig.knownAnnotations.has(annotationName)) {
+                if (!this.maestroConfig.defaultAnnotations.has(annotationName)) {
                     addWrongAnnotation(file, annotation.name, annotation.range.start.line, annotation.range.start.character);
                 }
             }

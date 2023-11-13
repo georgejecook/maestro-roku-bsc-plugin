@@ -230,13 +230,14 @@ export function getAllAnnotations(fileMap: ProjectFileMap, cs: ClassStatement) {
     return result;
 }
 
-export let knownAnnotations = [
+export let defaultAnnotations = [
     'todo',
     'fixme',
     'deprecated',
     'rootOnly',
     'node',
     'observersWaitInitialize',
+    'observeField',
     'task',
     'inject',
     'alwaysnotify',

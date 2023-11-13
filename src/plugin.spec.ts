@@ -3966,13 +3966,14 @@ describe('MaestroPlugin', () => {
     describe('get config', () => {
         it('it uses default annotations', async () => {
             plugin.afterProgramCreate(program);
-            expect(plugin.maestroConfig.knownAnnotations).to.eql(new Set([
+            expect(plugin.maestroConfig.defaultAnnotations).to.eql(new Set([
                 'todo',
                 'rootonly',
                 'fixme',
                 'deprecated',
                 'node',
                 'observerswaitinitialize',
+                'observefield',
                 'task',
                 'inject',
                 'alwaysnotify',

@@ -12,7 +12,7 @@ export interface MaestroConfig {
     updateObserveCalls?: boolean;
     updateAsFunctionCalls?: boolean;
     validateAnnotations?: boolean;
-    knownAnnotations?: Set<string>;
+    defaultAnnotations?: Set<string>;
     customAnnotations?: string[];
     transpileAsNodeAsAny?: boolean;
     logLevel?: MaestroLogLevel;
