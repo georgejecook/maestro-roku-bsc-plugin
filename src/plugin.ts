@@ -93,12 +93,12 @@ export class MaestroPlugin implements CompilerPlugin {
     public program: Program;
     public isFrameworkAdded = false;
     public maestroConfig: MaestroConfig;
+    public defaultAnnotations: Set<string>;
     private mFilesToValidate = new Map<string, BrsFile>();
     private dirtyCompFilePaths = new Set<string>();
     private dirtyNodeClassPaths = new Set<string>();
     private filesThatNeedAddingBeforeProgramValidate = new Map<string, File>();
     private filesThatNeedParsingInBeforeProgramValidate = new Map<string, File>();
-
     private skips = {
         '__classname': true,
         'addreplace': true,
@@ -150,19 +150,7 @@ export class MaestroPlugin implements CompilerPlugin {
         config.extraValidation.excludeFilters = config.extraValidation.excludeFilters === undefined ? [] : config.extraValidation.excludeFilters;
         config.transpileAsNodeAsAny = config.transpileAsNodeAsAny ?? false;
         config.validateAnnotations = config.validateAnnotations ?? true;
-        config.defaultAnnotations = this.getDefaultAnnotations(config);
         return config;
-    }
-
-    private getDefaultAnnotations(config: any): any {
-        let annotations = config.defaultAnnotations ?? defaultAnnotations;
-        let set = new Set(annotations.map((x) => x.toLowerCase()));
-        if (config.customAnnotations) {
-            for (let ca of config.customAnnotations) {
-                set.add(ca.toLowerCase());
-            }
-        }
-        return set;
     }
 
     afterProgramCreate(program: Program): void {
@@ -171,6 +159,7 @@ export class MaestroPlugin implements CompilerPlugin {
             this.fileMap = new ProjectFileMap();
             this.fileFactory = new FileFactory(program);
             this.maestroConfig = this.getConfig(program.options as any);
+            this.defaultAnnotations = this.getDefaultAnnotations();
             this.bindingProcessor = new BindingProcessor(this.fileMap, this.fileFactory, this.maestroConfig);
             this.reflectionUtil = new ReflectionUtil(this.fileMap, program, this.maestroConfig);
             this.importProcessor = new ImportProcessor(this.maestroConfig);
@@ -269,6 +258,17 @@ export class MaestroPlugin implements CompilerPlugin {
         }
     }
 
+    private getDefaultAnnotations(): Set<string> {
+        let annotations = this.defaultAnnotations ?? defaultAnnotations;
+        let set = new Set([...annotations].map(value => value.toLowerCase()));
+        if (this.maestroConfig.customAnnotations) {
+            for (let ca of this.maestroConfig.customAnnotations) {
+                set.add(ca.toLowerCase());
+            }
+        }
+        return set;
+    }
+
     private validateAnnotations(file: BrsFile) {
         if (this.maestroConfig.updateAsFunctionCalls && this.shouldDoExtraValidationsOnFile(file)) {
             this.checkAnnotations(file, this.findAnnotations(file.parser.references.classStatements));
@@ -308,7 +308,7 @@ export class MaestroPlugin implements CompilerPlugin {
         if (annotations) {
             for (let annotation of annotations) {
                 let annotationName = annotation.name.toLowerCase();
-                if (!this.maestroConfig.defaultAnnotations.has(annotationName)) {
+                if (!this.defaultAnnotations.has(annotationName)) {
                     addWrongAnnotation(file, annotation.name, annotation.range.start.line, annotation.range.start.character);
                 }
             }

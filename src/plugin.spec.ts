@@ -3966,7 +3966,7 @@ describe('MaestroPlugin', () => {
     describe('get config', () => {
         it('it uses default annotations', async () => {
             plugin.afterProgramCreate(program);
-            expect(plugin.maestroConfig.defaultAnnotations).to.eql(new Set([
+            expect(plugin.defaultAnnotations).to.eql(new Set([
                 'todo',
                 'rootonly',
                 'fixme',

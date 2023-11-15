@@ -230,7 +230,7 @@ export function getAllAnnotations(fileMap: ProjectFileMap, cs: ClassStatement) {
     return result;
 }
 
-export let defaultAnnotations = [
+export let defaultAnnotations = new Set<string>([
     'todo',
     'fixme',
     'deprecated',
@@ -269,4 +269,4 @@ export let defaultAnnotations = [
     'Tags',
     'NoCatch',
     'NoEarlyExit'
-];
+]);
