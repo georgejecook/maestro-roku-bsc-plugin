@@ -1,5 +1,5 @@
-import type { BrsFile, BscFile, BsDiagnostic, ClassFieldStatement, ClassMethodStatement, ClassStatement, XmlFile } from 'brighterscript';
-import { ParseMode, TokenKind, isClassMethodStatement } from 'brighterscript';
+import type { BrsFile, BscFile, BsDiagnostic, FieldStatement, MethodStatement, ClassStatement, XmlFile } from 'brighterscript';
+import { ParseMode, TokenKind, isMethodStatement } from 'brighterscript';
 
 import * as path from 'path';
 
@@ -15,7 +15,7 @@ import type { NodeClass } from '../node-classes/NodeClass';
 /**
  * describes a file in our project.
  */
-export class File {
+export class MaestroFile {
 
     constructor(bscFile: BscFile, fileMap: ProjectFileMap) {
         this.componentIds = new Set<string>();
@@ -50,7 +50,7 @@ export class File {
     get parentXmlFile(): XmlFile | undefined {
         return this.fileMap.allXMLComponentFiles[this.parentComponentName]?.bscFile as XmlFile;
     }
-    get parentFile(): File | undefined {
+    get parentFile(): MaestroFile | undefined {
         return this.fileMap.allXMLComponentFiles[this.parentComponentName];
     }
 
@@ -67,7 +67,7 @@ export class File {
         }
     }
 
-    public get associatedFile(): File {
+    public get associatedFile(): MaestroFile {
         return getAssociatedFile(this.bscFile, this.fileMap);
     }
 
@@ -129,11 +129,11 @@ export class File {
 
             this.componentName = xmlFile.componentName?.text;
             this.parentComponentName = xmlFile.parentComponentName?.text;
-            this.vmClassName = xmlFile.ast.component?.getAttribute('vm')?.value?.text;
+            this.vmClassName = xmlFile.ast.componentElement?.getAttribute('vm')?.value;
 
             if (this.vmClassName) {
                 // eslint-disable-next-line @typescript-eslint/no-confusing-void-expression
-                xmlFile.ast.component?.setAttribute('vm', undefined);
+                xmlFile.ast.componentElement?.setAttributeValue('vm', undefined);
                 xmlFile.needsTranspiled = true;
             }
 
@@ -145,18 +145,18 @@ export class File {
         }
     }
 
-    public getMethod(name, vis?: TokenKind): ClassMethodStatement {
+    public getMethod(name, vis?: TokenKind): MethodStatement {
         name = name.toLowerCase();
-        let method = this.bindingClass.memberMap[name] as ClassMethodStatement;
+        let method = this.bindingClass.memberMap[name] as MethodStatement;
         if (!method) {
             for (let parent of this.getParents()) {
-                method = parent.memberMap[name] as ClassMethodStatement;
+                method = parent.memberMap[name] as MethodStatement;
                 if (method) {
                     break;
                 }
             }
         }
-        if (isClassMethodStatement(method) && (!vis ||
+        if (isMethodStatement(method) && (!vis ||
             (method.accessModifier?.kind === vis || (vis === TokenKind.Public && !method.accessModifier)))) {
             return method;
         }
@@ -164,15 +164,15 @@ export class File {
         return undefined;
     }
 
-    public getField(name, vis?: TokenKind): ClassFieldStatement {
+    public getField(name, vis?: TokenKind): FieldStatement {
         if (!name) {
             return undefined;
         }
         name = name.toLowerCase();
-        let field = this.bindingClass.memberMap[name] as ClassFieldStatement;
+        let field = this.bindingClass.memberMap[name] as FieldStatement;
         if (!field) {
             for (let parent of this.getParents()) {
-                field = parent.memberMap[name] as ClassFieldStatement;
+                field = parent.memberMap[name] as FieldStatement;
                 if (field) {
                     break;
                 }

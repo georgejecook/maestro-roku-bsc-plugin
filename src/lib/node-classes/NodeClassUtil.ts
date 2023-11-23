@@ -1,7 +1,7 @@
 import type { BrsFile, FunctionStatement, Program } from 'brighterscript';
 import { ParseMode } from 'brighterscript';
 import type { ProjectFileMap } from '../files/ProjectFileMap';
-import type { File } from '../files/File';
+import type { MaestroFile } from '../files/MaestroFile';
 import { addNodeClassBadDeclaration, addNodeClassDuplicateName, addNodeClassNoExtendNodeFound, addNodeClassWrongNewSignature } from '../utils/Diagnostics';
 import type { FileFactory } from '../utils/FileFactory';
 
@@ -17,7 +17,7 @@ export default class NodeClassUtil {
     ) {
     }
 
-    public addFile(file: BrsFile, mFile: File) {
+    public addFile(file: BrsFile, mFile: MaestroFile) {
         for (let nodeClass of this.fileMap.nodeClassesByPath[file.srcPath] || []) {
             delete this.fileMap.nodeClasses[nodeClass.name];
             delete mFile.nodeClasses[nodeClass.name];

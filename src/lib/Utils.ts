@@ -1,7 +1,8 @@
-import type { BrsFile, ClassMethodStatement, ClassStatement, DottedGetExpression, Editor, Expression, FunctionStatement, LiteralExpression, Statement, Token } from 'brighterscript';
-import { isEnumMemberStatement, Range, createVariableExpression, isDottedGetExpression, isVariableExpression, BinaryExpression, Block, createStringLiteral, createToken, IfStatement, ImportStatement, isAALiteralExpression, isArrayLiteralExpression, isClassMethodStatement, isClassStatement, isCommentStatement, isImportStatement, isIntegerType, isLiteralBoolean, isLiteralNumber, isLiteralString, isLongIntegerType, isUnaryExpression, Lexer, ParseMode, Parser, Position, TokenKind } from 'brighterscript';
+import type { BrsFile, BscType, MethodStatement, ClassStatement, DottedGetExpression, Editor, EnumType, Expression, FunctionStatement, LiteralExpression, Statement, Token, ClassType } from 'brighterscript';
+import { isEnumMemberStatement, Range, createVariableExpression, isDottedGetExpression, isVariableExpression, BinaryExpression, Block, createStringLiteral, createToken, IfStatement, ImportStatement, isAALiteralExpression, isArrayLiteralExpression, isMethodStatement, isClassStatement, isCommentStatement, isImportStatement, isIntegerType, isLiteralBoolean, isLiteralNumber, isLiteralString, isLongIntegerType, isUnaryExpression, Lexer, ParseMode, Parser, Position, TokenKind, SymbolTypeFlag } from 'brighterscript';
 import * as rokuDeploy from 'roku-deploy';
 import { createRange } from './utils/Utils';
+import { BscTypeKind } from 'brighterscript/dist/types/BscTypeKind';
 
 export function spliceString(str: string, index: number, count: number, add: string): string {
     // We cannot pass negative indexes directly to the 2nd slicing operation.
@@ -66,7 +67,7 @@ export function getFunctionBody(source: string): Statement[] {
     return funcStatement ? funcStatement.func.body.statements : [];
 }
 
-export function changeFunctionBody(statement: ClassMethodStatement | FunctionStatement, source: Statement[] | string) {
+export function changeFunctionBody(statement: FunctionStatement | MethodStatement, source: Statement[] | string) {
     let statements = statement.func.body.statements;
     statements.splice(0, statements.length);
     let newStatements = (typeof source === 'string') ? getFunctionBody(source) : source;
@@ -93,7 +94,7 @@ export function addOverriddenMethod(target: ClassStatement, name: string, source
 
 export function changeClassMethodBody(target: ClassStatement, name: string, source: Statement[] | string): boolean {
     let method = target.methods.find((m) => m.name.text === name);
-    if (isClassMethodStatement(method)) {
+    if (isMethodStatement(method)) {
         changeFunctionBody(method, source);
         return true;
     }
@@ -165,35 +166,39 @@ function driveLetterToLower(fullPath: string) {
     }
     return fullPath;
 }
-export function typeToValueString(typeToken: Token): string {
-    switch (typeToken.kind) {
-        case TokenKind.Boolean:
+export function typeToValueString(type: BscType): string {
+    const typeKind = (type as any).kind as BscTypeKind;
+    switch (typeKind) {
+        case BscTypeKind.BooleanType:
             return 'false';
-        case TokenKind.Integer:
+        case BscTypeKind.IntegerType:
             return '0';
-        case TokenKind.Float:
+        case BscTypeKind.FloatType:
             return '0.0';
-        case TokenKind.Double:
+        case BscTypeKind.DoubleType:
             return '0.0';
-        case TokenKind.LongInteger:
+        case BscTypeKind.LongIntegerType:
             return '0';
-        case TokenKind.Object:
+        case BscTypeKind.ObjectType:
             return '{}';
-        case TokenKind.String:
+        case BscTypeKind.StringType:
             return '""';
-        default:
-            switch (typeToken.text.toLowerCase()) {
+        case BscTypeKind.ArrayType:
+            return '[]';
+        case BscTypeKind.AssociativeArrayType:
+            return '{}';
+        case BscTypeKind.ClassType:
+            switch ((type as ClassType).name?.toLowerCase()) {
                 case 'mc.types.array':
-                case 'sc.types.array':
                     return '[]';
                 case 'mc.types.assocarray':
-                case 'sc.types.assocarray':
                     return '{}';
-                //TODO look up an enum using this type
-                default:
-                    return 'invalid';
             }
-
+            return 'invalid';
+        case BscTypeKind.EnumType:
+            return typeToValueString((type as EnumType).defaultMemberType);
+        default:
+            return 'invalid';
     }
 }
 
@@ -271,7 +276,8 @@ export function expressionToValue(expr: Expression): any | undefined {
 }
 
 function numberExpressionToValue(expr: LiteralExpression, operator = '') {
-    if (isIntegerType(expr.type) || isLongIntegerType(expr.type)) {
+    const exprType = expr.getType({ flags: SymbolTypeFlag.runtime });
+    if (isIntegerType(exprType) || isLongIntegerType(exprType)) {
         return parseInt(operator + expr.token.text);
     } else {
         return parseFloat(operator + expr.token.text);

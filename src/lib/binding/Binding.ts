@@ -1,6 +1,6 @@
 import type { Range } from 'brighterscript';
-import { TokenKind, isClassFieldStatement, isClassMethodStatement, Parser } from 'brighterscript';
-import type { File } from '../files/File';
+import { TokenKind, isFieldStatement, isMethodStatement, Parser } from 'brighterscript';
+import type { MaestroFile } from '../files/MaestroFile';
 import { addXmlBindingUsingFunctionAsField, addXmlBindingVMFieldNotFound, addXmlBindingVMFieldRequired, addXmlBindingVMFunctionNotFound, addXmlBindingVMFunctionWrongArgCount } from '../utils/Diagnostics';
 
 import { BindingProperties } from './BindingProperties';
@@ -17,7 +17,7 @@ let callArgsMap = new Map([
 export default class Binding {
     attribute: SGAttribute;
 
-    constructor(public file: File) {
+    constructor(public file: MaestroFile) {
         this.properties = new BindingProperties();
     }
     tagText: string;
@@ -58,7 +58,7 @@ export default class Binding {
 
         if (this.properties.sendMode > BindingSendMode.field) {
             let method = this.file.getMethod(this.observerField, TokenKind.Public);
-            if (!isClassMethodStatement(method)) {
+            if (!isMethodStatement(method)) {
                 addXmlBindingVMFunctionNotFound(this.file, this);
                 this.isValid = false;
             } else {
@@ -80,7 +80,7 @@ export default class Binding {
                 addXmlBindingUsingFunctionAsField(this.file, this);
             }
 
-            if (this.isValid && this.properties.type === BindingType.oneWaySource && !isClassFieldStatement(this.file.getField(this.observerField))) {
+            if (this.isValid && this.properties.type === BindingType.oneWaySource && !isFieldStatement(this.file.getField(this.observerField))) {
                 addXmlBindingVMFieldRequired(this.file, this);
                 this.isValid = false;
             }

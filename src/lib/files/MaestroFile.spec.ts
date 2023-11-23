@@ -3,12 +3,12 @@ import type { XmlFile } from 'brighterscript';
 import { BrsFile, Program } from 'brighterscript';
 import { expect } from 'chai';
 
-import { File } from './File';
+import { MaestroFile } from './MaestroFile';
 
 import { FileType } from './FileType';
 import { ProjectFileMap } from './ProjectFileMap';
 
-describe('File', () => {
+describe('MaestroFile', () => {
     let projectFileMap;
     let program = new Program({});
     beforeEach(() => {
@@ -16,32 +16,32 @@ describe('File', () => {
     });
     describe('Initialization', () => {
         it('correctly sets directory', () => {
-            const file = new File(makeBrsFile('test.xml'), projectFileMap);
+            const file = new MaestroFile(makeBrsFile('test.xml'), projectFileMap);
             expect(file.fullPath).to.equal('test.xml');
         });
     });
 
     describe('file types', () => {
         it('correctly identifies type other', () => {
-            const file = new File(makeBrsFile('/fsPath/test.json'), projectFileMap);
+            const file = new MaestroFile(makeBrsFile('/fsPath/test.json'), projectFileMap);
             expect(file.fileType).to.equal(FileType.Other);
 
         });
 
         it('correctly identifies type xml', () => {
-            const file = new File(makeBrsFile('test.xml'), projectFileMap);
+            const file = new MaestroFile(makeBrsFile('test.xml'), projectFileMap);
             expect(file.fileType).to.equal(FileType.Xml);
 
         });
 
         it('correctly identifies type brs', () => {
-            const file = new File(makeBrsFile('/fsPath/test.brs'), projectFileMap);
+            const file = new MaestroFile(makeBrsFile('/fsPath/test.brs'), projectFileMap);
             expect(file.fileType).to.equal(FileType.Brs);
 
         });
 
         it('correctly identifies type other - no extension', () => {
-            const file = new File(makeBrsFile('/fsPath/test'), projectFileMap);
+            const file = new MaestroFile(makeBrsFile('/fsPath/test'), projectFileMap);
             expect(file.fileType).to.equal(FileType.Other);
         });
     });
@@ -66,7 +66,7 @@ describe('File', () => {
         // });
     });
     function makeBrsFile<T extends BrsFile | XmlFile>(path) {
-        return new BrsFile(path, path, program);
+        return new BrsFile({ srcPath: path, destPath: path, program: program });
     }
 
 });

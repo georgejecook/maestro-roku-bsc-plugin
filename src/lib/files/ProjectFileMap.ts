@@ -2,7 +2,7 @@ import type { BrsFile, BscFile, ClassStatement, FunctionStatement, XmlFile } fro
 import { isFunctionStatement } from 'brighterscript';
 import * as brighterscript from 'brighterscript';
 
-import { File } from './File';
+import { MaestroFile } from './MaestroFile';
 import { FileType } from './FileType';
 
 import { addProjectFileMapErrorDuplicateXMLComp } from '../utils/Diagnostics';
@@ -19,8 +19,8 @@ export class ProjectFileMap {
     public allClasses: Record<string, ClassStatement> = {};
     public allClassNames: Set<string>;
     public allClassFiles = {};
-    public allXMLComponentFiles: Record<string, File>;
-    public allFiles: Record<string, File>;
+    public allXMLComponentFiles: Record<string, MaestroFile>;
+    public allFiles: Record<string, MaestroFile>;
     public nodeClasses: Record<string, NodeClass> = {};
     public nodeClassesByPath: Record<string, NodeClass[]> = {};
     public pathsByNamespace: Record<string, Record<string, boolean>> = {};
@@ -30,7 +30,7 @@ export class ProjectFileMap {
         return Object.keys(this.allXMLComponentFiles);
     }
 
-    get files(): File[] {
+    get files(): MaestroFile[] {
         return Object.values(this.allFiles);
     }
 
@@ -100,7 +100,7 @@ export class ProjectFileMap {
     );
 
 
-    public addXMLComponent(file: File) {
+    public addXMLComponent(file: MaestroFile) {
         if (file.fileType === FileType.Xml) {
             if (!this.allXMLComponentFiles[file.componentName] || file.fullPath === this.allXMLComponentFiles[file.componentName].fullPath) {
                 this.allXMLComponentFiles[file.componentName] = file;
@@ -111,7 +111,7 @@ export class ProjectFileMap {
         }
     }
 
-    public addClass(classStatement: ClassStatement, mFile: File) {
+    public addClass(classStatement: ClassStatement, mFile: MaestroFile) {
         let className = classStatement.getName(brighterscript.ParseMode.BrighterScript);
         this.allClassNames.add(className);
         this.allClassFiles[className] = mFile;
@@ -142,14 +142,14 @@ export class ProjectFileMap {
         delete this.allClasses[name];
     }
 
-    public removeFileClasses(file: File) {
+    public removeFileClasses(file: MaestroFile) {
         for (let name of [...file.classNames.values()]) {
             this.removeClass(name);
         }
         file.classNames = new Set();
     }
 
-    public removeFile(file: File) {
+    public removeFile(file: MaestroFile) {
         this.removeFileClasses(file);
         delete this.allFiles[file.fullPath];
     }
@@ -161,7 +161,7 @@ export class ProjectFileMap {
         return undefined;
     }
 
-    public addFile(file: File) {
+    public addFile(file: MaestroFile) {
         this.removeFile(file);
         if (brighterscript.isBrsFile(file.bscFile)) {
             this.addNamespaces(file.bscFile);
@@ -179,8 +179,8 @@ export class ProjectFileMap {
         }
     }
 
-    public createFile(bscFile: BscFile): File {
-        let file = new File(bscFile, this);
+    public createFile(bscFile: BscFile): MaestroFile {
+        let file = new MaestroFile(bscFile, this);
         this.addFile(file);
         return file;
     }

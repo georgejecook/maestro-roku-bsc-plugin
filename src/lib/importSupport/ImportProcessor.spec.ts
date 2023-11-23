@@ -22,7 +22,7 @@ describe('build time imports', () => {
         `);
         program.validate();
 
-        let file = new BrsFile('/tmp/t.bs', 'source/t.bs', program);
+        let file = new BrsFile({ srcPath: '/tmp/t.bs', destPath: 'source/t.bs', program: program });
         file.parse(`
             import "pkg:/source/mixins/FocusMixin.bs"
             import "build:/IAuthProvider"
@@ -45,7 +45,7 @@ describe('build time imports', () => {
         `);
         program.validate();
 
-        let file = new BrsFile('/tmp/t.bs', 'source/t.bs', program);
+        let file = new BrsFile({ srcPath: '/tmp/t.bs', destPath: 'source/t.bs', program: program });
         file.parse(`
             import "pkg:/source/mixins/FocusMixin.bs"
             import "build:/IAuthProvider"
@@ -68,7 +68,7 @@ describe('build time imports', () => {
         });
 
         let program = new Program({});
-        let file = new BrsFile('/tmp/t.bs', 'source/t.bs', program);
+        let file = new BrsFile({ srcPath: '/tmp/t.bs', destPath: 'source/t.bs', program: program });
         file.parse(`
             import "pkg:/source/mixins/FocusMixin.bs"
             import "build:/IAuthProvider"

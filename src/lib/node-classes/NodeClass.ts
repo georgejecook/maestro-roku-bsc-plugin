@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/indent */
-import type { AnnotationExpression, BrsFile, ClassFieldStatement, ClassMethodStatement, ClassStatement, CommentStatement, DottedGetExpression, EnumMemberStatement, FieldStatement, FunctionParameterExpression, Program, XmlFile } from 'brighterscript';
-import { isEnumMemberStatement, isDottedGetExpression, isEnumStatement, isNewExpression, TokenKind, isClassMethodStatement, ParseMode, createVisitor, isVariableExpression, WalkMode, isAALiteralExpression, isArrayLiteralExpression, isIntegerType, isLiteralExpression, isLiteralNumber, isLongIntegerType, isUnaryExpression } from 'brighterscript';
+import type { AnnotationExpression, BrsFile, MethodStatement, ClassStatement, CommentStatement, DottedGetExpression, EnumMemberStatement, FieldStatement, FunctionParameterExpression, Program, XmlFile } from 'brighterscript';
+import { isEnumMemberStatement, isDottedGetExpression, isEnumStatement, isNewExpression, TokenKind, isMethodStatement, ParseMode, createVisitor, isVariableExpression, WalkMode, isAALiteralExpression, isArrayLiteralExpression, isIntegerType, isLiteralExpression, isLiteralNumber, isLongIntegerType, isUnaryExpression, SymbolTypeFlag, util } from 'brighterscript';
 import type { ProjectFileMap } from '../files/ProjectFileMap';
 import { expressionToString, expressionToValue, getAllDottedGetParts, sanitizePkgPath } from '../Utils';
 import { addNodeClassCallbackNotDefined, addNodeClassCallbackNotFound, addNodeClassCallbackWrongParams, addNodeClassFieldNoFieldType, addNodeClassNoExtendNodeFound, addNodeClassUnknownClassType, addNodeTaskMustExtendTaskComponent, addTooManyPublicParams } from '../utils/Diagnostics';
@@ -14,7 +14,7 @@ const path = require('path');
 
 interface BoundClassField {
     cs: ClassStatement;
-    f: ClassFieldStatement;
+    f: FieldStatement;
 }
 
 export enum NodeClassType {
@@ -25,7 +25,7 @@ export enum NodeClassType {
 
 export class NodeField {
     isEnum: boolean;
-    constructor(public file: BrsFile, public classStatement: ClassStatement, public field: ClassFieldStatement, public fieldType: string, public observerAnnotation?: AnnotationExpression, public alwaysNotify?: boolean, public debounce?: boolean, public isPossibleClassType = false, public isRootOnlyObserver = false) {
+    constructor(public file: BrsFile, public classStatement: ClassStatement, public field: FieldStatement, public fieldType: string, public observerAnnotation?: AnnotationExpression, public alwaysNotify?: boolean, public debounce?: boolean, public isPossibleClassType = false, public isRootOnlyObserver = false) {
         this.name = field.name.text;
         this.type = isPossibleClassType ? 'assocarray' : fieldType;
         this.classType = isPossibleClassType ? fieldType : '';
@@ -118,7 +118,7 @@ export class NodeClass {
     public xmlPath: string;
     public nodeFields: NodeField[] = [];
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-    public classMemberFilter = (m) => isClassMethodStatement(m) && (!m.accessModifier || m.accessModifier.kind === TokenKind.Public) && m.name.text !== 'new';
+    public classMemberFilter = (m) => isMethodStatement(m) && (!m.accessModifier || m.accessModifier.kind === TokenKind.Public) && m.name.text !== 'new';
 
     private knownFieldTypes = {
         'integer': true,
@@ -200,10 +200,10 @@ export class NodeClass {
     }
 
 
-    private getNodeBrsCode(members: (ClassFieldStatement | ClassMethodStatement)[]) {
+    private getNodeBrsCode(members: (FieldStatement | MethodStatement)[]) {
         let text = '';
         for (let member of members.filter(this.classMemberFilter)) {
-            let params = (member as ClassMethodStatement).func.parameters;
+            let params = (member as MethodStatement).func.parameters;
             if (params.length) {
                 let args = `${params.map((p) => p.name.text).join(',')}`;
                 text += this.makeFunction(member.name.text, this.getWrapperCallFuncParams(params), `
@@ -230,7 +230,7 @@ export class NodeClass {
         }).join(',')}`;
     }
 
-    private getLazyNodeBrsCode(nodeFile: NodeClass, members: (ClassFieldStatement | ClassMethodStatement)[]) {
+    private getLazyNodeBrsCode(nodeFile: NodeClass, members: (FieldStatement | MethodStatement)[]) {
         let body = `
         if m.__isVMCreated = invalid
         instance = __${nodeFile.classStatement.getName(ParseMode.BrightScript)}_builder()
@@ -254,7 +254,7 @@ export class NodeClass {
         let text = this.makeFunction('_getVM', '', body);
 
         for (let member of members.filter(this.classMemberFilter)) {
-            let params = (member as ClassMethodStatement).func.parameters;
+            let params = (member as MethodStatement).func.parameters;
             if (params.length) {
                 let args = `${params.map((p) => p.name.text).join(',')}`;
                 text += this.makeFunction(member.name.text, this.getWrapperCallFuncParams(params), `
@@ -285,7 +285,7 @@ export class NodeClass {
     `;
     }
 
-    private getNodeFileXmlText(nodeFile: NodeClass, members: (ClassFieldStatement | ClassMethodStatement)[], program: Program): string {
+    private getNodeFileXmlText(nodeFile: NodeClass, members: (FieldStatement | MethodStatement)[], program: Program): string {
         let text = `<?xml version="1.0" encoding="UTF-8" ?>
 <component
     name="${nodeFile.name}"
@@ -316,7 +316,7 @@ export class NodeClass {
     private getFieldInParents(name: string, program: Program) {
         let comp = program.getComponent(this.extendsName.toLowerCase());
         while (comp) {
-            if (comp.file.parser.ast.component.api.getField(name)) {
+            if (comp.file.parser.ast.componentElement?.interfaceElement?.getField(name)) {
                 return true;
             }
             comp = program.getComponent(comp.file.parser?.references?.extends?.text?.toLowerCase());
@@ -326,7 +326,7 @@ export class NodeClass {
     private getFunctionInParents(name: string, program: Program) {
         let comp = program.getComponent(this.extendsName.toLowerCase());
         while (comp) {
-            if (comp.file.parser.ast.component.api.getFunction(name)) {
+            if (comp.file.parser.ast.componentElement?.interfaceElement?.getFunction(name)) {
                 return true;
             }
             comp = program.getComponent(comp.file.parser?.references?.extends?.text?.toLowerCase());
@@ -338,10 +338,10 @@ export class NodeClass {
     private getParentComponentOfType(name: string, program: Program) {
         let comp = program.getComponent(this.extendsName.toLowerCase());
         while (comp) {
-            if (comp.file.parser.ast.component.name === name) {
+            if (comp.file.parser.ast.componentElement?.name === name) {
                 return true;
             }
-            if (comp.file.parser.ast.component.getAttributeValue('extends') === name) {
+            if (comp.file.parser.ast.componentElement?.getAttributeValue('extends') === name) {
                 return true;
             }
             comp = program.getComponent(comp.file.parser?.references?.extends?.text?.toLowerCase());
@@ -442,7 +442,7 @@ export class NodeClass {
     }
 
     private getClassMembers(classStatement: ClassStatement, fileMap: ProjectFileMap) {
-        let results = new Map<string, ClassFieldStatement | ClassMethodStatement>();
+        let results = new Map<string, FieldStatement | MethodStatement>();
         if (classStatement) {
             let classes = this.getClassHierarchy(classStatement.getName(ParseMode.BrighterScript), fileMap);
             for (let cs of classes) {
@@ -556,7 +556,7 @@ export class NodeClass {
     }
     getNodeFields(file: BrsFile, cs: ClassStatement, fileMap: ProjectFileMap) {
         let fields: BoundClassField[] = [];
-        let members = new Map<string, ClassFieldStatement | ClassMethodStatement>();
+        let members = new Map<string, FieldStatement | MethodStatement>();
         if (this.type !== NodeClassType.task) {
             members = this.getClassMembers(this.classStatement, fileMap);
             fields = [...this.getClassFields(this.classStatement, fileMap).values()];
@@ -587,7 +587,7 @@ export class NodeClass {
             f.isEnum = isEnum;
             if (observerArgs.length > 0) {
                 let observerFunc = members.get((observerArgs[0] as string).toLowerCase());
-                if (isClassMethodStatement(observerFunc)) {
+                if (isMethodStatement(observerFunc)) {
                     f.numArgs = observerFunc?.func?.parameters?.length;
                 }
             }
@@ -599,9 +599,9 @@ export class NodeClass {
     }
 
     getFieldType(field: FieldStatement): string | undefined {
-        let fieldType: string;
-        if (field.type) {
-            fieldType = field.type.text.toLowerCase();
+        let fieldTypeNormal = util.getAllDottedGetPartsAsString(field.typeExpression) ?? '';
+        let fieldType = fieldTypeNormal.toLowerCase();
+        if (fieldType) {
             if (fieldType === 'mc.types.assocarray' || fieldType === 'sc.types.assocarray') {
                 fieldType = 'assocarray';
             } else if (fieldType === 'mc.types.node' || fieldType === 'sc.types.node') {
@@ -612,17 +612,18 @@ export class NodeClass {
                 fieldType = 'assocarray';
             } else if (!this.knownFieldTypes[fieldType]) {
                 // keep original case
-                fieldType = field.type.text;
+                fieldType = fieldTypeNormal;
             }
             // console.log('fieldType', fieldType);
         } else if (isLiteralExpression(field.initialValue)) {
-            fieldType = field.initialValue.type.toTypeString();
+            fieldType = field.initialValue.getType({ flags: SymbolTypeFlag.runtime }).toTypeString();
         } else if (isAALiteralExpression(field.initialValue)) {
             fieldType = 'assocarray';
         } else if (isArrayLiteralExpression(field.initialValue)) {
             fieldType = 'array';
         } else if (isUnaryExpression(field.initialValue) && isLiteralNumber(field.initialValue.right)) {
-            if (isIntegerType(field.initialValue.right.type) || isLongIntegerType(field.initialValue.right.type)) {
+            const rightType = field.initialValue.right.getType({ flags: SymbolTypeFlag.runtime });
+            if (isIntegerType(rightType) || isLongIntegerType(rightType)) {
                 fieldType = 'integer';
             } else {
                 fieldType = 'float';
@@ -671,7 +672,7 @@ export class NodeClass {
     getEnumTypeFromValue(enumValue: CommentStatement | EnumMemberStatement) {
         if (isEnumMemberStatement(enumValue)) {
             if (isLiteralExpression(enumValue.value)) {
-                return enumValue.value.type.toTypeString();
+                return enumValue.value.getType({ flags: SymbolTypeFlag.runtime }).toTypeString();
             } else if (isAALiteralExpression(enumValue.value)) {
                 return 'assocarray';
             } else if (isArrayLiteralExpression(enumValue.value)) {
