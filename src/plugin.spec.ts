@@ -1428,8 +1428,8 @@ describe('MaestroPlugin', () => {
             'import "pkg:/source/comp.bs"
 
             function init()
-                m.top.e1 = - 1
-                m.top.e2 = - 100
+                m.top.e1 = -1
+                m.top.e2 = -100
                 instance = __Comp_builder()
                 instance.delete("top")
                 instance.delete("global")
@@ -2007,7 +2007,7 @@ describe('MaestroPlugin', () => {
                     end class
                 `);
                 program.validate();
-                expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+                expectDiagnostics(builder, [{ message: `Cannot find name '__className'` }]);
             });
 
             it('gives diagnostic for  unknown function', () => {
@@ -3611,9 +3611,9 @@ describe('MaestroPlugin', () => {
                 print (mc_getString(name, invalid))
                 print (mc_getString(name, invalid, "default name"))
                 if mc_getBoolean(isActive, invalid)
-                    print mc_getInteger(numSeconds, invalid, - 1)
-                    print mc_getNumber(numSeconds, invalid, - 1)
-                    print mc_getLong(numSeconds, invalid, - 1)
+                    print mc_getInteger(numSeconds, invalid, -1)
+                    print mc_getNumber(numSeconds, invalid, -1)
+                    print mc_getLong(numSeconds, invalid, -1)
                 end if
                 print m.items.getValue(mc_getArray(items, invalid))
                 print m.items.show(mc_getArray(items, invalid, [
