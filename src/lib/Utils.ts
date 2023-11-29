@@ -1,7 +1,7 @@
-import type { BrsFile, BscType, MethodStatement, ClassStatement, DottedGetExpression, Editor, EnumType, Expression, FunctionStatement, LiteralExpression, Statement, Token, ClassType } from 'brighterscript';
-import { isEnumMemberStatement, Range, createVariableExpression, isDottedGetExpression, isVariableExpression, BinaryExpression, Block, createStringLiteral, createToken, IfStatement, ImportStatement, isAALiteralExpression, isArrayLiteralExpression, isMethodStatement, isClassStatement, isCommentStatement, isImportStatement, isIntegerType, isLiteralBoolean, isLiteralNumber, isLiteralString, isLongIntegerType, isUnaryExpression, Lexer, ParseMode, Parser, Position, TokenKind, SymbolTypeFlag } from 'brighterscript';
+import type { BrsFile, BscType, MethodStatement, ClassStatement, DottedGetExpression, Editor, EnumType, Expression, FunctionStatement, LiteralExpression, Statement, ClassType } from 'brighterscript';
+import { isEnumMemberStatement, Range, createVariableExpression, isDottedGetExpression, isVariableExpression, BinaryExpression, Block, createStringLiteral, createToken, IfStatement, ImportStatement, isAALiteralExpression, isArrayLiteralExpression, isMethodStatement, isClassStatement, isCommentStatement, isImportStatement, isIntegerType, isLiteralBoolean, isLiteralNumber, isLiteralString, isLongIntegerType, isUnaryExpression, Lexer, ParseMode, Parser, Position, TokenKind, SymbolTypeFlag, createBooleanLiteral, createIntegerLiteral, createFloatLiteral, createLongIntegerLiteral, createInvalidLiteral } from 'brighterscript';
 import * as rokuDeploy from 'roku-deploy';
-import { createRange } from './utils/Utils';
+import { createAA, createArray, createRange } from './utils/Utils';
 import { BscTypeKind } from 'brighterscript/dist/types/BscTypeKind';
 
 export function spliceString(str: string, index: number, count: number, add: string): string {
@@ -166,39 +166,39 @@ function driveLetterToLower(fullPath: string) {
     }
     return fullPath;
 }
-export function typeToValueString(type: BscType): string {
+export function typeToValueExpression(type: BscType): Expression {
     const typeKind = (type as any).kind as BscTypeKind;
     switch (typeKind) {
         case BscTypeKind.BooleanType:
-            return 'false';
+            return createBooleanLiteral('false');
         case BscTypeKind.IntegerType:
-            return '0';
+            return createIntegerLiteral('0');
         case BscTypeKind.FloatType:
-            return '0.0';
+            return createFloatLiteral('0.0');
         case BscTypeKind.DoubleType:
-            return '0.0';
+            return createFloatLiteral('0.0');
         case BscTypeKind.LongIntegerType:
-            return '0';
+            return createLongIntegerLiteral('0');
         case BscTypeKind.ObjectType:
-            return '{}';
+            return createAA();
         case BscTypeKind.StringType:
-            return '""';
+            return createStringLiteral('""');
         case BscTypeKind.ArrayType:
-            return '[]';
+            return createArray();
         case BscTypeKind.AssociativeArrayType:
-            return '{}';
+            return createAA();
         case BscTypeKind.ClassType:
             switch ((type as ClassType).name?.toLowerCase()) {
                 case 'mc.types.array':
-                    return '[]';
+                    return createArray();
                 case 'mc.types.assocarray':
-                    return '{}';
+                    return createAA();
             }
-            return 'invalid';
+            return createInvalidLiteral();
         case BscTypeKind.EnumType:
-            return typeToValueString((type as EnumType).defaultMemberType);
+            return typeToValueExpression((type as EnumType).defaultMemberType);
         default:
-            return 'invalid';
+            return createInvalidLiteral();
     }
 }
 

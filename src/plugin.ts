@@ -67,10 +67,10 @@ import { FileFactory } from './lib/utils/FileFactory';
 import NodeClassUtil from './lib/node-classes/NodeClassUtil';
 import { RawCodeStatement, RawCodeExpression } from './lib/utils/RawCodeStatement';
 import { addClassFieldsNotFoundOnSetOrGet, addIOCNoTypeSupplied, addIOCWrongArgs, noCallsInAsXXXAllowed, functionNotImported, IOCClassNotInScope, namespaceNotImported, noPathForInject, noPathForIOCSync, unknownClassMethod, unknownConstructorMethod, unknownSuperClass, unknownType, wrongConstructorArgs, wrongMethodArgs, observeRequiresFirstArgumentIsField, observeRequiresFirstArgumentIsNotM, observeFunctionNameNotFound, observeFunctionNameWrongArgs } from './lib/utils/Diagnostics';
-import { getAllAnnotations, getAllFields } from './lib/utils/Utils';
+import { createCallExpression, getAllAnnotations, getAllFields } from './lib/utils/Utils';
 import { getSGMembersLookup } from './SGApi';
 import { BrsTranspileState } from 'brighterscript/dist/parser/BrsTranspileState';
-import { typeToValueString } from './lib/Utils';
+import { typeToValueExpression } from './lib/Utils';
 
 interface FunctionInfo {
     minArgs: number;
@@ -850,8 +850,6 @@ export class MaestroPlugin implements CompilerPlugin {
         // eslint-disable-next-line @typescript-eslint/dot-notation
         let isNodeClass = cs['_isNodeClass'] === true;
 
-        let state = new BrsTranspileState(file);
-
         for (let field of cs.fields) {
             let annotation = (field.annotations || []).find((a) => a.name.toLowerCase() === 'inject' || a.name.toLowerCase() === 'injectclass' || a.name.toLowerCase() === 'createclass');
             if (annotation) {
@@ -906,19 +904,24 @@ export class MaestroPlugin implements CompilerPlugin {
                         }
                     }
 
-                    let defaultValue;
+                    let defaultValueExpression: Expression;
                     try {
                         if (field?.initialValue) {
-                            defaultValue = field?.initialValue?.transpile(state)?.join('') ?? 'invalid';
+                            defaultValueExpression = field.initialValue;
                         } else if (field.as) {
-                            defaultValue = typeToValueString(field.typeExpression.getType({ flags: SymbolTypeFlag.typetime }));
+                            defaultValueExpression = typeToValueExpression(field.typeExpression.getType({ flags: SymbolTypeFlag.typetime }));
                         }
                     } catch (error) {
                         console.error(error);
                     }
-                    if (!defaultValue) {
-                        defaultValue = 'invalid';
+                    if (!defaultValueExpression) {
+                        defaultValueExpression = createInvalidLiteral();
                     }
+                    const miocGetInstanceWithoutIocPath = createCallExpression('mioc_getInstance', [`"${iocKey}"`, createInvalidLiteral(), defaultValueExpression]);
+                    const miocGetInstanceWithIocPath = createCallExpression('mioc_getInstance', [`"${iocKey}"`, `"${iocPath}"`, defaultValueExpression]);
+
+                    const setTopFieldWithoutIocPath = createCallExpression('__m_setTopField', [`"${field.name.text}"`, miocGetInstanceWithoutIocPath]);
+                    const setTopFieldWithIocPath = createCallExpression('__m_setTopField', [`"${field.name.text}"`, miocGetInstanceWithIocPath]);
 
                     if (isNodeClass && (field.accessModifier?.kind === TokenKind.Public)) {
                         if (syncAnnotation) {
@@ -929,10 +932,12 @@ export class MaestroPlugin implements CompilerPlugin {
                             }]);
                             continue;
                         }
+
+
                         if (args.length === 1) {
-                            astEditor.setProperty(field, 'initialValue', new RawCodeStatement(`__m_setTopField("${field.name.text}", mioc_getInstance("${iocKey}", invalid, ${defaultValue}))`, file, field.range));
+                            astEditor.setProperty(field, 'initialValue', setTopFieldWithoutIocPath);
                         } else if (args.length === 2) {
-                            astEditor.setProperty(field, 'initialValue', new RawCodeStatement(`__m_setTopField("${field.name.text}", mioc_getInstance("${iocKey}", "${iocPath}", ${defaultValue}))`, file, field.range));
+                            astEditor.setProperty(field, 'initialValue', setTopFieldWithIocPath);
                         }
                     } else {
                         //check for observer field in here..
@@ -966,9 +971,9 @@ export class MaestroPlugin implements CompilerPlugin {
                             }
                         } else {
                             if (!iocPath) {
-                                astEditor.setProperty(field, 'initialValue', new RawCodeStatement(`mioc_getInstance("${iocKey}", invalid, ${defaultValue})`, file, field.range));
+                                astEditor.setProperty(field, 'initialValue', miocGetInstanceWithoutIocPath);
                             } else {
-                                astEditor.setProperty(field, 'initialValue', new RawCodeStatement(`mioc_getInstance("${iocKey}", "${iocPath}", ${defaultValue})`, file, field.range));
+                                astEditor.setProperty(field, 'initialValue', miocGetInstanceWithIocPath);
                             }
                         }
                     }
