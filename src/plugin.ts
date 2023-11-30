@@ -5,7 +5,7 @@ import {
     ExpressionStatement,
     createVisitor,
     WalkMode,
-    ClassFieldStatement,
+    FieldStatement,
     createStringLiteral,
     createToken,
     ParseMode,
@@ -26,31 +26,39 @@ import {
     createInvalidLiteral,
     createVariableExpression,
     isFunctionStatement,
-    CallExpression
+    CallExpression,
+    TypeExpression,
+    VariableExpression,
+    SymbolTypeFlag,
+    isFunctionExpression
 } from 'brighterscript';
 import type {
     BrsFile,
     BscFile,
     ClassStatement,
     CompilerPlugin,
-    FileObj,
-    Program, ProgramBuilder,
-    TranspileObj,
+    Program,
     XmlFile,
     Scope,
-    CallableContainerMap,
     FunctionStatement,
     Statement,
     MethodStatement,
-    BeforeFileTranspileEvent,
     Expression,
     Editor,
-    AstEditor
+    AfterProgramCreateEvent,
+    AfterFileValidateEvent,
+    AfterProgramValidateEvent,
+    AfterScopeValidateEvent,
+    BeforePrepareFileEvent,
+    FunctionExpression,
+    BeforeSerializeProgramEvent,
+    BeforeBuildProgramEvent,
+    AfterProvideFileEvent
 } from 'brighterscript';
 import { ProjectFileMap } from './lib/files/ProjectFileMap';
 import type { MaestroConfig } from './lib/files/MaestroConfig';
 import { BindingProcessor } from './lib/binding/BindingProcessor';
-import type { File } from './lib/files/File';
+import type { MaestroFile } from './lib/files/MaestroFile';
 import * as minimatch from 'minimatch';
 import { FileType } from './lib/files/FileType';
 import ImportProcessor from './lib/importSupport/ImportProcessor';
@@ -59,11 +67,10 @@ import { FileFactory } from './lib/utils/FileFactory';
 import NodeClassUtil from './lib/node-classes/NodeClassUtil';
 import { RawCodeStatement, RawCodeExpression } from './lib/utils/RawCodeStatement';
 import { addClassFieldsNotFoundOnSetOrGet, addIOCNoTypeSupplied, addIOCWrongArgs, noCallsInAsXXXAllowed, functionNotImported, IOCClassNotInScope, namespaceNotImported, noPathForInject, noPathForIOCSync, unknownClassMethod, unknownConstructorMethod, unknownSuperClass, unknownType, wrongConstructorArgs, wrongMethodArgs, observeRequiresFirstArgumentIsField, observeRequiresFirstArgumentIsNotM, observeFunctionNameNotFound, observeFunctionNameWrongArgs } from './lib/utils/Diagnostics';
-import { getAllAnnotations, getAllFields } from './lib/utils/Utils';
+import { createCallExpression, getAllAnnotations, getAllFields } from './lib/utils/Utils';
 import { getSGMembersLookup } from './SGApi';
-import { DynamicType } from 'brighterscript/dist/types/DynamicType';
 import { BrsTranspileState } from 'brighterscript/dist/parser/BrsTranspileState';
-import { typeToValueString } from './lib/Utils';
+import { typeToValueExpression } from './lib/Utils';
 
 interface FunctionInfo {
     minArgs: number;
@@ -71,7 +78,7 @@ interface FunctionInfo {
     pkgPaths: { string: string };
 }
 interface NamespaceContainer {
-    file: BscFile;
+    file: MaestroFile;
     fullName: string;
     nameRange: Range;
     lastPartName: string;
@@ -95,8 +102,8 @@ export class MaestroPlugin implements CompilerPlugin {
     private mFilesToValidate = new Map<string, BrsFile>();
     private dirtyCompFilePaths = new Set<string>();
     private dirtyNodeClassPaths = new Set<string>();
-    private filesThatNeedAddingBeforeProgramValidate = new Map<string, File>();
-    private filesThatNeedParsingInBeforeProgramValidate = new Map<string, File>();
+    private filesThatNeedAddingBeforeProgramValidate = new Map<string, MaestroFile>();
+    private filesThatNeedParsingInBeforeProgramValidate = new Map<string, MaestroFile>();
 
     private skips = {
         '__classname': true,
@@ -151,7 +158,8 @@ export class MaestroPlugin implements CompilerPlugin {
         return config;
     }
 
-    afterProgramCreate(program: Program): void {
+    afterProgramCreate(event: AfterProgramCreateEvent): void {
+        let { program } = event;
         this.program = program;
         if (!this.fileMap) {
             this.fileMap = new ProjectFileMap();
@@ -169,31 +177,38 @@ export class MaestroPlugin implements CompilerPlugin {
         }
     }
 
-    afterFileParse(file: (BrsFile | XmlFile)): void {
-        // afp(file: (BrsFile | XmlFile)): void {
-        // console.log('MAESTRO afp-----', file.srcPath);
-        let mFile = this.fileMap.allFiles[file.srcPath];
-        if (!mFile) {
-            mFile = this.fileMap.createFile(file);
-        }
-        mFile.bscFile = file;
-
-        if (file.pkgPath.startsWith('components/maestro/generated')) {
-
-            // eslint-disable-next-line @typescript-eslint/dot-notation
-            file['diagnostics'] = [];
-            return;
-        }
-        if (isBrsFile(file)) {
-            this.importProcessor.processDynamicImports(file, this.program);
-            // this.reflectionUtil.addFile(file);
-            this.filesThatNeedAddingBeforeProgramValidate.set(mFile.fullPath, mFile);
-            if (this.shouldParseFile(file)) {
-                this.filesThatNeedParsingInBeforeProgramValidate.set(mFile.fullPath, mFile);
+    afterProvideFile(event: AfterProvideFileEvent): void {
+        const { files } = event;
+        for (const file of files) {
+            if (!(isBrsFile(file) || isXmlFile(file))) {
+                continue;
             }
 
-        } else {
-            mFile.loadXmlContents();
+            // afp(file: (BrsFile | XmlFile)): void {
+            // console.log('MAESTRO afp-----', file.srcPath);
+            let mFile = this.fileMap.allFiles[file.srcPath];
+            if (!mFile) {
+                mFile = this.fileMap.createFile(file);
+            }
+            mFile.bscFile = file;
+
+            if (file.pkgPath.startsWith('components/maestro/generated')) {
+
+                // eslint-disable-next-line @typescript-eslint/dot-notation
+                file['diagnostics'] = [];
+                return;
+            }
+            if (isBrsFile(file)) {
+                this.importProcessor.processDynamicImports(file, this.program);
+                // this.reflectionUtil.addFile(file);
+                this.filesThatNeedAddingBeforeProgramValidate.set(mFile.fullPath, mFile);
+                if (this.shouldParseFile(file)) {
+                    this.filesThatNeedParsingInBeforeProgramValidate.set(mFile.fullPath, mFile);
+                }
+
+            } else {
+                mFile.loadXmlContents();
+            }
         }
     }
 
@@ -222,8 +237,12 @@ export class MaestroPlugin implements CompilerPlugin {
         this.filesThatNeedParsingInBeforeProgramValidate.clear();
     }
 
-    afterFileValidate(file: BscFile) {
+    afterFileValidate(event: AfterFileValidateEvent) {
+        let { file } = event;
         // console.log('MAESTRO afv-----', file.srcPath);
+        if (!(isBrsFile(file) || isXmlFile(file))) {
+            return;
+        }
         if (!this.shouldParseFile(file)) {
             return;
         }
@@ -283,7 +302,8 @@ export class MaestroPlugin implements CompilerPlugin {
         }
     }
 
-    afterProgramValidate(program: Program) {
+    afterProgramValidate(event: AfterProgramValidateEvent) {
+        let { program } = event;
         this.ncValidation(program);
         // console.log('MAESTRO bpv-----');
         if (this.maestroConfig.processXMLFiles) {
@@ -357,7 +377,7 @@ export class MaestroPlugin implements CompilerPlugin {
         this.dirtyNodeClassPaths.clear();
     }
 
-    getCompFilesThatHaveFileInScope(file: BscFile): File[] {
+    getCompFilesThatHaveFileInScope(file: BrsFile | XmlFile): MaestroFile[] {
         let compFiles = [];
         let lowerPath = file.pkgPath.toLowerCase();
         for (let compFile of Object.values(this.fileMap.allFiles).filter((f) => f.fileType === FileType.Xml && f.vmClassName)) {
@@ -369,7 +389,10 @@ export class MaestroPlugin implements CompilerPlugin {
         return compFiles;
     }
 
-    shouldParseFile(file: BscFile) {
+    shouldParseFile(file: BrsFile | XmlFile) {
+        if (!isBrsFile(file) && !isXmlFile(file)) {
+            return false;
+        }
         if (this.maestroConfig.excludeFilters) {
             for (let filter of [...this.maestroConfig.excludeFilters, '**/components/maestro/generated/*']) {
                 if (minimatch(file.srcPath, filter)) {
@@ -396,16 +419,16 @@ export class MaestroPlugin implements CompilerPlugin {
         return true;
     }
 
-    beforeFileTranspile(event: BeforeFileTranspileEvent) {
+    beforePrepareFile(event: BeforePrepareFileEvent) {
         if (!this.shouldParseFile(event.file as any)) {
             return;
         }
         if (this.maestroConfig.processXMLFiles && this.dirtyCompFilePaths.has(event.file.srcPath)) {
             // console.time('Validate bindings');
-            let file = this.fileMap.allFiles[event.file.srcPath];
-            if (this.maestroConfig.mvvm.insertXmlBindingsEarly && file.isValid) {
+            let mFile = this.fileMap.allFiles[event.file.srcPath];
+            if (this.maestroConfig.mvvm.insertXmlBindingsEarly && mFile.isValid) {
                 // console.log('adding xml transpiled code for ', file.bscFile.pkgPath);
-                this.bindingProcessor.generateCodeForXMLFile(file, this.program, event.editor);
+                this.bindingProcessor.generateCodeForXMLFile(mFile, this.program, event.editor);
             }
             // console.timeEnd('Validate bindings');
         }
@@ -420,9 +443,9 @@ export class MaestroPlugin implements CompilerPlugin {
                 if (!fieldMap.has('__classname')) {
                     let p = createToken(TokenKind.Public, 'public', cs.range);
                     let a = createToken(TokenKind.As, 'as', cs.range);
-                    let s = createToken(TokenKind.String, 'string', cs.range);
+                    let s = new TypeExpression(new VariableExpression(createToken(TokenKind.Identifier, 'string', cs.range)));
 
-                    let classNameStatement = new ClassFieldStatement(p, id, a, s, createToken(TokenKind.Equal, '=', cs.range), createStringLiteral('"' + cs.getName(ParseMode.BrighterScript), cs.range));
+                    let classNameStatement = new FieldStatement(p, id, a, s, createToken(TokenKind.Equal, '=', cs.range), createStringLiteral('"' + cs.getName(ParseMode.BrighterScript), cs.range));
                     cs.body.push(classNameStatement);
                     cs.fields.push(classNameStatement);
                     cs.memberMap.__className = classNameStatement;
@@ -448,14 +471,16 @@ export class MaestroPlugin implements CompilerPlugin {
             }
             if (this.maestroConfig.stripParamTypes) {
                 for (let fs of event.file.parser.references.functionExpressions) {
-                    if (fs.returnType && !isVoidType(fs.returnType) && !isDynamicType(fs.returnType)) {
-                        const name = fs.functionStatement?.name?.text ?? fs.parentFunction?.functionStatement?.name?.text;
+                    const returnType = fs.returnTypeExpression?.getType({ flags: SymbolTypeFlag.runtime });
+                    if (returnType && !isVoidType(returnType) && !isDynamicType(returnType)) {
+                        const parentFunctionExpression: FunctionExpression = fs.findAncestor(isFunctionExpression);
+                        const name = fs.functionStatement?.name?.text ?? parentFunctionExpression?.functionStatement?.name?.text;
                         if (!this.maestroConfig.paramStripExceptions.includes(name)) {
-                            fs.returnType = new DynamicType();
+                            fs.returnTypeExpression.expression = new VariableExpression(createIdentifier('dynamic'));
                         }
                     }
                     for (let param of fs.parameters) {
-                        param.asToken = null;
+                        param.typeExpression = null;
                     }
                 }
             }
@@ -652,21 +677,22 @@ export class MaestroPlugin implements CompilerPlugin {
         }
     }
 
-    beforeProgramTranspile(program: Program, entries: TranspileObj[], editor: AstEditor) {
+    beforeBuildProgram(event: BeforeBuildProgramEvent) {
+        const { files, program, editor } = event;
         // console.log('++++++', this.maestroConfig.processXMLFiles);
         if (!this.maestroConfig.mvvm.insertXmlBindingsEarly && this.maestroConfig.processXMLFiles) {
             console.time('Inject bindings into xml files');
 
-            for (let entry of entries) {
-                if (isXmlFile(entry.file)) {
-                    let mFile = this.fileMap.allFiles[entry.file.srcPath];
+            for (let file of files) {
+                if (isXmlFile(file)) {
+                    let mFile = this.fileMap.allFiles[file.srcPath];
                     // eslint-disable-next-line @typescript-eslint/dot-notation
                     if (mFile.isValid) {
                         //it's a binding file
-                        this.bindingProcessor.generateCodeForXMLFile(mFile, program, editor, entry);
+                        this.bindingProcessor.generateCodeForXMLFile(mFile, program, editor);
                         // console.log('generating code for bindings ', entry.file.pkgPath);
                         //it's a binding file
-                    } else if (mFile.bindings.length === 0 && this.shouldParseFile(entry.file)) {
+                    } else if (mFile.bindings.length === 0 && this.shouldParseFile(file)) {
                         //check if we should add bindings to this anyhow)
                         // console.log('getting ids for regular xml file ', entry.file.pkgPath);
                         this.bindingProcessor.addNodeVarsMethodForRegularXMLFile(mFile, editor);
@@ -686,7 +712,7 @@ export class MaestroPlugin implements CompilerPlugin {
         }
     }
 
-    beforePublish(builder: ProgramBuilder, files: FileObj[]) {
+    beforeSerializeProgram(event: BeforeSerializeProgramEvent) {
         console.time('Update reflection runtime file');
         this.reflectionUtil.updateRuntimeFile();
         console.timeEnd('Update reflection runtime file');
@@ -724,7 +750,7 @@ export class MaestroPlugin implements CompilerPlugin {
 
     }
 
-    private checkMReferences(file: File) {
+    private checkMReferences(file: MaestroFile) {
         for (let cs of (file.bscFile as BrsFile).parser.references.classStatements) {
             // eslint-disable-next-line @typescript-eslint/dot-notation
             if (!this.maestroConfig.applyStrictToAllClasses && !getAllAnnotations(this.fileMap, cs)['strict']) {
@@ -765,7 +791,8 @@ export class MaestroPlugin implements CompilerPlugin {
     }
 
 
-    afterScopeValidate(scope: Scope, files: BscFile[], callables: CallableContainerMap) {
+    afterScopeValidate(event: AfterScopeValidateEvent) {
+        let { scope } = event;
         if (!this.maestroConfig?.extraValidation?.doExtraValidation) {
             return;
         }
@@ -823,8 +850,6 @@ export class MaestroPlugin implements CompilerPlugin {
         // eslint-disable-next-line @typescript-eslint/dot-notation
         let isNodeClass = cs['_isNodeClass'] === true;
 
-        let state = new BrsTranspileState(file);
-
         for (let field of cs.fields) {
             let annotation = (field.annotations || []).find((a) => a.name.toLowerCase() === 'inject' || a.name.toLowerCase() === 'injectclass' || a.name.toLowerCase() === 'createclass');
             if (annotation) {
@@ -879,19 +904,24 @@ export class MaestroPlugin implements CompilerPlugin {
                         }
                     }
 
-                    let defaultValue;
+                    let defaultValueExpression: Expression;
                     try {
                         if (field?.initialValue) {
-                            defaultValue = field?.initialValue?.transpile(state)?.join('') ?? 'invalid';
+                            defaultValueExpression = field.initialValue;
                         } else if (field.as) {
-                            defaultValue = typeToValueString(field.type);
+                            defaultValueExpression = typeToValueExpression(field.typeExpression.getType({ flags: SymbolTypeFlag.typetime }));
                         }
                     } catch (error) {
                         console.error(error);
                     }
-                    if (!defaultValue) {
-                        defaultValue = 'invalid';
+                    if (!defaultValueExpression) {
+                        defaultValueExpression = createInvalidLiteral();
                     }
+                    const miocGetInstanceWithoutIocPath = createCallExpression('mioc_getInstance', [`"${iocKey}"`, createInvalidLiteral(), defaultValueExpression]);
+                    const miocGetInstanceWithIocPath = createCallExpression('mioc_getInstance', [`"${iocKey}"`, `"${iocPath}"`, defaultValueExpression]);
+
+                    const setTopFieldWithoutIocPath = createCallExpression('__m_setTopField', [`"${field.name.text}"`, miocGetInstanceWithoutIocPath]);
+                    const setTopFieldWithIocPath = createCallExpression('__m_setTopField', [`"${field.name.text}"`, miocGetInstanceWithIocPath]);
 
                     if (isNodeClass && (field.accessModifier?.kind === TokenKind.Public)) {
                         if (syncAnnotation) {
@@ -902,10 +932,12 @@ export class MaestroPlugin implements CompilerPlugin {
                             }]);
                             continue;
                         }
+
+
                         if (args.length === 1) {
-                            astEditor.setProperty(field, 'initialValue', new RawCodeStatement(`__m_setTopField("${field.name.text}", mioc_getInstance("${iocKey}", invalid, ${defaultValue}))`, file, field.range));
+                            astEditor.setProperty(field, 'initialValue', setTopFieldWithoutIocPath);
                         } else if (args.length === 2) {
-                            astEditor.setProperty(field, 'initialValue', new RawCodeStatement(`__m_setTopField("${field.name.text}", mioc_getInstance("${iocKey}", "${iocPath}", ${defaultValue}))`, file, field.range));
+                            astEditor.setProperty(field, 'initialValue', setTopFieldWithIocPath);
                         }
                     } else {
                         //check for observer field in here..
@@ -939,9 +971,9 @@ export class MaestroPlugin implements CompilerPlugin {
                             }
                         } else {
                             if (!iocPath) {
-                                astEditor.setProperty(field, 'initialValue', new RawCodeStatement(`mioc_getInstance("${iocKey}", invalid, ${defaultValue})`, file, field.range));
+                                astEditor.setProperty(field, 'initialValue', miocGetInstanceWithoutIocPath);
                             } else {
-                                astEditor.setProperty(field, 'initialValue', new RawCodeStatement(`mioc_getInstance("${iocKey}", "${iocPath}", ${defaultValue})`, file, field.range));
+                                astEditor.setProperty(field, 'initialValue', miocGetInstanceWithIocPath);
                             }
                         }
                     }
@@ -1066,7 +1098,7 @@ export class MaestroPlugin implements CompilerPlugin {
                                     range: ce.range,
                                     file: file
                                 }]);
-                            } else if (!ns.functionStatements[name.toLowerCase()] && !ns.classStatements[name.toLowerCase()]) {
+                            } else if (!ns.functionStatements.get(name.toLowerCase()) && !ns.classStatements.get(name.toLowerCase())) {
                                 file.addDiagnostics([{
                                     ...unknownType(`${fullPathName}.${name} `, this.name),
                                     range: ce.range,
@@ -1074,7 +1106,7 @@ export class MaestroPlugin implements CompilerPlugin {
                                 }]);
                                 // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
                             } else {
-                                let member = ns.functionStatements[name.toLowerCase()];
+                                let member = ns.functionStatements.get(name.toLowerCase());
                                 if (member) {
                                     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
                                     if (this.maestroConfig.extraValidation.doExtraImportValidation && !this.isNamespaceImported(ns, importedPkgPaths)) {

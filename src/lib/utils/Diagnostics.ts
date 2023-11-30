@@ -3,7 +3,7 @@ import { isBrsFile, isXmlFile, DiagnosticSeverity, Range } from 'brighterscript'
 import type Binding from '../binding/Binding';
 
 
-import type { File } from '../files/File';
+import type { MaestroFile } from '../files/MaestroFile';
 
 function addErrorDiagnostic(
     file: any,
@@ -21,7 +21,7 @@ function addErrorDiagnostic(
     targetFile.diagnostics.push(createDiagnostic(targetFile, code, message, startLine, startCol, endLine, endCol, DiagnosticSeverity.Error));
 }
 function addErrorDiagnosticForBinding(
-    file: File,
+    file: MaestroFile,
     code: number,
     message: string,
     binding: Binding
@@ -54,7 +54,7 @@ function createDiagnostic(
 /**
  * Public methods
  */
-export function addXmlBindingNoCodeBehind(file: File) {
+export function addXmlBindingNoCodeBehind(file: MaestroFile) {
     addErrorDiagnostic(
         file,
         6900,
@@ -62,7 +62,7 @@ export function addXmlBindingNoCodeBehind(file: File) {
     );
 }
 
-export function addXmlBindingCouldNotParseXML(file: File, message: string) {
+export function addXmlBindingCouldNotParseXML(file: MaestroFile, message: string) {
     addErrorDiagnostic(
         file,
         6903,
@@ -71,7 +71,7 @@ export function addXmlBindingCouldNotParseXML(file: File, message: string) {
 
 }
 
-export function addXmlBindingParentHasDuplicateField(file: File, id: string, line = 0, col = 0) {
+export function addXmlBindingParentHasDuplicateField(file: MaestroFile, id: string, line = 0, col = 0) {
     addErrorDiagnostic(
         file,
         6904,
@@ -81,7 +81,7 @@ export function addXmlBindingParentHasDuplicateField(file: File, id: string, lin
     );
 }
 
-export function addXmlBindingErrorValidatingBindings(file: File, message: string) {
+export function addXmlBindingErrorValidatingBindings(file: MaestroFile, message: string) {
     addErrorDiagnostic(
         file,
         6905,
@@ -99,90 +99,90 @@ export function addBuildTimeErrorImportMissingPkg(file: BrsFile | XmlFile, pkg: 
     file.addDiagnostics([createDiagnostic(file, 1007, `xml file imports a build time import '${buildKey}', which contains a pkg of a file that cannot be found '${pkg}'`, line, col)]);
 }
 
-export function addProjectFileMapErrorDuplicateXMLComp(file: File, duplicatePath: string) {
+export function addProjectFileMapErrorDuplicateXMLComp(file: MaestroFile, duplicatePath: string) {
     addErrorDiagnostic(file, 1008, `Found duplicate named xml component ${file.componentName}. The name is already used by ${duplicatePath}`, 0, 0);
 }
 
-export function addXMLTagErrorCorruptXMLElement(file: File, tagText: string) {
+export function addXMLTagErrorCorruptXMLElement(file: MaestroFile, tagText: string) {
     addErrorDiagnostic(file, 1009, `Received corrupt XMLElement`, 0, 0);
 }
 
-export function addXMLTagErrorCouldNotParseBinding(file: File, tagText: string, message: string, range: Range) {
+export function addXMLTagErrorCouldNotParseBinding(file: MaestroFile, tagText: string, message: string, range: Range) {
     addErrorDiagnostic(file, 1010, `Could not parse binding: ${message}`, range.start.line, range.start.character);
 }
 
-export function addXMLTagErrorCouldNotParseBindingDetailsForField(file: File, partText: string, tagText: string, range: Range) {
+export function addXMLTagErrorCouldNotParseBindingDetailsForField(file: MaestroFile, partText: string, tagText: string, range: Range) {
     addErrorDiagnostic(file, 1011,
         `Could not parse binding details`, range.start.line, range.start.character);
 }
 
-export function addXMLTagErrorCouldNotParseBindingModeDetailsForField(file: File, partText: string, tagText: string, line: number, range: Range) {
+export function addXMLTagErrorCouldNotParseBindingModeDetailsForField(file: MaestroFile, partText: string, tagText: string, line: number, range: Range) {
     addErrorDiagnostic(file, 1012,
         `Could not parse binding mode`, range.start.line, range.start.character);
 }
 
-export function addXMLTagErrorCouldNotParseBindingTransformFunctionForField(file: File, partText: string, tagText: string, range: Range) {
+export function addXMLTagErrorCouldNotParseBindingTransformFunctionForField(file: MaestroFile, partText: string, tagText: string, range: Range) {
     addErrorDiagnostic(file, 1013,
         `Could not parse transformFunction"`, range.start.line, range.start.character);
 }
 
-export function addXMLTagErrorCouldMissingEndBrackets(file: File, tagText: string, range: Range) {
+export function addXMLTagErrorCouldMissingEndBrackets(file: MaestroFile, tagText: string, range: Range) {
     addErrorDiagnostic(file, 1013,
         `Binding could not be parsed: Missing matching end brackets.`, range.start.line, range.start.character);
 }
 
-export function addXMLTagErrorCouldNotParseeagerForField(file: File, partText: string, tagText: string, range: Range) {
+export function addXMLTagErrorCouldNotParseeagerForField(file: MaestroFile, partText: string, tagText: string, range: Range) {
     addErrorDiagnostic(file, 1014,
         `Could not parse eager for field`, range.start.line, range.start.character);
 }
 
-export function addXMLTagErrorCouldNotParseIsFiringOnceForField(file: File, partText: string, binding: Binding) {
+export function addXMLTagErrorCouldNotParseIsFiringOnceForField(file: MaestroFile, partText: string, binding: Binding) {
     addErrorDiagnosticForBinding(file, 1015,
         `Could not parse binding setting "${partText}" - valid settings are 'once', 'eager', 'lazy' and 'transform'`, binding);
 }
 
-export function addFileErrorCouldNotSave(file: File) {
+export function addFileErrorCouldNotSave(file: MaestroFile) {
     addErrorDiagnostic(file, 1016, `could not save file at path ${file.fullPath} - does the path exist?`);
 }
 
-export function addFileErrorCouldNotParseXML(file: File, message: string) {
+export function addFileErrorCouldNotParseXML(file: MaestroFile, message: string) {
     addErrorDiagnostic(file, 1017, 'Could not parse xml in file: ' + message);
 }
 
-export function addXmlBindingDuplicateTag(file: File, field: string, line: number, col = 9999) {
+export function addXmlBindingDuplicateTag(file: MaestroFile, field: string, line: number, col = 9999) {
     addErrorDiagnostic(file, 1018, `Could not parse binding the id is already used in another xml element: ${field}`, line, col);
 }
 
-export function addXmlBindingDuplicateField(file: File, field: string, line: number, col = 9999) {
+export function addXmlBindingDuplicateField(file: MaestroFile, field: string, line: number, col = 9999) {
     addErrorDiagnostic(file, 1019, `Could not parse binding id is already used in another interface field: ${field}`, line, col);
 }
-export function addCorruptVMType(file: File, line: number, col = 9999) {
+export function addCorruptVMType(file: MaestroFile, line: number, col = 9999) {
     addErrorDiagnostic(file, 1020, `Could not pass vm field`, line, col);
 }
 
-export function addXmlBindingNoVMClassDefined(file: File) {
+export function addXmlBindingNoVMClassDefined(file: MaestroFile) {
     addErrorDiagnostic(file, 1021, `The vm attribute was not set. Please add the 'vm' attribute to your component. e.g.  '<Component name='MyScreen' extends 'BaseScreen' vm='fully.namespaced.className'/>" so that maestro can give you accurate binding validations.`);
 }
 
-export function addXmlBindingVMClassNotFound(file: File) {
+export function addXmlBindingVMClassNotFound(file: MaestroFile) {
     addErrorDiagnostic(file, 1022, `The VMClass specified "${file.vmClassName}" was not found.`, file.componentTag.range.start.line, file.componentTag.range.start.character);
 }
 
-export function addXmlBindingVMFieldNotFound(file: File, binding: Binding) {
+export function addXmlBindingVMFieldNotFound(file: MaestroFile, binding: Binding) {
     addErrorDiagnosticForBinding(file, 1023, `The bound field "${binding.observerField}" was not found in class "${file.vmClassName}".`, binding);
 }
 
-export function addXmlBindingVMFunctionNotFound(file: File, binding: Binding) {
+export function addXmlBindingVMFunctionNotFound(file: MaestroFile, binding: Binding) {
     addErrorDiagnosticForBinding(file, 1024, `Function "${binding.observerField}" was not found in class "${file.vmClassName}".`, binding);
 
 }
 
-export function addXmlBindingVMFunctionWrongArgCount(file: File, binding: Binding, minArgs: number, maxArgs: number, actualParams: number) {
+export function addXmlBindingVMFunctionWrongArgCount(file: MaestroFile, binding: Binding, minArgs: number, maxArgs: number, actualParams: number) {
     let expectedText = minArgs !== maxArgs ? `${minArgs} - ${maxArgs}` : `${minArgs}`;
     addErrorDiagnosticForBinding(file, 1025, `Binding invokes "${binding.observerField}" with ${actualParams} params when ${expectedText} params was expected`, binding);
 }
 
-export function addXmlBindingUsingFunctionAsField(file: File, binding: Binding) {
+export function addXmlBindingUsingFunctionAsField(file: MaestroFile, binding: Binding) {
     addErrorDiagnosticForBinding(file, 1026, `Binding "${binding.observerField}" is configured as a field binding; but points to a function. Either use a field as the target of this binding, or indicate the function call signature: e.g. (), (value), (node), or (value, node)`, binding);
 }
 
@@ -214,7 +214,7 @@ export function addNodeClassWrongNewSignature(file: BrsFile, line = 0, col = 0) 
     file.addDiagnostics([createDiagnostic(file, 1033, `Node classes constructors must take 0 arguments`, line, col)]);
 }
 
-export function addXmlBindingVMFieldRequired(file: File, binding: Binding) {
+export function addXmlBindingVMFieldRequired(file: MaestroFile, binding: Binding) {
     addErrorDiagnosticForBinding(file, 1034, `Field bindings are only available for vm fields. Cannot bind to vm function "${binding.observerField}" in class "${file.vmClassName}".`, binding);
 }
 
@@ -235,12 +235,12 @@ export function addNodeClassCallbackWrongParams(file: BrsFile, name: string, cal
 
 }
 
-export function addXMLTagErrorCouldNotParseBindingBadPart(file: File, partText: string, range: Range) {
+export function addXMLTagErrorCouldNotParseBindingBadPart(file: MaestroFile, partText: string, range: Range) {
     addErrorDiagnostic(file, 1039,
         `Could not parse unknown binding part "${partText}"`, range.start.line, range.start.character);
 }
 
-export function addClassFieldsNotFoundOnSetOrGet(file: File, text: string, className: string, range: Range) {
+export function addClassFieldsNotFoundOnSetOrGet(file: MaestroFile, text: string, className: string, range: Range) {
     addErrorDiagnostic(file, 1040,
         `class field: "${text}" was not found on ${className} or it's parent classes`, range.start.line, range.start.character);
 }
@@ -264,7 +264,7 @@ export function IOCClassWrongArgs(file: any, wrongclass: string, text: string, c
         `Cannot inject ${wrongclass} into field  ${className}.${text}. Constructor arg mistmatch.`, range.start.line, range.start.character);
 }
 
-export function addXmlBindingCantParseFunctionCall(file: File, tagText: string, range: Range) {
+export function addXmlBindingCantParseFunctionCall(file: MaestroFile, tagText: string, range: Range) {
     addErrorDiagnostic(file, 1045, `Binding observer ${tagText} is configured as a function binding; but with an incorrect signature. Either use a field as the target of this binding, or indicate the function call signature: e.g. (), (value), (node), or (value, node).`, range.start.line, range.start.character);
 
 }

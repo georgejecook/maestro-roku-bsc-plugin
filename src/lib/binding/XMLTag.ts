@@ -1,4 +1,4 @@
-import type { File } from '../files/File';
+import type { MaestroFile } from '../files/MaestroFile';
 import Binding from './Binding';
 import { BindingSendMode, BindingType } from './BindingType';
 import {
@@ -9,10 +9,10 @@ import {
     addXMLTagErrorCouldNotParseIsFiringOnceForField as addXMLTagErrorCouldNotParseBindingSettings
 } from '../utils/Diagnostics';
 import type { Range } from 'brighterscript';
-import type { SGTag } from 'brighterscript/dist/parser/SGTypes';
+import type { SGElement } from 'brighterscript/dist/parser/SGTypes';
 
 export class XMLTag {
-    constructor(xmlTag: SGTag, file: File, isTopTag: boolean) {
+    constructor(xmlTag: SGElement, file: MaestroFile, isTopTag: boolean) {
         if (!xmlTag) {
             addXMLTagErrorCorruptXMLElement(file, '');
         }
@@ -21,7 +21,7 @@ export class XMLTag {
         this.bindings = this.getBindings(xmlTag);
     }
 
-    public file: File;
+    public file: MaestroFile;
     public bindings: Binding[];
     public hasBindings: boolean;
     public startPosition: number;
@@ -32,7 +32,7 @@ export class XMLTag {
     public text: string;
     public isTopTag: boolean;
 
-    public getBindings(xmlElement: SGTag): Binding[] {
+    public getBindings(xmlElement: SGElement): Binding[] {
         // eslint-disable-next-line prefer-regex-literals
         const staticRegex = new RegExp('^{(\\{\\:|\\{\\=)+(.*)(\\})+\\}$', 'i');
         // eslint-disable-next-line prefer-regex-literals
@@ -42,9 +42,9 @@ export class XMLTag {
         const bindings = [];
 
         for (const attribute of xmlElement.attributes) {
-            let key = attribute.key.text;
+            let key = attribute.key;
             if (key.toLowerCase() !== 'id') {
-                let value = attribute.value.text;
+                let value = attribute.value;
                 let matches = staticRegex.exec(value);
                 matches = matches || regex.exec(value);
                 const bindingText = matches && matches.length > 2 ? matches[2] : null;
@@ -54,7 +54,7 @@ export class XMLTag {
 
                 if (bindingText) {
                     if (mode === BindingType.invalid && bindingStartType) {
-                        addXMLTagErrorCouldMissingEndBrackets(this.file, value, attribute.value.range);
+                        addXMLTagErrorCouldMissingEndBrackets(this.file, value, attribute.range);
                         continue;
                     }
                     const binding = new Binding(this.file);
@@ -119,7 +119,7 @@ export class XMLTag {
                 (xmlElement.getAttribute('value') as any).value.text = '';
             } else {
                 // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-                xmlElement.setAttribute(b.nodeField.toLowerCase(), undefined);
+                xmlElement.setAttributeValue(b.nodeField.toLowerCase(), undefined);
             }
         }
         this.hasBindings = bindings.length > 0;

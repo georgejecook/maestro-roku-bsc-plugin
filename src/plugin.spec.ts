@@ -1,4 +1,4 @@
-import type { BrsFile, BsDiagnostic, Program } from 'brighterscript';
+import type { AfterProgramCreateEvent, BrsFile, BsDiagnostic, Program } from 'brighterscript';
 import { DiagnosticSeverity, ProgramBuilder, util } from 'brighterscript';
 import { expect } from 'chai';
 import { MaestroPlugin } from './plugin';
@@ -56,7 +56,7 @@ describe('MaestroPlugin', () => {
     describe('binding tests', () => {
         it('gives error diagnostics when field bindings do not match class', async () => {
             plugin.isFrameworkAdded = true;
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
                 class myVM
                     function onChangeVisible(value)
@@ -67,9 +67,9 @@ describe('MaestroPlugin', () => {
 
             program.setFile('components/comp.xml', `
                 <component name="mv_BaseScreen" extends="mv_BaseView" vm="myVM">
+                    <script type="text/brightscript" uri="pkg:/components/comp.brs" />
                     <interface>
                     </interface>
-                    <script type="text/brightscript" uri="pkg:/components/comp.brs" />
                     <children>
                         <Poster
                             id='poster'
@@ -87,7 +87,7 @@ describe('MaestroPlugin', () => {
                 </component>
             `);
             program.validate();
-            await builder.transpile();
+            await builder.build();
             let diagnostics = program.getDiagnostics();
             expect(diagnostics).to.have.lengthOf(6);
             checkDiagnostic(diagnostics[0], 1010, 9);
@@ -99,7 +99,7 @@ describe('MaestroPlugin', () => {
         });
 
         it('does not give diagnostics for valid target bindings', async () => {
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
                 class myVM
                     public isClicked
@@ -111,10 +111,10 @@ describe('MaestroPlugin', () => {
 
             program.setFile('components/comp.xml', `
                 <component name="mv_BaseScreen" extends="mv_BaseView" vm="myVM">
+                    <script type="text/brightscript" uri="pkg:/components/comp.brs" />
                     <interface>
                     </interface>
-                    <script type="text/brightscript" uri="pkg:/components/comp.brs" />
-                    <children>
+                     <children>
                         <Poster
                             id='poster'
                             click0='{(onChangeVisible(node))}'
@@ -131,13 +131,13 @@ describe('MaestroPlugin', () => {
                 </component>
             `);
             program.validate();
-            await builder.transpile();
+            await builder.build();
             let diagnostics = program.getDiagnostics();
             expect(diagnostics).to.be.empty;
         });
 
         it('gives diagnostics when trying to set a function call back as a field', async () => {
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
                 class myVM
                     function onChangeVisible(value)
@@ -164,14 +164,14 @@ describe('MaestroPlugin', () => {
                 </component>
             `);
             program.validate();
-            await builder.transpile();
+            await builder.build();
             let diagnostics = program.getDiagnostics();
             expect(diagnostics).to.have.lengthOf(1);
             checkDiagnostic(diagnostics[0], 1026, 8);
         });
 
         it('gives error diagnostics when id is not set', async () => {
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
                 class myVM
                     public text
@@ -197,7 +197,7 @@ describe('MaestroPlugin', () => {
                 </component>
             `);
             program.validate();
-            await builder.transpile();
+            await builder.build();
             let diagnostics = program.getDiagnostics();
             expect(diagnostics).to.have.lengthOf(2);
             checkDiagnostic(diagnostics[0], 1010, 7);
@@ -205,7 +205,7 @@ describe('MaestroPlugin', () => {
         });
 
         it('takes optional params into account', async () => {
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
                 class myVM
                     public isClicked
@@ -236,13 +236,13 @@ describe('MaestroPlugin', () => {
                 </component>
             `);
             program.validate();
-            await builder.transpile();
+            await builder.build();
             let diagnostics = program.getDiagnostics();
             expect(diagnostics).to.be.empty;
         });
 
         it('inserts static bindings', async () => {
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/vm.bs', `
                 class myVM
                     public riversJson
@@ -275,13 +275,13 @@ describe('MaestroPlugin', () => {
                 </component>
             `);
             program.validate();
-            await builder.transpile();
+            await builder.build();
             let diagnostics = program.getDiagnostics();
             expect(diagnostics).to.be.empty;
             expect(
                 getContents('components/comp.brs')
             ).to.eql(undent`
-                'import "pkg:/components/comp.bs"
+                'import "pkg:/components/comp.brs"
                 function __myVM_builder()
                     instance = {}
                     instance.new = sub()
@@ -335,7 +335,7 @@ describe('MaestroPlugin', () => {
         });
 
         it('warns when field bindings are not public', async () => {
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
                 class myVM
                     private width
@@ -363,13 +363,13 @@ describe('MaestroPlugin', () => {
             `);
             program.validate();
             expect(program.getDiagnostics()).to.not.be.empty;
-            await builder.transpile();
+            await builder.build();
             console.log(builder.getDiagnostics());
             expect(builder.getDiagnostics()).to.not.be.empty;
         });
 
         it('does not manipulate non binding xml files', async () => {
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('components/comp.xml', `
                 <component name="mv_BaseScreen" extends="mv_BaseView">
                     <interface>
@@ -378,7 +378,7 @@ describe('MaestroPlugin', () => {
             `);
             program.validate();
             expect(program.getDiagnostics()).to.be.empty;
-            await builder.transpile();
+            await builder.build();
             console.log(builder.getDiagnostics());
             expect(builder.getDiagnostics()).to.be.empty;
 
@@ -386,15 +386,15 @@ describe('MaestroPlugin', () => {
                 getContents('components/comp.xml')
             ).to.eql(undent`
                 <component name="mv_BaseScreen" extends="mv_BaseView">
+                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
                     <interface>
                     </interface>
-                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
                 </component>
             `);
         });
 
         it('does removes vm tags from files files', async () => {
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('components/comp.xml', `
                 <component name="mv_BaseScreen" extends="mv_BaseView" vm="myVM">
                     <interface>
@@ -403,7 +403,7 @@ describe('MaestroPlugin', () => {
             `);
             program.validate();
             expect(program.getDiagnostics()).to.be.empty;
-            await builder.transpile();
+            await builder.build();
             console.log(builder.getDiagnostics());
             expect(builder.getDiagnostics()).to.be.empty;
 
@@ -411,9 +411,9 @@ describe('MaestroPlugin', () => {
                 getContents('components/comp.xml')
             ).to.eql(undent`
                 <component name="mv_BaseScreen" extends="mv_BaseView">
+                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
                     <interface>
                     </interface>
-                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
                 </component>
             `);
         });
@@ -422,7 +422,7 @@ describe('MaestroPlugin', () => {
     describe('general tests', () => {
 
         it('does not manipulate xml files that are in default ignored folders (roku_modules)', async () => {
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('components/roku_modules/mv/comp.xml', `
                 <component name="mv_BaseScreen" extends="mv_BaseView" vm="Myclass">
                     <interface>
@@ -434,7 +434,7 @@ describe('MaestroPlugin', () => {
             `);
             program.validate();
             expectZeroDiagnostics(program);
-            await builder.transpile();
+            await builder.build();
             expectZeroDiagnostics(program);
 
             expect(
@@ -442,9 +442,9 @@ describe('MaestroPlugin', () => {
                 //note - we still remove illegal vm attribute
             ).to.eql(undent`
                 <component name="mv_BaseScreen" extends="mv_BaseView">
+                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
                     <interface>
                     </interface>
-                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
                     <children>
                         <Label id="test" text="{{field}}" />
                     </children>
@@ -454,7 +454,7 @@ describe('MaestroPlugin', () => {
 
         it('does not manipulate xml files when xml processing is disabled', async () => {
             plugin.maestroConfig.processXMLFiles = false;
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('components/comp.xml', `
                 <component name="mv_BaseScreen" extends="mv_BaseView" vm="Myclass">
                     <interface>
@@ -466,7 +466,7 @@ describe('MaestroPlugin', () => {
             `);
             program.validate();
             expect(program.getDiagnostics()).to.be.empty;
-            await builder.transpile();
+            await builder.build();
             console.log(builder.getDiagnostics());
             expect(builder.getDiagnostics()).to.be.empty;
 
@@ -475,9 +475,9 @@ describe('MaestroPlugin', () => {
                 //note - we still remove illegal vm attribute
             ).to.eql(undent`
                 <component name="mv_BaseScreen" extends="mv_BaseView">
+                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
                     <interface>
                     </interface>
-                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
                     <children>
                         <Label id="test" text="{{field}}" />
                     </children>
@@ -496,7 +496,7 @@ describe('MaestroPlugin', () => {
             };
             plugin.importProcessor.config = plugin.maestroConfig;
 
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('components/roku_modules/mv/comp.xml', `
                 <component name="mv_BaseScreen" extends="mv_BaseView" vm="Myclass">
                     <interface>
@@ -508,7 +508,7 @@ describe('MaestroPlugin', () => {
             `);
             program.validate();
             expect(program.getDiagnostics()).to.not.be.empty;
-            await builder.transpile();
+            await builder.build();
             console.log(builder.getDiagnostics());
             expect(builder.getDiagnostics()).to.not.be.empty;
 
@@ -516,9 +516,9 @@ describe('MaestroPlugin', () => {
                 getContents('components/roku_modules/mv/comp.xml')
             ).to.eql(undent`
                 <component name="mv_BaseScreen" extends="mv_BaseView">
+                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
                     <interface>
                     </interface>
-                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
                     <children>
                         <Label id="test" />
                     </children>
@@ -536,7 +536,7 @@ describe('MaestroPlugin', () => {
             };
             plugin.importProcessor.config = plugin.maestroConfig;
 
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('components/ignored/mv/comp.xml', `
                 <component name="mv_BaseScreen" extends="mv_BaseView" vm="Myclass">
                     <interface>
@@ -548,7 +548,7 @@ describe('MaestroPlugin', () => {
             `);
             program.validate();
             expect(program.getDiagnostics()).to.be.empty;
-            await builder.transpile();
+            await builder.build();
             console.log(builder.getDiagnostics());
             expect(builder.getDiagnostics()).to.be.empty;
 
@@ -556,9 +556,9 @@ describe('MaestroPlugin', () => {
                 getContents('components/ignored/mv/comp.xml')
             ).to.eql(undent`
                 <component name="mv_BaseScreen" extends="mv_BaseView">
+                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
                     <interface>
                     </interface>
-                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
                     <children>
                         <Label id="test" text="{{field}}" />
                     </children>
@@ -569,7 +569,7 @@ describe('MaestroPlugin', () => {
 
     describe('node class tests', () => {
         it('parses a node class with no errors', async () => {
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
                 @node("Comp", "Group")
                 class Comp
@@ -582,7 +582,7 @@ describe('MaestroPlugin', () => {
                 end class
             `);
             program.validate();
-            await builder.transpile();
+            await builder.build();
             expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
 
             expect(
@@ -590,14 +590,15 @@ describe('MaestroPlugin', () => {
             ).to.equal(undent`
                 <?xml version="1.0" encoding="UTF-8" ?>
                 <component name="Comp" extends="Group">
+                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
                     <interface>
                         <field id="title" type="string" />
                         <field id="content" type="string" />
                     </interface>
-                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
-                    <children />
+                    <children>
+                    </children>
                 </component>
             `);
 
@@ -633,7 +634,7 @@ describe('MaestroPlugin', () => {
         });
 
         it('parses tunnels public functions', async () => {
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
                 @node("Comp", "Group")
                 class Comp
@@ -650,7 +651,7 @@ describe('MaestroPlugin', () => {
                 end class
             `);
             program.validate();
-            await builder.transpile();
+            await builder.build();
             expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
 
             expect(
@@ -658,15 +659,16 @@ describe('MaestroPlugin', () => {
             ).to.eql(undent`
                 <?xml version="1.0" encoding="UTF-8" ?>
                 <component name="Comp" extends="Group">
+                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
                     <interface>
                         <field id="title" type="string" />
                         <field id="content" type="string" />
                         <function name="someFunction" />
                     </interface>
-                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
-                    <children />
+                    <children>
+                    </children>
                 </component>
             `);
 
@@ -706,7 +708,7 @@ describe('MaestroPlugin', () => {
         });
 
         it('ternary works with m.top substitution', async () => {
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
                 @node("Comp", "Group")
                 class Comp
@@ -726,7 +728,7 @@ describe('MaestroPlugin', () => {
                 end class
             `);
             program.validate();
-            await builder.transpile();
+            await builder.build();
             expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
 
             expect(
@@ -734,6 +736,9 @@ describe('MaestroPlugin', () => {
             ).to.eql(undent`
                 <?xml version="1.0" encoding="UTF-8" ?>
                 <component name="Comp" extends="Group">
+                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
                     <interface>
                         <field id="validText" type="string" />
                         <field id="invalidText" type="string" />
@@ -741,10 +746,8 @@ describe('MaestroPlugin', () => {
                         <field id="isValid" type="boolean" />
                         <function name="someFunction" />
                     </interface>
-                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
-                    <children />
+                    <children>
+                    </children>
                 </component>
             `);
 
@@ -816,7 +819,7 @@ describe('MaestroPlugin', () => {
         });
 
         it('does not generate code behind if nocode annotation is present', async () => {
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
                 @nocode
                 @node("Comp", "Group")
@@ -834,7 +837,7 @@ describe('MaestroPlugin', () => {
                 end class
             `);
             program.validate();
-            await builder.transpile();
+            await builder.build();
             expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
 
             expect(
@@ -842,13 +845,14 @@ describe('MaestroPlugin', () => {
             ).to.eql(undent`
                 <?xml version="1.0" encoding="UTF-8" ?>
                 <component name="Comp" extends="Group">
+                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
                     <interface>
                         <field id="title" type="string" />
                         <field id="content" type="string" />
                         <function name="someFunction" />
                     </interface>
-                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
-                    <children />
+                    <children>
+                    </children>
                 </component>
             `);
 
@@ -856,7 +860,7 @@ describe('MaestroPlugin', () => {
         });
 
         it('parses tunnels public functions with parameter', async () => {
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
                 @node("Comp", "Group")
                 class Comp
@@ -879,7 +883,7 @@ describe('MaestroPlugin', () => {
                 end class
             `);
             program.validate();
-            await builder.transpile();
+            await builder.build();
             expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
 
             expect(
@@ -887,6 +891,9 @@ describe('MaestroPlugin', () => {
             ).to.eql(undent`
                 <?xml version="1.0" encoding="UTF-8" ?>
                 <component name="Comp" extends="Group">
+                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
                     <interface>
                         <field id="title" type="string" />
                         <field id="content" type="string" />
@@ -894,10 +901,8 @@ describe('MaestroPlugin', () => {
                         <function name="defaultOnly" />
                         <function name="typeOnly" />
                     </interface>
-                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
-                    <children />
+                    <children>
+                    </children>
                 </component>
             `);
             expect(
@@ -943,7 +948,7 @@ describe('MaestroPlugin', () => {
         });
 
         it('parses tunnels public functions with parameter, when enum or interface', async () => {
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
                 @node("Comp", "Group")
                 class Comp
@@ -973,7 +978,7 @@ describe('MaestroPlugin', () => {
                 end namespace
             `);
             program.validate();
-            await builder.transpile();
+            await builder.build();
             expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
 
             expect(
@@ -981,6 +986,9 @@ describe('MaestroPlugin', () => {
             ).to.eql(undent`
                 <?xml version="1.0" encoding="UTF-8" ?>
                 <component name="Comp" extends="Group">
+                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
                     <interface>
                         <field id="title" type="string" />
                         <field id="content" type="string" />
@@ -988,10 +996,8 @@ describe('MaestroPlugin', () => {
                         <function name="defaultOnly" />
                         <function name="typeOnly" />
                     </interface>
-                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
-                    <children />
+                    <children>
+                    </children>
                 </component>
             `);
             expect(
@@ -1037,7 +1043,7 @@ describe('MaestroPlugin', () => {
         });
 
         it('hooks up public fields with observers', async () => {
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
                 @node("Comp", "Group")
                 class Comp
@@ -1055,7 +1061,7 @@ describe('MaestroPlugin', () => {
                 end class
             `);
             program.validate();
-            await builder.transpile();
+            await builder.build();
             expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
 
             expect(
@@ -1063,14 +1069,15 @@ describe('MaestroPlugin', () => {
             ).to.eql(undent`
                 <?xml version="1.0" encoding="UTF-8" ?>
                 <component name="Comp" extends="Group">
+                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
                     <interface>
                         <field id="title" type="string" />
                         <field id="content" type="string" />
                     </interface>
-                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
-                    <children />
+                    <children>
+                    </children>
                 </component>
             `);
             expect(
@@ -1110,7 +1117,7 @@ describe('MaestroPlugin', () => {
         });
 
         it('hooks up public fields with observers - allows @rootOnly observer', async () => {
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
                 @node("Comp", "Group")
                 class Comp
@@ -1129,21 +1136,22 @@ describe('MaestroPlugin', () => {
                 end class
             `);
             program.validate();
-            await builder.transpile();
+            await builder.build();
             expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
             expect(
                 getContents('components/maestro/generated/Comp.xml')
             ).to.eql(undent`
                 <?xml version="1.0" encoding="UTF-8" ?>
                 <component name="Comp" extends="Group">
+                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
                     <interface>
                         <field id="title" type="string" />
                         <field id="content" type="string" />
                     </interface>
-                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
-                    <children />
+                    <children>
+                    </children>
                 </component>
             `);
 
@@ -1189,7 +1197,7 @@ describe('MaestroPlugin', () => {
         });
 
         it('manages inferred and specific field types', async () => {
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
                 class TestClass
                 end class
@@ -1218,14 +1226,17 @@ describe('MaestroPlugin', () => {
                 end class
             `);
             program.validate();
-            await builder.transpile();
-            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error && !d.message.includes('mc.types.'))).to.be.empty;
+            await builder.build();
+            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error && !d.message.includes('Cannot find name \'mc\''))).to.be.empty;
 
             expect(
                 getContents('components/maestro/generated/Comp.xml')
             ).to.eql(undent`
                 <?xml version="1.0" encoding="UTF-8" ?>
                 <component name="Comp" extends="Group">
+                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
                     <interface>
                         <field id="clazzTyped" type="assocarray" />
                         <field id="s" type="string" />
@@ -1240,10 +1251,8 @@ describe('MaestroPlugin', () => {
                         <field id="arrTyped" type="array" />
                         <field id="aaTyped" type="assocarray" />
                     </interface>
-                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
-                    <children />
+                    <children>
+                    </children>
                 </component>
             `);
 
@@ -1295,7 +1304,7 @@ describe('MaestroPlugin', () => {
         });
 
         it('supports enum type in public fields', async () => {
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
                 enum myEnum
                     text = "v"
@@ -1324,7 +1333,7 @@ describe('MaestroPlugin', () => {
                 end class
             `);
             program.validate();
-            await builder.transpile();
+            await builder.build();
             expectZeroDiagnostics(builder);
 
             expect(
@@ -1332,15 +1341,16 @@ describe('MaestroPlugin', () => {
             ).to.eql(undent`
                 <?xml version="1.0" encoding="UTF-8" ?>
                 <component name="Comp" extends="Group">
+                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
                     <interface>
                         <field id="e1" type="string" />
                         <field id="e2" type="float" />
                         <field id="e3" type="float" />
                     </interface>
-                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
-                    <children />
+                    <children>
+                    </children>
                 </component>
             `);
 
@@ -1375,7 +1385,7 @@ describe('MaestroPlugin', () => {
             end function`);
         });
         it('supports negative integers and floats in public fields', async () => {
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
                 @node("Comp", "Group")
                 class Comp
@@ -1392,7 +1402,7 @@ describe('MaestroPlugin', () => {
                 end class
             `);
             program.validate();
-            await builder.transpile();
+            await builder.build();
             expectZeroDiagnostics(builder);
 
             expect(
@@ -1400,14 +1410,15 @@ describe('MaestroPlugin', () => {
             ).to.eql(undent`
                 <?xml version="1.0" encoding="UTF-8" ?>
                 <component name="Comp" extends="Group">
+                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
                     <interface>
                         <field id="e1" type="integer" />
                         <field id="e2" type="float" />
                     </interface>
-                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
-                    <children />
+                    <children>
+                    </children>
                 </component>
             `);
 
@@ -1417,8 +1428,8 @@ describe('MaestroPlugin', () => {
             'import "pkg:/source/comp.bs"
 
             function init()
-                m.top.e1 = - 1
-                m.top.e2 = - 100
+                m.top.e1 = -1
+                m.top.e2 = -100
                 instance = __Comp_builder()
                 instance.delete("top")
                 instance.delete("global")
@@ -1441,7 +1452,7 @@ describe('MaestroPlugin', () => {
             end function`);
         });
         it('supports interface type in public fields', async () => {
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
                 interface myInterface
                     text as string
@@ -1462,7 +1473,7 @@ describe('MaestroPlugin', () => {
                 end class
             `);
             program.validate();
-            await builder.transpile();
+            await builder.build();
             expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error && !d.message.includes('mc.types.'))).to.be.empty;
 
             expect(
@@ -1470,14 +1481,15 @@ describe('MaestroPlugin', () => {
             ).to.eql(undent`
                 <?xml version="1.0" encoding="UTF-8" ?>
                 <component name="Comp" extends="Group">
+                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
                     <interface>
                         <field id="e1" type="assocarray" />
                         <field id="e2" type="assocarray" />
                     </interface>
-                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
-                    <children />
+                    <children>
+                    </children>
                 </component>
             `);
 
@@ -1512,7 +1524,7 @@ describe('MaestroPlugin', () => {
         });
 
         it('gives diagnostics for missing observer function params', async () => {
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
                 @node("Comp", "Group")
                 class Comp
@@ -1526,13 +1538,13 @@ describe('MaestroPlugin', () => {
                 end class
             `);
             program.validate();
-            await builder.transpile();
+            await builder.build();
             expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.not.empty;
 
         });
 
         it('does not give diagnostics for missing new function', async () => {
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
                 @node("Comp", "Group")
                 class Comp
@@ -1540,7 +1552,7 @@ describe('MaestroPlugin', () => {
                 end class
             `);
             program.validate();
-            await builder.transpile();
+            await builder.build();
             expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
             expect(
                 getContents('components/maestro/generated/Comp.brs')
@@ -1575,7 +1587,7 @@ describe('MaestroPlugin', () => {
     });
 
     it('gives diagnostics when a task does not extend task', async () => {
-        plugin.afterProgramCreate(program);
+        plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
         program.setFile('source/comp.bs', `
                 @task("TaskTest", "Group")
                 class Comp
@@ -1584,12 +1596,12 @@ describe('MaestroPlugin', () => {
                 end class
             `);
         program.validate();
-        await builder.transpile();
+        await builder.build();
         expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.have.lengthOf(1);
     });
 
     it('gives diagnostics when a task nor parent extending component does not extend task', async () => {
-        plugin.afterProgramCreate(program);
+        plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
         program.setFile('source/comp.bs', `
                 @node("ParentTask", "Group")
                 class Extended
@@ -1602,11 +1614,11 @@ describe('MaestroPlugin', () => {
                 end class
             `);
         program.validate();
-        await builder.transpile();
+        await builder.build();
         expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.not.empty;
     });
     it('does not give diagnostics when parent extends Task', async () => {
-        plugin.afterProgramCreate(program);
+        plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
         program.setFile('source/comp.bs', `
                 @task("ParentTask", "Task")
                 class Extended
@@ -1621,7 +1633,7 @@ describe('MaestroPlugin', () => {
                 end class
             `);
         program.validate();
-        await builder.transpile();
+        await builder.build();
         expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
         expect(
             getContents('components/maestro/generated/TaskTest.brs')
@@ -1655,12 +1667,13 @@ describe('MaestroPlugin', () => {
             </interface>
             <script type="text/brightscript" uri="pkg:/source/roku_modules/maestro/private/MaestroPluginUtils.brs" />
             <script type="text/brightscript" uri="pkg:/components/maestro/generated/TaskTest.brs" />
-            <children />
+            <children>
+            </children>
         </component>`);
     });
 
     it('does not give diagnostics when regular component extends Task', async () => {
-        plugin.afterProgramCreate(program);
+        plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
         program.setFile('source/comp.bs', `
                 @task("TaskTest", "Task")
                 class Comp
@@ -1669,7 +1682,7 @@ describe('MaestroPlugin', () => {
                 end class
             `);
         program.validate();
-        await builder.transpile();
+        await builder.build();
         expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
         expect(
             getContents('components/maestro/generated/TaskTest.brs')
@@ -1705,14 +1718,15 @@ describe('MaestroPlugin', () => {
             <script type="text/brightscript" uri="pkg:/components/maestro/generated/TaskTest.brs" />
             <script type="text/brightscript" uri="pkg:/source/comp.brs" />
             <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
-            <children />
+            <children>
+            </children>
         </component>
         `));
 
     });
     it('does not produce diagnostics for missing observer function when extra validation is enabled', async () => {
         plugin.maestroConfig.extraValidation.doExtraValidation = false;
-        plugin.afterProgramCreate(program);
+        plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
         program.setFile('source/comp.bs', `
                 @node("Comp", "Group")
                 class Comp
@@ -1726,7 +1740,7 @@ describe('MaestroPlugin', () => {
                 end class
             `);
         program.validate();
-        await builder.transpile();
+        await builder.build();
         expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
         expect(
             getContents('components/maestro/generated/Comp.brs')
@@ -1764,7 +1778,7 @@ describe('MaestroPlugin', () => {
     });
 
     it('gives diagnostics for wrong observer function params', async () => {
-        plugin.afterProgramCreate(program);
+        plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
         program.setFile('source/comp.bs', `
                 @node("Comp", "Group")
                 class Comp
@@ -1782,12 +1796,12 @@ describe('MaestroPlugin', () => {
                 end class
             `);
         program.validate();
-        await builder.transpile();
+        await builder.build();
         expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.not.empty;
 
     });
     it('gives diagnostics for wrong constructor function params', async () => {
-        plugin.afterProgramCreate(program);
+        plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
         program.setFile('source/comp.bs', `
                 @node("Comp", "Group")
                 class Comp
@@ -1801,12 +1815,12 @@ describe('MaestroPlugin', () => {
                 end class
             `);
         program.validate();
-        await builder.transpile();
+        await builder.build();
         expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.not.empty;
 
     });
     it('gives diagnostics for no constructor', async () => {
-        plugin.afterProgramCreate(program);
+        plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
         program.setFile('source/comp.bs', `
                 @node("Comp", "Group")
                 class Comp
@@ -1818,14 +1832,14 @@ describe('MaestroPlugin', () => {
                 end class
             `);
         program.validate();
-        await builder.transpile();
+        await builder.build();
         expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.not.empty;
 
     });
     describe('reflection', () => {
 
         it('adds __classname to all classes in a project', async () => {
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
                 @node("Comp", "Group")
                 class Comp
@@ -1848,7 +1862,7 @@ describe('MaestroPlugin', () => {
                 end namespace
             `);
             program.validate();
-            await builder.transpile();
+            await builder.build();
             expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
             let classFile = program.getFile<BrsFile>('source/myClass.bs');
             let cs = classFile.parser.references.classStatements[0];
@@ -1906,7 +1920,7 @@ describe('MaestroPlugin', () => {
         });
 
         it('adds __classname, in subclasses', async () => {
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/myClass.bs', `
                 class ClassA
                     public title
@@ -1915,7 +1929,7 @@ describe('MaestroPlugin', () => {
                     public title2
                 end class
             `);
-            await builder.transpile();
+            await builder.build();
             expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
             let classFile = program.getFile<BrsFile>('source/myClass.bs');
             let cs = classFile.parser.references.classStatements[0];
@@ -1959,7 +1973,7 @@ describe('MaestroPlugin', () => {
         describe('extra validation', () => {
 
             it('gives diagnostic for unknown field', () => {
-                plugin.afterProgramCreate(program);
+                plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
 
                 program.setFile('source/VM.bs', `
                     @strict
@@ -1976,7 +1990,7 @@ describe('MaestroPlugin', () => {
             });
 
             it('gives diagnostic for unknown field; but skips valid skips', () => {
-                plugin.afterProgramCreate(program);
+                plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
 
                 program.setFile('source/VM.bs', `
                     @strict
@@ -1987,17 +2001,17 @@ describe('MaestroPlugin', () => {
                         m.__className = "foo"
                         ? m.doesExist("foo")
                         ? m.lookup("foo")
-                        ? m.keys("foo")
-                        ? m.count("foo")
+                        ? m.keys()
+                        ? m.count()
                         end function
                     end class
                 `);
                 program.validate();
-                expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+                expectDiagnostics(builder, [{ message: `Cannot find name '__className'` }]);
             });
 
             it('gives diagnostic for  unknown function', () => {
-                plugin.afterProgramCreate(program);
+                plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
 
                 program.setFile('source/VM.bs', `
                     @strict
@@ -2014,7 +2028,7 @@ describe('MaestroPlugin', () => {
                 expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.not.be.empty;
             });
             it('does not give diagnostic for field in superclass', () => {
-                plugin.afterProgramCreate(program);
+                plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
 
                 program.setFile('source/VM.bs', `
                     class VM
@@ -2035,7 +2049,7 @@ describe('MaestroPlugin', () => {
                 expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
             });
             it('takes into account d files from roku modules', () => {
-                plugin.afterProgramCreate(program);
+                plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
 
                 program.setFile('source/VM.bs', `
                     class VM
@@ -2055,7 +2069,7 @@ describe('MaestroPlugin', () => {
             });
 
             it('does not give diagnostic for function in superclass', () => {
-                plugin.afterProgramCreate(program);
+                plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
 
                 program.setFile('source/VM.bs', `
                     class VM
@@ -2076,7 +2090,7 @@ describe('MaestroPlugin', () => {
             });
             it('gives diagnostics for function that is not in scope', async () => {
                 plugin.maestroConfig.extraValidation.doExtraImportValidation = true;
-                plugin.afterProgramCreate(program);
+                plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
                 program.setFile('source/superComp.bs', `
                 namespace stuff
                     class Comp
@@ -2111,14 +2125,14 @@ describe('MaestroPlugin', () => {
                     end class
                 `);
                 program.validate();
-                await builder.transpile();
+                await builder.build();
                 expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.not.empty;
 
             });
 
             it('does not give extra validation error when disabled', async () => {
                 plugin.maestroConfig.extraValidation.doExtraImportValidation = false;
-                plugin.afterProgramCreate(program);
+                plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
                 program.setFile('source/superComp.bs', `
                     namespace stuff
                         class Comp
@@ -2153,14 +2167,14 @@ describe('MaestroPlugin', () => {
                     end class
                 `);
                 program.validate();
-                await builder.transpile();
+                await builder.build();
                 expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
             });
         });
 
         describe('vms', () => {
             it('replaces m.value = with m.setField', async () => {
-                plugin.afterProgramCreate(program);
+                plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
 
                 program.setFile('source/VM.bs', `
                     @useSetField
@@ -2179,7 +2193,7 @@ describe('MaestroPlugin', () => {
                         end function
                    end class
                 `);
-                await builder.transpile();
+                await builder.build();
                 expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
                 expect(
                     getContents('source/VM.brs')
@@ -2217,7 +2231,7 @@ describe('MaestroPlugin', () => {
             });
 
             it('replaces m.value = with m.setField, when field is defined in super class', async () => {
-                plugin.afterProgramCreate(program);
+                plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
 
                 program.setFile('source/VM.bs', `
                     @useSetField
@@ -2242,7 +2256,7 @@ describe('MaestroPlugin', () => {
                    end class
                 `);
                 program.validate();
-                await builder.transpile();
+                await builder.build();
 
                 // expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
                 expect(
@@ -2300,7 +2314,7 @@ describe('MaestroPlugin', () => {
 
         describe('ioc', () => {
             it('wires up fields with inject annotations', async () => {
-                plugin.afterProgramCreate(program);
+                plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
 
                 program.setFile('source/VM.bs', `
                     class VM
@@ -2315,7 +2329,7 @@ describe('MaestroPlugin', () => {
                    end namespace
                 `);
                 program.validate();
-                await builder.transpile();
+                await builder.build();
                 expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
                 expect(
                     getContents('source/VM.brs')
@@ -2349,7 +2363,7 @@ describe('MaestroPlugin', () => {
                 `);
             });
             it('wires up fields with inject annotations and uses default values', async () => {
-                plugin.afterProgramCreate(program);
+                plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
 
                 program.setFile('source/VM.bs', `
                     class VM
@@ -2407,7 +2421,7 @@ describe('MaestroPlugin', () => {
                    end namespace
                 `);
                 program.validate();
-                await builder.transpile();
+                await builder.build();
                 expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
                 expect(
                     getContents('source/VM.brs')
@@ -2498,7 +2512,7 @@ describe('MaestroPlugin', () => {
             });
 
             it('honors enums as default values', async () => {
-                plugin.afterProgramCreate(program);
+                plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
 
                 program.setFile('source/VM.bs', `
                     class VM
@@ -2523,7 +2537,7 @@ describe('MaestroPlugin', () => {
                    end namespace
                 `);
                 program.validate();
-                await builder.transpile();
+                await builder.build();
                 expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
                 expect(
                     getContents('source/VM.brs').trim()
@@ -2547,7 +2561,7 @@ describe('MaestroPlugin', () => {
             });
 
             it('allows instantiation of class objects from annotation', async () => {
-                plugin.afterProgramCreate(program);
+                plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
 
                 program.setFile('source/VM.bs', `
                     class VM
@@ -2562,7 +2576,7 @@ describe('MaestroPlugin', () => {
                     end class
                 `);
                 program.validate();
-                await builder.transpile();
+                await builder.build();
                 expectZeroDiagnostics(builder);
                 expect(
                     getContents('source/VM.brs')
@@ -2599,7 +2613,7 @@ describe('MaestroPlugin', () => {
             });
 
             it('gives diagnostics when the injection annotations are malformed', async () => {
-                plugin.afterProgramCreate(program);
+                plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
 
                 program.setFile('source/VM.bs', `
                     class VM
@@ -2625,7 +2639,7 @@ describe('MaestroPlugin', () => {
                     end class
                 `);
                 program.validate();
-                await builder.transpile();
+                await builder.build();
                 expectDiagnostics(program, [
                     { code: 'MSTO1042', message: 'Inject annotation on VM.fieldA must supply one argument' },
                     { code: 'MSTO1042', message: 'Inject annotation on VM.fieldB must supply one argument' },
@@ -2640,7 +2654,7 @@ describe('MaestroPlugin', () => {
             });
 
             it('gives diagnostics when the injection public field with sync @nodeclass', async () => {
-                plugin.afterProgramCreate(program);
+                plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
 
                 program.setFile('source/VM.bs', `
                     @node("test", "Group")
@@ -2657,14 +2671,14 @@ describe('MaestroPlugin', () => {
                     end class
                 `);
                 program.validate();
-                await builder.transpile();
+                await builder.build();
                 let d = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error);
                 expect(d).to.have.lengthOf(1);
                 expect(d[0].code).to.equal('MSTO1056');
             });
 
             it('gives diagnostic when a public nodeclass function has too many params', async () => {
-                plugin.afterProgramCreate(program);
+                plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
 
                 program.setFile('source/VM.bs', `
                     @node("test", "Group")
@@ -2687,14 +2701,14 @@ describe('MaestroPlugin', () => {
                     end class
                 `);
                 program.validate();
-                await builder.transpile();
+                await builder.build();
                 let d = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error);
                 expect(d).to.have.lengthOf(1);
                 expect(d[0].code).to.equal('MSTO1060');
             });
 
             it('allows observing of an injected field', async () => {
-                plugin.afterProgramCreate(program);
+                plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
 
                 program.setFile('source/VM.bs', `
                     class MyView
@@ -2725,7 +2739,7 @@ describe('MaestroPlugin', () => {
                     end class
                 `);
                 program.validate();
-                await builder.transpile();
+                await builder.build();
                 expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
                 expect(
                     getContents('source/VM.brs')
@@ -2754,7 +2768,7 @@ describe('MaestroPlugin', () => {
             });
 
             it('allows injecting with a dot value', async () => {
-                plugin.afterProgramCreate(program);
+                plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
 
                 program.setFile('source/VM.bs', `
                     class MyView
@@ -2776,7 +2790,7 @@ describe('MaestroPlugin', () => {
                     end class
                 `);
                 program.validate();
-                await builder.transpile();
+                await builder.build();
                 expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
                 expect(
                     getContents('source/VM.brs')
@@ -2816,7 +2830,7 @@ describe('MaestroPlugin', () => {
                 }
             };
 
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('components/comp.xml', `
                 <component name="mv_BaseScreen" extends="mv_BaseView" vm="myVM">
                     <interface>
@@ -2834,17 +2848,17 @@ describe('MaestroPlugin', () => {
             `);
 
             program.validate();
-            await builder.transpile();
+            await builder.build();
             expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
             expect(
                 getContents('components/comp.xml')
             ).to.eql(undent`
                 <component name="mv_BaseScreen" extends="mv_BaseView">
-                    <interface>
-                    </interface>
                     <script type="text/brightscript" uri="pkg:/components/comp.brs" />
                     <script type="text/brightscript" uri="pkg:/source/AuthManager.brs" />
                     <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
+                    <interface>
+                    </interface>
                 </component>
             `);
             expect(
@@ -3135,7 +3149,7 @@ describe('MaestroPlugin', () => {
         });
 
         it('does nothing if the function is not marked with @injectLocalM ', async () => {
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
                 namespace test.ns
                     function nsFunc(name, mTarget = invalid)
@@ -3147,7 +3161,7 @@ describe('MaestroPlugin', () => {
                 end function
             `);
             program.validate();
-            await builder.transpile();
+            await builder.build();
             //ignore diagnostics - need to import core
 
             expect(
@@ -3164,7 +3178,7 @@ describe('MaestroPlugin', () => {
         });
 
         it('does nothing if the function is @injectLocalM; but all args are present', async () => {
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
                 namespace test.ns
                     @injectLocalM
@@ -3177,7 +3191,7 @@ describe('MaestroPlugin', () => {
                 end function
             `);
             program.validate();
-            await builder.transpile();
+            await builder.build();
             //ignore diagnostics - need to import core
 
             expect(
@@ -3194,7 +3208,7 @@ describe('MaestroPlugin', () => {
         });
 
         it('injects m, @injectLocalM is present', async () => {
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
                 namespace test.ns
                     @injectLocalM
@@ -3207,7 +3221,7 @@ describe('MaestroPlugin', () => {
                 end function
             `);
             program.validate();
-            await builder.transpile();
+            await builder.build();
             //ignore diagnostics - need to import core
 
             expect(
@@ -3224,7 +3238,7 @@ describe('MaestroPlugin', () => {
         });
 
         it('adds default values, if function has more params', async () => {
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
                 namespace test.ns
                     @injectLocalM
@@ -3240,7 +3254,7 @@ describe('MaestroPlugin', () => {
                 end function
             `);
             program.validate();
-            await builder.transpile();
+            await builder.build();
             //ignore diagnostics - need to import core
 
             expect(
@@ -3261,7 +3275,7 @@ describe('MaestroPlugin', () => {
             `);
         });
         it('works for function expression calls', async () => {
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
                 namespace test.ns
                     @injectLocalM
@@ -3277,7 +3291,7 @@ describe('MaestroPlugin', () => {
                 end function
             `);
             program.validate();
-            await builder.transpile();
+            await builder.build();
             //ignore diagnostics - need to import core
 
             expect(
@@ -3303,7 +3317,7 @@ describe('MaestroPlugin', () => {
         });
 
         it('converts as calls in regular functions into mc_getXXX', async () => {
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
                 function notInClass()
                     m.expectOnce(asAA(data.Schedules[0].Productions[0]))
@@ -3319,7 +3333,7 @@ describe('MaestroPlugin', () => {
                 end function
             `);
             program.validate();
-            await builder.transpile();
+            await builder.build();
             //ignore diagnostics - need to import core
 
             expect(
@@ -3343,26 +3357,27 @@ describe('MaestroPlugin', () => {
         });
 
         it('supports dereferencing of variables', async () => {
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
                 function notInClass()
-                    index
+                    ? index
                     a = asAA(data.Schedules[index].Productions[m.index]))
                 end function
             `);
             program.validate();
-            await builder.transpile();
+            await builder.build();
 
             expect(
                 getContents('source/comp.brs')
             ).to.eql(undent`
             function notInClass()
+                ? index
                 a = mc_getAA(data, "Schedules." + rokucommunity_bslib_toString(index) + ".Productions." + rokucommunity_bslib_toString(m.index) + "")
             end function`);
         });
 
         it('converts asNode to mc_getAny, when transpileAsNodeAsAny is present', async () => {
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             plugin.maestroConfig.transpileAsNodeAsAny = true;
             program.setFile('source/comp.bs', `
                 function notInClass()
@@ -3379,7 +3394,7 @@ describe('MaestroPlugin', () => {
                 end function
             `);
             program.validate();
-            await builder.transpile();
+            await builder.build();
             //ignore diagnostics - need to import core
 
             expect(
@@ -3403,7 +3418,7 @@ describe('MaestroPlugin', () => {
         });
 
         it('ignores asXXX calls in that do not start with as_XXX', async () => {
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
                 function notInClass()
                     formatJson(fw_asAA(json.user))
@@ -3416,7 +3431,7 @@ describe('MaestroPlugin', () => {
                 end function
             `);
             program.validate();
-            await builder.transpile();
+            await builder.build();
             //ignore diagnostics - need to import core
 
             expect(
@@ -3437,7 +3452,7 @@ describe('MaestroPlugin', () => {
         });
 
         it('fails validations if a method invocation is present in an as call', () => {
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
                 function notInClass()
                     print(asString(json.user.getValue().name, "default name"))
@@ -3461,7 +3476,7 @@ describe('MaestroPlugin', () => {
         });
 
         it('fails validations if a callfunc invocation is present in an as call', () => {
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
                 function notInClass()
                     print(asString(json.user@.getValue().name, "default name"))
@@ -3485,7 +3500,7 @@ describe('MaestroPlugin', () => {
         });
 
         it('converts as calls in namespace functions', async () => {
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
                 namespace ns
                     function inNAmespace()
@@ -3499,7 +3514,7 @@ describe('MaestroPlugin', () => {
                 end namespace
             `);
             program.validate();
-            await builder.transpile();
+            await builder.build();
             //ignore diagnostics - need to import core
 
             expect(
@@ -3517,7 +3532,7 @@ describe('MaestroPlugin', () => {
         });
 
         it('converts as calls in class functions', async () => {
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
                 class Comp
                     private json
@@ -3532,7 +3547,7 @@ describe('MaestroPlugin', () => {
                 end class
             `);
             program.validate();
-            await builder.transpile();
+            await builder.build();
             //ignore diagnostics - need to import core
 
             expect(
@@ -3563,7 +3578,7 @@ describe('MaestroPlugin', () => {
         });
 
         it('supports simple types', async () => {
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
                 function notInClass()
                     print asAA(data)
@@ -3577,11 +3592,11 @@ describe('MaestroPlugin', () => {
                         print asLong(numSeconds, -1)
                     end if
                     print m.items.getValue(asArray(items))
-                    print m.items.show(asArray(items, ["first]))
+                    print m.items.show(asArray(items, ["first"]))
                 end function
             `);
             program.validate();
-            await builder.transpile();
+            await builder.build();
             //ignore diagnostics - need to import core
 
             expect(
@@ -3596,11 +3611,14 @@ describe('MaestroPlugin', () => {
                 print (mc_getString(name, invalid))
                 print (mc_getString(name, invalid, "default name"))
                 if mc_getBoolean(isActive, invalid)
-                    print mc_getInteger(numSeconds, invalid, - 1)
-                    print mc_getNumber(numSeconds, invalid, - 1)
-                    print mc_getLong(numSeconds, invalid, - 1)
+                    print mc_getInteger(numSeconds, invalid, -1)
+                    print mc_getNumber(numSeconds, invalid, -1)
+                    print mc_getLong(numSeconds, invalid, -1)
                 end if
                 print m.items.getValue(mc_getArray(items, invalid))
+                print m.items.show(mc_getArray(items, invalid, [
+                    "first"
+                ]))
             end function
             `);
         });
@@ -3613,7 +3631,7 @@ describe('MaestroPlugin', () => {
         });
 
         it('does nothing outside of a class', async () => {
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
                 function notInClass()
                     m.observe(node.field, m.callbackFunction)
@@ -3624,7 +3642,7 @@ describe('MaestroPlugin', () => {
                 end function
             `);
             program.validate();
-            await builder.transpile();
+            await builder.build();
             //ignore diagnostics - need to import core
 
             expect(
@@ -3641,7 +3659,7 @@ describe('MaestroPlugin', () => {
         });
 
         it('does not update observeNodeField', async () => {
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
                 class Comp
                     function notInClass()
@@ -3659,7 +3677,7 @@ describe('MaestroPlugin', () => {
                 end class
             `);
             program.validate();
-            await builder.transpile();
+            await builder.build();
             //ignore diagnostics - need to import core
 
             expect(
@@ -3693,7 +3711,7 @@ describe('MaestroPlugin', () => {
         });
 
         it('fails validations if field name is not present', () => {
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
                 class Comp
                     private json
@@ -3726,7 +3744,7 @@ describe('MaestroPlugin', () => {
         it('gives diagnostics when observe function does not exist', () => {
             plugin.maestroConfig.extraValidation.doExtraValidation = true;
             plugin.maestroConfig.extraValidation.doExtraImportValidation = true;
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
             class Comp
             private json
@@ -3743,7 +3761,7 @@ describe('MaestroPlugin', () => {
         it('gives diagnostics when observe function does takes wrong number of params - no param function', () => {
             plugin.maestroConfig.extraValidation.doExtraValidation = true;
             plugin.maestroConfig.extraValidation.doExtraImportValidation = true;
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
                 class Comp
                     private json
@@ -3768,7 +3786,7 @@ describe('MaestroPlugin', () => {
         it('gives diagnostics when observe function does takes wrong number of params - 1 param function', () => {
             plugin.maestroConfig.extraValidation.doExtraValidation = true;
             plugin.maestroConfig.extraValidation.doExtraImportValidation = true;
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
                 class Comp
                     private json
@@ -3790,7 +3808,7 @@ describe('MaestroPlugin', () => {
         it('gives diagnostics when observe function does takes wrong number of params - 2 param function', () => {
             plugin.maestroConfig.extraValidation.doExtraValidation = true;
             plugin.maestroConfig.extraValidation.doExtraImportValidation = true;
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
                 class Comp
                     private json
@@ -3816,7 +3834,7 @@ describe('MaestroPlugin', () => {
         it('converts observe calls in class functions when validations are enabled', async () => {
             plugin.maestroConfig.extraValidation.doExtraValidation = true;
             plugin.maestroConfig.extraValidation.doExtraImportValidation = true;
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
                 class Comp
                     private json
@@ -3847,7 +3865,7 @@ describe('MaestroPlugin', () => {
             let d = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error && d.code !== 'MSTO1040' && d.code !== 1001);
             expect(d).to.have.lengthOf(0);
 
-            await builder.transpile();
+            await builder.build();
             //ignore diagnostics - need to import core
 
             expect(
@@ -3893,7 +3911,7 @@ describe('MaestroPlugin', () => {
         it('converts observe calls in class functions', async () => {
             plugin.maestroConfig.extraValidation.doExtraValidation = false;
             plugin.maestroConfig.extraValidation.doExtraImportValidation = false;
-            plugin.afterProgramCreate(program);
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
                 class Comp
                     private json
@@ -3922,7 +3940,7 @@ describe('MaestroPlugin', () => {
             let d = program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error && d.code !== 'MSTO1040' && d.code !== 1001);
             expect(d).to.have.lengthOf(0);
 
-            await builder.transpile();
+            await builder.build();
             //ignore diagnostics - need to import core
             expect(
                 getContents('source/comp.brs')

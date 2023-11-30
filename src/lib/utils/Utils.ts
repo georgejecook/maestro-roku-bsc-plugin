@@ -1,6 +1,6 @@
-import type { Position, BrsFile, XmlFile, ClassStatement, FunctionStatement, ClassMethodStatement, Statement, Expression, FieldStatement } from 'brighterscript';
-import { Range, Lexer, Parser, ParseMode, createVariableExpression, IfStatement, BinaryExpression, Block, createStringLiteral, createToken, isClassMethodStatement, isClassStatement, TokenKind } from 'brighterscript';
-import type { File } from '../files/File';
+import type { Position, BrsFile, XmlFile, ClassStatement, FunctionStatement, MethodStatement, Statement, Expression, FieldStatement, AstNode, AAMemberExpression } from 'brighterscript';
+import { Range, Lexer, Parser, ParseMode, createVariableExpression, IfStatement, BinaryExpression, Block, createStringLiteral, createToken, isMethodStatement, isClassStatement, TokenKind, isExpression, createIdentifier, VariableExpression, CallExpression, AALiteralExpression, ArrayLiteralExpression } from 'brighterscript';
+import type { MaestroFile } from '../files/MaestroFile';
 import type { ProjectFileMap } from '../files/ProjectFileMap';
 
 export function spliceString(str: string, index: number, add?: string): string {
@@ -74,7 +74,7 @@ export function getAlternateFileNames(fileName: string): string[] {
     }
 }
 
-export function getAssociatedFile(file: BrsFile | XmlFile, fileMap: ProjectFileMap): File | undefined {
+export function getAssociatedFile(file: BrsFile | XmlFile, fileMap: ProjectFileMap): MaestroFile | undefined {
     for (let filePath of getAlternateFileNames(file.srcPath)) {
         let mFile = fileMap.allFiles[filePath];
         if (mFile) {
@@ -102,13 +102,51 @@ export function getFunctionBody(source: string): Statement[] {
     return funcStatement ? funcStatement.func.body.statements : [];
 }
 
-export function changeFunctionBody(statement: ClassMethodStatement | FunctionStatement, source: string) {
+export function changeFunctionBody(statement: FunctionStatement | MethodStatement, source: string) {
     let statements = statement.func.body.statements;
     statements.splice(0, statements.length);
     let newStatements = getFunctionBody(source);
     for (let newStatement of newStatements) {
         statements.push(newStatement);
     }
+}
+
+export function createCallExpression(funcName: string, args: (Expression | string)[] = []) {
+    const argExpressions: Expression[] = [];
+    for (const arg of args) {
+        if (isExpression(arg as AstNode)) {
+            argExpressions.push(arg as Expression);
+        } else if (typeof arg === 'string') {
+            // arg is string
+            if (arg.startsWith('"') && arg.endsWith('"')) {
+                argExpressions.push(createStringLiteral(arg));
+            } else {
+                argExpressions.push(new VariableExpression(createIdentifier(arg)));
+            }
+        }
+    }
+    return new CallExpression(
+        new VariableExpression(createIdentifier(funcName)),
+        createToken(TokenKind.LeftParen),
+        createToken(TokenKind.RightParen),
+        argExpressions
+    );
+}
+
+export function createAA(elements: AAMemberExpression[] = []) {
+    return new AALiteralExpression(
+        elements,
+        createToken(TokenKind.LeftCurlyBrace),
+        createToken(TokenKind.RightCurlyBrace)
+    );
+}
+
+export function createArray(elements: Expression[] = []) {
+    return new ArrayLiteralExpression(
+        elements,
+        createToken(TokenKind.LeftSquareBracket),
+        createToken(TokenKind.RightSquareBracket)
+    );
 }
 
 export function addOverriddenMethod(target: ClassStatement, name: string, source: string): boolean {
@@ -129,7 +167,7 @@ export function addOverriddenMethod(target: ClassStatement, name: string, source
 
 export function changeClassMethodBody(target: ClassStatement, name: string, source: string): boolean {
     let method = target.methods.find((m) => m.name.text === name);
-    if (isClassMethodStatement(method)) {
+    if (isMethodStatement(method)) {
         changeFunctionBody(method, source);
         return true;
     }
