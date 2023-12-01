@@ -53,7 +53,11 @@ import type {
     FunctionExpression,
     BeforeSerializeProgramEvent,
     BeforeBuildProgramEvent,
-    AfterProvideFileEvent
+    ProvideFileEvent,
+    AfterFileAddEvent,
+    SerializeFileEvent,
+    BeforeSerializeFileEvent,
+    BeforeProgramValidateEvent
 } from 'brighterscript';
 import { ProjectFileMap } from './lib/files/ProjectFileMap';
 import type { MaestroConfig } from './lib/files/MaestroConfig';
@@ -177,38 +181,46 @@ export class MaestroPlugin implements CompilerPlugin {
         }
     }
 
-    afterProvideFile(event: AfterProvideFileEvent): void {
-        const { files } = event;
-        for (const file of files) {
-            if (!(isBrsFile(file) || isXmlFile(file))) {
-                continue;
+    afterProvideFile(event: ProvideFileEvent): void {
+        this.fileMap.addProvidedFiles(event);
+        this.nodeClassUtil.processProvideFileEvent(event);
+    }
+
+    // afterProvideFile(event: AfterProvideFileEvent): void {
+    afterFileAdd(event: AfterFileAddEvent): void {
+        //DO other diagnostic and import manipulations
+        //Clear out diagnostics for generated files
+        //TODO - remove diagnostics.
+
+        const file = event.file;
+        if (!(isBrsFile(file) || isXmlFile(file))) {
+            return;
+        }
+
+        // afp(file: (BrsFile | XmlFile)): void {
+        // console.log('MAESTRO afp-----', file.srcPath);
+        let mFile = this.fileMap.allFiles[file.srcPath];
+        if (!mFile) {
+            mFile = this.fileMap.createFile(file);
+        }
+        mFile.bscFile = file;
+
+        if (file.pkgPath.startsWith('components/maestro/generated')) {
+
+            // eslint-disable-next-line @typescript-eslint/dot-notation
+            file['diagnostics'] = [];
+            return;
+        }
+        if (isBrsFile(file)) {
+            this.importProcessor.processDynamicImports(file, this.program);
+            // this.reflectionUtil.addFile(file);
+            this.filesThatNeedAddingBeforeProgramValidate.set(mFile.fullPath, mFile);
+            if (this.shouldParseFile(file)) {
+                this.filesThatNeedParsingInBeforeProgramValidate.set(mFile.fullPath, mFile);
             }
 
-            // afp(file: (BrsFile | XmlFile)): void {
-            // console.log('MAESTRO afp-----', file.srcPath);
-            let mFile = this.fileMap.allFiles[file.srcPath];
-            if (!mFile) {
-                mFile = this.fileMap.createFile(file);
-            }
-            mFile.bscFile = file;
-
-            if (file.pkgPath.startsWith('components/maestro/generated')) {
-
-                // eslint-disable-next-line @typescript-eslint/dot-notation
-                file['diagnostics'] = [];
-                return;
-            }
-            if (isBrsFile(file)) {
-                this.importProcessor.processDynamicImports(file, this.program);
-                // this.reflectionUtil.addFile(file);
-                this.filesThatNeedAddingBeforeProgramValidate.set(mFile.fullPath, mFile);
-                if (this.shouldParseFile(file)) {
-                    this.filesThatNeedParsingInBeforeProgramValidate.set(mFile.fullPath, mFile);
-                }
-
-            } else {
-                mFile.loadXmlContents();
-            }
+        } else {
+            mFile.loadXmlContents();
         }
     }
 
@@ -220,15 +232,6 @@ export class MaestroPlugin implements CompilerPlugin {
         this.filesThatNeedAddingBeforeProgramValidate.clear();
         for (let [, mFile] of this.filesThatNeedParsingInBeforeProgramValidate) {
             let file = mFile.bscFile as BrsFile;
-            this.nodeClassUtil.addFile(file, mFile);
-            for (let nc of [...mFile.nodeClasses.values()]) {
-                nc.generateCode(this.fileFactory, this.program, this.fileMap, this.maestroConfig.nodeClasses.buildForIDE);
-            }
-            if (this.maestroConfig.nodeClasses.buildForIDE) {
-                if (this.maestroConfig.nodeClasses.generateTestUtils) {
-                    this.nodeClassUtil.generateTestCode(this.program);
-                }
-            }
             if (mFile.nodeClasses.size > 0) {
                 this.dirtyNodeClassPaths.add(file.srcPath);
             }
@@ -302,9 +305,20 @@ export class MaestroPlugin implements CompilerPlugin {
         }
     }
 
-    afterProgramValidate(event: AfterProgramValidateEvent) {
+    beforeProgramValidate(event: BeforeProgramValidateEvent) {
         let { program } = event;
         this.ncValidation(program);
+        // for all dirty node class files, add their fields
+
+        for (let filePath of [...this.dirtyNodeClassPaths.values()]) {
+            for (let nc of this.fileMap.nodeClassesByPath[filePath]) {
+                nc.synchronizeInterface(event.program);
+            }
+        }
+    }
+
+    afterProgramValidate(event: AfterProgramValidateEvent) {
+        let { program } = event;
         // console.log('MAESTRO bpv-----');
         if (this.maestroConfig.processXMLFiles) {
             for (let filePath of [...this.dirtyCompFilePaths.values()]) {
@@ -317,16 +331,6 @@ export class MaestroPlugin implements CompilerPlugin {
             }
         }
 
-        if (!this.maestroConfig.nodeClasses.buildForIDE) {
-            console.time('Build node classes');
-            for (let nc of Object.values(this.fileMap.nodeClasses)) {
-                nc.generateCode(this.fileFactory, this.program, this.fileMap, false);
-            }
-            if (this.maestroConfig.nodeClasses.generateTestUtils) {
-                this.nodeClassUtil.generateTestCode(this.program);
-            }
-            console.timeEnd('Build node classes');
-        }
         this.dirtyCompFilePaths.clear();
         this.afterProgramValidate2(program);
     }
@@ -716,6 +720,18 @@ export class MaestroPlugin implements CompilerPlugin {
         console.time('Update reflection runtime file');
         this.reflectionUtil.updateRuntimeFile();
         console.timeEnd('Update reflection runtime file');
+    }
+
+    serializeFile(event: SerializeFileEvent) {
+        if (isXmlFile(event.file)) {
+            this.nodeClassUtil.processSerializeFileEvent(event);
+        }
+    }
+
+    beforeSerializeFile(event: BeforeSerializeFileEvent) {
+        if (this.maestroConfig.nodeClasses.generateTestUtils && event.file.pkgPath === 'source/roku_modules/maestro/tests/TestUtils.brs') {
+            this.nodeClassUtil.generateTestCode(event);
+        }
     }
 
     public updateFieldSets(cs: ClassStatement) {

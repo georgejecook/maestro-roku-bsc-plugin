@@ -10,6 +10,20 @@ import type { NodeClass } from '../node-classes/NodeClass';
 
 export class ProjectFileMap {
 
+    addProvidedFiles(event: brighterscript.ProvideFileEvent) {
+        for (const file of event.files) {
+            if (brighterscript.isBrsFile(file) || brighterscript.isXmlFile(file)) {
+                // afp(file: (BrsFile | XmlFile)): void {
+                // console.log('MAESTRO afp-----', file.srcPath);
+                let mFile = this.allFiles[file.srcPath];
+                if (!mFile) {
+                    mFile = this.createFile(file);
+                }
+                mFile.bscFile = file;
+            }
+        }
+    }
+
     constructor() {
         this.allFiles = {};
         this.allXMLComponentFiles = {};

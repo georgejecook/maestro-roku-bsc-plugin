@@ -3,6 +3,7 @@ import type { BscFile, Program } from 'brighterscript';
 import * as path from 'path';
 import * as fs from 'fs-extra';
 
+export const maestroInternalFile = 'maestroInternalFile';
 export class FileFactory {
     constructor(
         public program: Program
@@ -11,7 +12,8 @@ export class FileFactory {
     public ignoredFilePaths = [];
     private frameworkFiles = {
         'Reflection.brs': 'source/roku_modules/maestro/reflection/Reflection.brs',
-        'MaestroPluginUtils.brs': 'source/roku_modules/maestro/private/MaestroPluginUtils.brs'
+        'MaestroPluginUtils.brs': 'source/roku_modules/maestro/private/MaestroPluginUtils.brs',
+        'TestUtils.brs': 'source/roku_modules/maestro/tests/TestUtils.brs'
     };
 
     public sourcePath = path.join(__dirname, '../framework');

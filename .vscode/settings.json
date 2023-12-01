@@ -1,27 +1,31 @@
 {
-  "workbench.colorCustomizations": {
-    "statusBar.background": "#551A8B",
-    "statusBar.debuggingBackground": "#551A8B",
-    "panelTitle.activeBorder": "#ff0000",
-    "activityBar.background": "#05304E",
-    "titleBar.activeBackground": "#07436E",
-    "titleBar.activeForeground": "#F8FCFF"
-  },
-  "files.exclude": {
-    "**/.git": true,
-    "**/.svn": true,
-    "**/.hg": true,
-    "**/CVS": true,
-    "**/.DS_Store": true,
-    "**/dist": true
-  },
-  "editor.tabSize": 4,
-  "editor.insertSpaces": true,
-  "typescript.format.insertSpaceAfterFunctionKeywordForAnonymousFunctions": true,
-  "files.trimTrailingWhitespace": true,
-  "editor.codeActionsOnSave": {
-    "source.fixAll": true
-  },
-  "cSpell.words": ["MSTO", "undent"]
-  // "eslint.format.enable": true
+    "workbench.colorCustomizations": {
+        "statusBar.background": "#551A8B",
+        "statusBar.debuggingBackground": "#551A8B",
+        "panelTitle.activeBorder": "#ff0000",
+        "activityBar.background": "#05304E",
+        "titleBar.activeBackground": "#07436E",
+        "titleBar.activeForeground": "#F8FCFF"
+    },
+    "files.exclude": {
+        "**/.git": true,
+        "**/.svn": true,
+        "**/.hg": true,
+        "**/CVS": true,
+        "**/.DS_Store": true,
+        "**/dist": true
+    },
+    "editor.tabSize": 4,
+    "editor.insertSpaces": true,
+    "typescript.format.insertSpaceAfterFunctionKeywordForAnonymousFunctions": true,
+    "files.trimTrailingWhitespace": true,
+    "editor.codeActionsOnSave": {
+        "source.fixAll": true
+    },
+    "cSpell.words": [
+        "lookupci",
+        "MSTO",
+        "undent"
+    ]
+    // "eslint.format.enable": true
 }

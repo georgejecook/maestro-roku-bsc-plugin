@@ -5,12 +5,22 @@ import { MaestroPlugin } from './plugin';
 import { standardizePath as s } from './lib/Utils';
 import * as fsExtra from 'fs-extra';
 import * as path from 'path';
-import undent from 'undent';
 import { expectDiagnostics, expectZeroDiagnostics } from './testHelpers.spec';
 
 let tmpPath = s`${process.cwd()}/tmp`;
 let _rootDir = s`${tmpPath}/rootDir`;
 let _stagingFolderPath = s`${tmpPath}/staging`;
+
+function undent(strings: TemplateStringsArray, ...values: any[]): string {
+    // Construct the full string by interleaving the strings and values
+    let fullString = '';
+    for (let i = 0; i < strings.length; i++) {
+        fullString += strings[i] + (values[i] || '').trim();
+    }
+
+    // Split into lines, trim leading whitespace, and rejoin
+    return fullString.split('\n').map(line => line.trim()).join('\n').trim();
+}
 
 describe('MaestroPlugin', () => {
     let program: Program;
@@ -279,7 +289,7 @@ describe('MaestroPlugin', () => {
             let diagnostics = program.getDiagnostics();
             expect(diagnostics).to.be.empty;
             expect(
-                getContents('components/comp.brs')
+                undent(getContents('components/comp.brs'))
             ).to.eql(undent`
                 'import "pkg:/components/comp.brs"
                 function __myVM_builder()
@@ -383,7 +393,7 @@ describe('MaestroPlugin', () => {
             expect(builder.getDiagnostics()).to.be.empty;
 
             expect(
-                getContents('components/comp.xml')
+                undent(getContents('components/comp.xml'))
             ).to.eql(undent`
                 <component name="mv_BaseScreen" extends="mv_BaseView">
                     <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
@@ -408,7 +418,7 @@ describe('MaestroPlugin', () => {
             expect(builder.getDiagnostics()).to.be.empty;
 
             expect(
-                getContents('components/comp.xml')
+                undent(getContents('components/comp.xml'))
             ).to.eql(undent`
                 <component name="mv_BaseScreen" extends="mv_BaseView">
                     <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
@@ -438,7 +448,7 @@ describe('MaestroPlugin', () => {
             expectZeroDiagnostics(program);
 
             expect(
-                getContents('components/roku_modules/mv/comp.xml')
+                undent(getContents('components/roku_modules/mv/comp.xml'))
                 //note - we still remove illegal vm attribute
             ).to.eql(undent`
                 <component name="mv_BaseScreen" extends="mv_BaseView">
@@ -471,7 +481,7 @@ describe('MaestroPlugin', () => {
             expect(builder.getDiagnostics()).to.be.empty;
 
             expect(
-                getContents('components/comp.xml')
+                undent(getContents('components/comp.xml'))
                 //note - we still remove illegal vm attribute
             ).to.eql(undent`
                 <component name="mv_BaseScreen" extends="mv_BaseView">
@@ -513,7 +523,7 @@ describe('MaestroPlugin', () => {
             expect(builder.getDiagnostics()).to.not.be.empty;
 
             expect(
-                getContents('components/roku_modules/mv/comp.xml')
+                undent(getContents('components/roku_modules/mv/comp.xml'))
             ).to.eql(undent`
                 <component name="mv_BaseScreen" extends="mv_BaseView">
                     <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
@@ -553,7 +563,7 @@ describe('MaestroPlugin', () => {
             expect(builder.getDiagnostics()).to.be.empty;
 
             expect(
-                getContents('components/ignored/mv/comp.xml')
+                undent(getContents('components/ignored/mv/comp.xml'))
             ).to.eql(undent`
                 <component name="mv_BaseScreen" extends="mv_BaseView">
                     <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
@@ -586,51 +596,50 @@ describe('MaestroPlugin', () => {
             expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
 
             expect(
-                getContents('components/maestro/generated/Comp.xml')
+                undent(getContents('components/maestro/generated/Comp.xml'))
             ).to.equal(undent`
-                <?xml version="1.0" encoding="UTF-8" ?>
-                <component name="Comp" extends="Group">
-                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
-                    <interface>
-                        <field id="title" type="string" />
-                        <field id="content" type="string" />
-                    </interface>
-                    <children>
-                    </children>
-                </component>
-            `);
+            <?xml version="1.0" encoding="UTF-8" ?>
+            <component name="Comp" extends="Group">
+                <interface>
+                    <field id="title" type="string" />
+                    <field id="content" type="string" />
+                </interface>
+                <script uri="pkg:/source/comp.brs" type="text/brightscript" />
+                <script uri="pkg:/components/maestro/generated/Comp.brs" type="text/brightscript" />
+                <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
+                <children>
+                </children>
+            </component>`);
 
             expect(
-                getContents('components/maestro/generated/Comp.brs')
+                undent(getContents('components/maestro/generated/Comp.brs'))
             ).to.eql(undent`
-                'import "pkg:/source/comp.bs"
+            function init()
+                m.top.title = ""
+                m.top.content = ""
 
-                function init()
-                    m.top.title = ""
-                    m.top.content = ""
-                    instance = __Comp_builder()
-                    instance.delete("top")
-                    instance.delete("global")
-                    top = m.top
-                    m.append(instance)
-                    m.__isVMCreated = true
-                    m.new()
-                    m.top = top
-                    m_wireUpObservers()
-                end function
+                instance = __Comp_builder()
+                instance.delete("top")
+                instance.delete("global")
+                top = m.top
+                m.append(instance)
+                m.__isVMCreated = true
+                m.new()
+                m.top = top
+                m_wireUpObservers()
 
-                function m_wireUpObservers()
-                end function
+            end function
 
-                function __m_setTopField(field, value)
-                    if m.top.doesExist(field)
-                        m.top[field] = value
-                    end if
-                    return value
-                end function
-            `);
+            function m_wireUpObservers()
+
+            end function
+
+            function __m_setTopField(field, value)
+                if m.top.doesExist(field)
+                    m.top[field] = value
+                end if
+                return value
+            end function`);
         });
 
         it('parses tunnels public functions', async () => {
@@ -655,56 +664,57 @@ describe('MaestroPlugin', () => {
             expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
 
             expect(
-                getContents('components/maestro/generated/Comp.xml')
+                undent(getContents('components/maestro/generated/Comp.xml'))
             ).to.eql(undent`
-                <?xml version="1.0" encoding="UTF-8" ?>
-                <component name="Comp" extends="Group">
-                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
-                    <interface>
-                        <field id="title" type="string" />
-                        <field id="content" type="string" />
-                        <function name="someFunction" />
-                    </interface>
-                    <children>
-                    </children>
-                </component>
-            `);
+            <?xml version="1.0" encoding="UTF-8" ?>
+            <component name="Comp" extends="Group">
+                <interface>
+                    <field id="title" type="string" />
+                    <field id="content" type="string" />
+                    <function name="someFunction" />
+                </interface>
+                <script uri="pkg:/source/comp.brs" type="text/brightscript" />
+                <script uri="pkg:/components/maestro/generated/Comp.brs" type="text/brightscript" />
+                <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
+                <children>
+                </children>
+            </component>`);
 
             expect(
-                getContents('components/maestro/generated/Comp.brs')
+                undent(getContents('components/maestro/generated/Comp.brs'))
             ).to.eql(undent`
-                'import "pkg:/source/comp.bs"
+            function init()
+                m.top.title = ""
+                m.top.content = ""
 
-                function init()
-                    m.top.title = ""
-                    m.top.content = ""
-                    instance = __Comp_builder()
-                    instance.delete("top")
-                    instance.delete("global")
-                    top = m.top
-                    m.append(instance)
-                    m.__isVMCreated = true
-                    m.new()
-                    m.top = top
-                    m_wireUpObservers()
-                end function
+                instance = __Comp_builder()
+                instance.delete("top")
+                instance.delete("global")
+                top = m.top
+                m.append(instance)
+                m.__isVMCreated = true
+                m.new()
+                m.top = top
+                m_wireUpObservers()
 
-                function m_wireUpObservers()
-                end function
+            end function
 
-                function __m_setTopField(field, value)
-                    if m.top.doesExist(field)
-                        m.top[field] = value
-                    end if
-                    return value
-                end function
+            function m_wireUpObservers()
 
-                function someFunction(dummy = invalid)
+            end function
+
+            function __m_setTopField(field, value)
+                if m.top.doesExist(field)
+                    m.top[field] = value
+                end if
+                return value
+            end function
+
+
+            function someFunction(dummy = invalid)
+
                     return m.someFunction()
-                end function
-            `);
+            end function`);
         });
 
         it('ternary works with m.top substitution', async () => {
@@ -732,62 +742,65 @@ describe('MaestroPlugin', () => {
             expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
 
             expect(
-                getContents('components/maestro/generated/Comp.xml')
+                undent(getContents('components/maestro/generated/Comp.xml'))
             ).to.eql(undent`
-                <?xml version="1.0" encoding="UTF-8" ?>
-                <component name="Comp" extends="Group">
-                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
-                    <interface>
-                        <field id="validText" type="string" />
-                        <field id="invalidText" type="string" />
-                        <field id="text" type="string" />
-                        <field id="isValid" type="boolean" />
-                        <function name="someFunction" />
-                    </interface>
-                    <children>
-                    </children>
-                </component>
-            `);
+            <?xml version="1.0" encoding="UTF-8" ?>
+            <component name="Comp" extends="Group">
+                <interface>
+                    <field id="validText" type="string" />
+                    <field id="invalidText" type="string" />
+                    <field id="text" type="string" />
+                    <field id="isValid" type="boolean" />
+                    <function name="someFunction" />
+                </interface>
+                <script uri="pkg:/source/comp.brs" type="text/brightscript" />
+                <script uri="pkg:/components/maestro/generated/Comp.brs" type="text/brightscript" />
+                <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
+                <children>
+                </children>
+            </component>`);
 
             expect(
-                getContents('components/maestro/generated/Comp.brs')
+                undent(getContents('components/maestro/generated/Comp.brs'))
             ).to.eql(undent`
-                'import "pkg:/source/comp.bs"
+            function init()
+                m.top.validText = ""
+                m.top.invalidText = ""
+                m.top.text = ""
+                m.top.isValid = false
 
-                function init()
-                    m.top.validText = ""
-                    m.top.invalidText = ""
-                    m.top.text = ""
-                    m.top.isValid = false
-                    instance = __Comp_builder()
-                    instance.delete("top")
-                    instance.delete("global")
-                    top = m.top
-                    m.append(instance)
-                    m.__isVMCreated = true
-                    m.new()
-                    m.top = top
-                    m_wireUpObservers()
-                end function
+                instance = __Comp_builder()
+                instance.delete("top")
+                instance.delete("global")
+                top = m.top
+                m.append(instance)
+                m.__isVMCreated = true
+                m.new()
+                m.top = top
+                m_wireUpObservers()
 
-                function m_wireUpObservers()
-                end function
+            end function
 
-                function __m_setTopField(field, value)
-                    if m.top.doesExist(field)
-                        m.top[field] = value
-                    end if
-                    return value
-                end function
+            function m_wireUpObservers()
 
-                function someFunction(dummy = invalid)
+            end function
+
+            function __m_setTopField(field, value)
+                if m.top.doesExist(field)
+                    m.top[field] = value
+                end if
+                return value
+            end function
+
+
+            function someFunction(dummy = invalid)
+
                     return m.someFunction()
-                end function
+            end function
             `);
+
             expect(
-                getContents('source/comp.brs')
+                undent(getContents('source/comp.brs'))
             ).to.eql(undent`
             function __Comp_builder()
                 instance = {}
@@ -799,13 +812,13 @@ describe('MaestroPlugin', () => {
                     m.__classname = "Comp"
                 end function
                 instance.someFunction = function()
-                    m.top.text = (function(__bsCondition, )
+                    m.text = (function(__bsCondition, m)
                             if __bsCondition then
-                                return m.top.validText
+                                return m.validText
                             else
-                                return m.top.invalidText
+                                return m.invalidText
                             end if
-                        end function)(m.top.isValid, )
+                        end function)(m.isValid, m)
                 end function
                 return instance
             end function
@@ -813,9 +826,7 @@ describe('MaestroPlugin', () => {
                 instance = __Comp_builder()
                 instance.new()
                 return instance
-            end function
-
-            `);
+            end function`);
         });
 
         it('does not generate code behind if nocode annotation is present', async () => {
@@ -841,20 +852,21 @@ describe('MaestroPlugin', () => {
             expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
 
             expect(
-                getContents('components/maestro/generated/Comp.xml')
+                undent(getContents('components/maestro/generated/Comp.xml'))
             ).to.eql(undent`
-                <?xml version="1.0" encoding="UTF-8" ?>
-                <component name="Comp" extends="Group">
-                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
-                    <interface>
-                        <field id="title" type="string" />
-                        <field id="content" type="string" />
-                        <function name="someFunction" />
-                    </interface>
-                    <children>
-                    </children>
-                </component>
-            `);
+            <?xml version="1.0" encoding="UTF-8" ?>
+            <component name="Comp" extends="Group">
+                <interface>
+                    <field id="title" type="string" />
+                    <field id="content" type="string" />
+                    <function name="someFunction" />
+                </interface>
+                <script uri="pkg:/source/comp.brs" type="text/brightscript" />
+                <script uri="pkg:/components/maestro/generated/Comp.brs" type="text/brightscript" />
+                <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
+                <children>
+                </children>
+            </component>`);
 
             expect(fsExtra.pathExistsSync(path.join(_stagingFolderPath, 'components/maestro/generated/Comp.brs'))).to.be.false;
         });
@@ -887,32 +899,31 @@ describe('MaestroPlugin', () => {
             expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
 
             expect(
-                getContents('components/maestro/generated/Comp.xml')
+                undent(getContents('components/maestro/generated/Comp.xml'))
             ).to.eql(undent`
-                <?xml version="1.0" encoding="UTF-8" ?>
-                <component name="Comp" extends="Group">
-                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
-                    <interface>
-                        <field id="title" type="string" />
-                        <field id="content" type="string" />
-                        <function name="defaultAndType" />
-                        <function name="defaultOnly" />
-                        <function name="typeOnly" />
-                    </interface>
-                    <children>
-                    </children>
-                </component>
-            `);
-            expect(
-                getContents('components/maestro/generated/Comp.brs')
-            ).to.eql(undent`
-            'import "pkg:/source/comp.bs"
+            <?xml version="1.0" encoding="UTF-8" ?>
+            <component name="Comp" extends="Group">
+                <interface>
+                    <field id="title" type="string" />
+                    <field id="content" type="string" />
+                    <function name="defaultAndType" />
+                    <function name="defaultOnly" />
+                    <function name="typeOnly" />
+                </interface>
+                <script uri="pkg:/source/comp.brs" type="text/brightscript" />
+                <script uri="pkg:/components/maestro/generated/Comp.brs" type="text/brightscript" />
+                <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
+                <children>
+                </children>
+            </component>`);
 
+            expect(
+                undent(getContents('components/maestro/generated/Comp.brs'))
+            ).to.eql(undent`
             function init()
                 m.top.title = ""
                 m.top.content = ""
+
                 instance = __Comp_builder()
                 instance.delete("top")
                 instance.delete("global")
@@ -922,9 +933,11 @@ describe('MaestroPlugin', () => {
                 m.new()
                 m.top = top
                 m_wireUpObservers()
+
             end function
 
             function m_wireUpObservers()
+
             end function
 
             function __m_setTopField(field, value)
@@ -934,16 +947,20 @@ describe('MaestroPlugin', () => {
                 return value
             end function
 
-            function defaultAndType(x = 5, y = 10)
-                return m.defaultAndType(x, y)
+
+            function defaultAndType(x = 5,y = 10 )
+                return m.defaultAndType(x,y )
+
             end function
 
-            function defaultOnly(x = 5, y = 10)
-                return m.defaultOnly(x, y)
+            function defaultOnly(x = 5,y = 10 )
+                return m.defaultOnly(x,y )
+
             end function
 
-            function typeOnly(x = invalid, y = invalid)
-                return m.typeOnly(x, y)
+            function typeOnly(x = invalid,y = invalid )
+                return m.typeOnly(x,y )
+
             end function`);
         });
 
@@ -982,32 +999,30 @@ describe('MaestroPlugin', () => {
             expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
 
             expect(
-                getContents('components/maestro/generated/Comp.xml')
+                undent(getContents('components/maestro/generated/Comp.xml'))
             ).to.eql(undent`
-                <?xml version="1.0" encoding="UTF-8" ?>
-                <component name="Comp" extends="Group">
-                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
-                    <interface>
-                        <field id="title" type="string" />
-                        <field id="content" type="string" />
-                        <function name="both" />
-                        <function name="defaultOnly" />
-                        <function name="typeOnly" />
-                    </interface>
-                    <children>
-                    </children>
-                </component>
-            `);
+            <?xml version="1.0" encoding="UTF-8" ?>
+            <component name="Comp" extends="Group">
+                <interface>
+                    <field id="title" type="string" />
+                    <field id="content" type="string" />
+                    <function name="both" />
+                    <function name="defaultOnly" />
+                    <function name="typeOnly" />
+                </interface>
+                <script uri="pkg:/source/comp.brs" type="text/brightscript" />
+                <script uri="pkg:/components/maestro/generated/Comp.brs" type="text/brightscript" />
+                <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
+                <children>
+                </children>
+            </component>`);
             expect(
-                getContents('components/maestro/generated/Comp.brs')
+                undent(getContents('components/maestro/generated/Comp.brs'))
             ).to.eql(undent`
-            'import "pkg:/source/comp.bs"
-
             function init()
                 m.top.title = ""
                 m.top.content = ""
+
                 instance = __Comp_builder()
                 instance.delete("top")
                 instance.delete("global")
@@ -1017,9 +1032,11 @@ describe('MaestroPlugin', () => {
                 m.new()
                 m.top = top
                 m_wireUpObservers()
+
             end function
 
             function m_wireUpObservers()
+
             end function
 
             function __m_setTopField(field, value)
@@ -1029,16 +1046,20 @@ describe('MaestroPlugin', () => {
                 return value
             end function
 
-            function both(color = 1, color2 = 2)
-                return m.both(color, color2)
+
+            function both(color = 1,color2 = 2 )
+                return m.both(color,color2 )
+
             end function
 
-            function defaultOnly(color = 1, color2 = 2)
-                return m.defaultOnly(color, color2)
+            function defaultOnly(color = 1,color2 = 2 )
+                return m.defaultOnly(color,color2 )
+
             end function
 
-            function typeOnly(color = invalid, color2 = invalid)
-                return m.typeOnly(color, color2)
+            function typeOnly(color = invalid,color2 = invalid )
+                return m.typeOnly(color,color2 )
+
             end function`);
         });
 
@@ -1065,55 +1086,55 @@ describe('MaestroPlugin', () => {
             expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
 
             expect(
-                getContents('components/maestro/generated/Comp.xml')
+                undent(getContents('components/maestro/generated/Comp.xml'))
             ).to.eql(undent`
-                <?xml version="1.0" encoding="UTF-8" ?>
-                <component name="Comp" extends="Group">
-                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
-                    <interface>
-                        <field id="title" type="string" />
-                        <field id="content" type="string" />
-                    </interface>
-                    <children>
-                    </children>
-                </component>
-            `);
+            <?xml version="1.0" encoding="UTF-8" ?>
+            <component name="Comp" extends="Group">
+                <interface>
+                    <field id="title" type="string" />
+                    <field id="content" type="string" />
+                </interface>
+                <script uri="pkg:/source/comp.brs" type="text/brightscript" />
+                <script uri="pkg:/components/maestro/generated/Comp.brs" type="text/brightscript" />
+                <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
+                <children>
+                </children>
+            </component>`);
             expect(
-                getContents('components/maestro/generated/Comp.brs')
+                undent(getContents('components/maestro/generated/Comp.brs'))
             ).to.eql(undent`
-                'import "pkg:/source/comp.bs"
+            function init()
+                m.top.title = ""
+                m.top.content = ""
 
-                function init()
-                    m.top.title = ""
-                    m.top.content = ""
-                    instance = __Comp_builder()
-                    instance.delete("top")
-                    instance.delete("global")
-                    top = m.top
-                    m.append(instance)
-                    m.__isVMCreated = true
-                    m.new()
-                    m.top = top
-                    m_wireUpObservers()
-                end function
+                instance = __Comp_builder()
+                instance.delete("top")
+                instance.delete("global")
+                top = m.top
+                m.append(instance)
+                m.__isVMCreated = true
+                m.new()
+                m.top = top
+                m_wireUpObservers()
+
+            end function
 
                 function on_title(event)
-                    m.onTitleChange(event.getData())
-                end function
+                m.onTitleChange(event.getData())
+                        end function
 
-                function m_wireUpObservers()
-                    m.top.observeField("title", "on_title")
-                end function
+            function m_wireUpObservers()
 
-                function __m_setTopField(field, value)
-                    if m.top.doesExist(field)
-                        m.top[field] = value
-                    end if
-                    return value
-                end function
-            `);
+            m.top.observeField("title", "on_title")
+
+            end function
+
+            function __m_setTopField(field, value)
+                if m.top.doesExist(field)
+                    m.top[field] = value
+                end if
+                return value
+            end function`);
         });
 
         it('hooks up public fields with observers - allows @rootOnly observer', async () => {
@@ -1139,61 +1160,61 @@ describe('MaestroPlugin', () => {
             await builder.build();
             expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
             expect(
-                getContents('components/maestro/generated/Comp.xml')
+                undent(getContents('components/maestro/generated/Comp.xml'))
             ).to.eql(undent`
-                <?xml version="1.0" encoding="UTF-8" ?>
-                <component name="Comp" extends="Group">
-                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
-                    <interface>
-                        <field id="title" type="string" />
-                        <field id="content" type="string" />
-                    </interface>
-                    <children>
-                    </children>
-                </component>
-            `);
+            <?xml version="1.0" encoding="UTF-8" ?>
+            <component name="Comp" extends="Group">
+                <interface>
+                    <field id="title" type="string" />
+                    <field id="content" type="string" />
+                </interface>
+                <script uri="pkg:/source/comp.brs" type="text/brightscript" />
+                <script uri="pkg:/components/maestro/generated/Comp.brs" type="text/brightscript" />
+                <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
+                <children>
+                </children>
+            </component>`);
 
             expect(
-                getContents('components/maestro/generated/Comp.brs')
+                undent(getContents('components/maestro/generated/Comp.brs'))
             ).to.eql(undent`
-                'import "pkg:/source/comp.bs"
+            function init()
+                m.top.title = ""
+                m._p_title = invalid
+                m.top.content = ""
 
-                function init()
-                    m.top.title = ""
-                    m._p_title = invalid
-                    m.top.content = ""
-                    instance = __Comp_builder()
-                    instance.delete("top")
-                    instance.delete("global")
-                    top = m.top
-                    m.append(instance)
-                    m.__isVMCreated = true
-                    m.new()
-                    m.top = top
-                    m_wireUpObservers()
-                end function
+                instance = __Comp_builder()
+                instance.delete("top")
+                instance.delete("global")
+                top = m.top
+                m.append(instance)
+                m.__isVMCreated = true
+                m.new()
+                m.top = top
+                m_wireUpObservers()
+
+            end function
 
                 function on_title(event)
-                    v = event.getData()
+                v = event.getData()
                     if type(v) <> "roSGNode" or not v.isSameNode(m._p_title)
-                        m._p_title = v
-                        m.onTitleChange(event.getData())
+                    m._p_title = v
+                    m.onTitleChange(event.getData())
                     end if
-                end function
+                    end function
 
-                function m_wireUpObservers()
-                    m.top.observeField("title", "on_title")
-                end function
+            function m_wireUpObservers()
 
-                function __m_setTopField(field, value)
-                    if m.top.doesExist(field)
-                        m.top[field] = value
-                    end if
-                    return value
-                end function
-            `);
+            m.top.observeField("title", "on_title")
+
+            end function
+
+            function __m_setTopField(field, value)
+                if m.top.doesExist(field)
+                    m.top[field] = value
+                end if
+                return value
+            end function`);
         });
 
         it('manages inferred and specific field types', async () => {
@@ -1230,77 +1251,70 @@ describe('MaestroPlugin', () => {
             expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error && !d.message.includes('Cannot find name \'mc\''))).to.be.empty;
 
             expect(
-                getContents('components/maestro/generated/Comp.xml')
+                undent(getContents('components/maestro/generated/Comp.xml'))
             ).to.eql(undent`
-                <?xml version="1.0" encoding="UTF-8" ?>
-                <component name="Comp" extends="Group">
-                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
-                    <interface>
-                        <field id="clazzTyped" type="assocarray" />
-                        <field id="s" type="string" />
-                        <field id="num" type="integer" />
-                        <field id="numFloat" type="float" />
-                        <field id="arr" type="array" />
-                        <field id="aa" type="assocarray" />
-                        <field id="clazz" type="assocarray" />
-                        <field id="sTyped" type="string" />
-                        <field id="numTyped" type="integer" />
-                        <field id="numFloatTyped" type="float" />
-                        <field id="arrTyped" type="array" />
-                        <field id="aaTyped" type="assocarray" />
-                    </interface>
-                    <children>
-                    </children>
-                </component>
-            `);
+            <?xml version="1.0" encoding="UTF-8" ?>
+            <component name="Comp" extends="Group">
+                <interface>
+                    <field id="clazzTyped" type="assocarray" />
+                    <field id="s" type="string" />
+                    <field id="num" type="integer" />
+                    <field id="numFloat" type="float" />
+                    <field id="arr" type="array" />
+                    <field id="aa" type="assocarray" />
+                    <field id="clazz" type="assocarray" />
+                    <field id="sTyped" type="string" />
+                    <field id="numTyped" type="integer" />
+                    <field id="numFloatTyped" type="float" />
+                    <field id="arrTyped" type="array" />
+                    <field id="aaTyped" type="assocarray" />
+                </interface>
+                <script uri="pkg:/source/comp.brs" type="text/brightscript" />
+                <script uri="pkg:/components/maestro/generated/Comp.brs" type="text/brightscript" />
+                <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
+                <children>
+                </children>
+            </component>`);
 
             expect(
-                getContents('components/maestro/generated/Comp.brs')
+                undent(getContents('components/maestro/generated/Comp.brs'))
             ).to.eql(undent`
-                'import "pkg:/source/comp.bs"
+            function init()
+                m.top.clazzTyped = invalid
+                m.top.s = "string"
+                m.top.num = 2
+                m.top.numFloat = 2.5
+                m.top.arr = [1,2,3]
+                m.top.aa = {id: "1"}
+                m.top.clazz = invalid
+                m.top.sTyped = invalid
+                m.top.numTyped = invalid
+                m.top.numFloatTyped = invalid
+                m.top.arrTyped = invalid
+                m.top.aaTyped = invalid
 
-                function init()
-                    m.top.clazzTyped = invalid
-                    m.top.s = "string"
-                    m.top.num = 2
-                    m.top.numFloat = 2.5
-                    m.top.arr = [
-                        1
-                        2
-                        3
-                    ]
-                    m.top.aa = {
-                        id: "1"
-                    }
-                    m.top.clazz = invalid
-                    m.top.sTyped = invalid
-                    m.top.numTyped = invalid
-                    m.top.numFloatTyped = invalid
-                    m.top.arrTyped = invalid
-                    m.top.aaTyped = invalid
-                    instance = __Comp_builder()
-                    instance.delete("top")
-                    instance.delete("global")
-                    top = m.top
-                    m.append(instance)
-                    m.__isVMCreated = true
-                    m.new()
-                    m.top = top
-                    m_wireUpObservers()
-                end function
+                instance = __Comp_builder()
+                instance.delete("top")
+                instance.delete("global")
+                top = m.top
+                m.append(instance)
+                m.__isVMCreated = true
+                m.new()
+                m.top = top
+                m_wireUpObservers()
 
-                function m_wireUpObservers()
-                end function
+            end function
 
-                function __m_setTopField(field, value)
-                    if m.top.doesExist(field)
-                        m.top[field] = value
-                    end if
-                    return value
-                end function
-            `);
+            function m_wireUpObservers()
+
+            end function
+
+            function __m_setTopField(field, value)
+                if m.top.doesExist(field)
+                    m.top[field] = value
+                end if
+                return value
+            end function`);
         });
 
         it('supports enum type in public fields', async () => {
@@ -1337,32 +1351,30 @@ describe('MaestroPlugin', () => {
             expectZeroDiagnostics(builder);
 
             expect(
-                getContents('components/maestro/generated/Comp.xml')
+                undent(getContents('components/maestro/generated/Comp.xml'))
             ).to.eql(undent`
-                <?xml version="1.0" encoding="UTF-8" ?>
-                <component name="Comp" extends="Group">
-                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
-                    <interface>
-                        <field id="e1" type="string" />
-                        <field id="e2" type="float" />
-                        <field id="e3" type="float" />
-                    </interface>
-                    <children>
-                    </children>
-                </component>
-            `);
+            <?xml version="1.0" encoding="UTF-8" ?>
+            <component name="Comp" extends="Group">
+                <interface>
+                    <field id="e1" type="string" />
+                    <field id="e2" type="float" />
+                    <field id="e3" type="float" />
+                </interface>
+                <script uri="pkg:/source/comp.brs" type="text/brightscript" />
+                <script uri="pkg:/components/maestro/generated/Comp.brs" type="text/brightscript" />
+                <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
+                <children>
+                </children>
+            </component>`);
 
             expect(
-                getContents('components/maestro/generated/Comp.brs')
+                undent(getContents('components/maestro/generated/Comp.brs'))
             ).to.eql(undent`
-            'import "pkg:/source/comp.bs"
-
             function init()
                 m.top.e1 = "v"
                 m.top.e2 = 1
                 m.top.e3 = 2
+
                 instance = __Comp_builder()
                 instance.delete("top")
                 instance.delete("global")
@@ -1372,9 +1384,11 @@ describe('MaestroPlugin', () => {
                 m.new()
                 m.top = top
                 m_wireUpObservers()
+
             end function
 
             function m_wireUpObservers()
+
             end function
 
             function __m_setTopField(field, value)
@@ -1406,30 +1420,29 @@ describe('MaestroPlugin', () => {
             expectZeroDiagnostics(builder);
 
             expect(
-                getContents('components/maestro/generated/Comp.xml')
+                undent(getContents('components/maestro/generated/Comp.xml'))
             ).to.eql(undent`
-                <?xml version="1.0" encoding="UTF-8" ?>
-                <component name="Comp" extends="Group">
-                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
-                    <interface>
-                        <field id="e1" type="integer" />
-                        <field id="e2" type="float" />
-                    </interface>
-                    <children>
-                    </children>
-                </component>
+            <?xml version="1.0" encoding="UTF-8" ?>
+            <component name="Comp" extends="Group">
+                <interface>
+                    <field id="e1" type="integer" />
+                    <field id="e2" type="float" />
+                </interface>
+                <script uri="pkg:/source/comp.brs" type="text/brightscript" />
+                <script uri="pkg:/components/maestro/generated/Comp.brs" type="text/brightscript" />
+                <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
+                <children>
+                </children>
+            </component>
             `);
 
             expect(
-                getContents('components/maestro/generated/Comp.brs')
+                undent(getContents('components/maestro/generated/Comp.brs'))
             ).to.eql(undent`
-            'import "pkg:/source/comp.bs"
-
             function init()
                 m.top.e1 = -1
                 m.top.e2 = -100
+
                 instance = __Comp_builder()
                 instance.delete("top")
                 instance.delete("global")
@@ -1439,9 +1452,11 @@ describe('MaestroPlugin', () => {
                 m.new()
                 m.top = top
                 m_wireUpObservers()
+
             end function
 
             function m_wireUpObservers()
+
             end function
 
             function __m_setTopField(field, value)
@@ -1477,30 +1492,29 @@ describe('MaestroPlugin', () => {
             expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error && !d.message.includes('mc.types.'))).to.be.empty;
 
             expect(
-                getContents('components/maestro/generated/Comp.xml')
+                undent(getContents('components/maestro/generated/Comp.xml'))
             ).to.eql(undent`
-                <?xml version="1.0" encoding="UTF-8" ?>
-                <component name="Comp" extends="Group">
-                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
-                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
-                    <interface>
-                        <field id="e1" type="assocarray" />
-                        <field id="e2" type="assocarray" />
-                    </interface>
-                    <children>
-                    </children>
-                </component>
+            <?xml version="1.0" encoding="UTF-8" ?>
+            <component name="Comp" extends="Group">
+                <interface>
+                    <field id="e1" type="assocarray" />
+                    <field id="e2" type="assocarray" />
+                </interface>
+                <script uri="pkg:/source/comp.brs" type="text/brightscript" />
+                <script uri="pkg:/components/maestro/generated/Comp.brs" type="text/brightscript" />
+                <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
+                <children>
+                </children>
+            </component>
             `);
 
             expect(
-                getContents('components/maestro/generated/Comp.brs')
+                undent(getContents('components/maestro/generated/Comp.brs'))
             ).to.eql(undent`
-            'import "pkg:/source/comp.bs"
-
             function init()
                 m.top.e1 = invalid
                 m.top.e2 = invalid
+
                 instance = __Comp_builder()
                 instance.delete("top")
                 instance.delete("global")
@@ -1510,9 +1524,11 @@ describe('MaestroPlugin', () => {
                 m.new()
                 m.top = top
                 m_wireUpObservers()
+
             end function
 
             function m_wireUpObservers()
+
             end function
 
             function __m_setTopField(field, value)
@@ -1539,8 +1555,7 @@ describe('MaestroPlugin', () => {
             `);
             program.validate();
             await builder.build();
-            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.not.empty;
-
+            assertHasDiagnostic(builder, 'MSTO1036');
         });
 
         it('does not give diagnostics for missing new function', async () => {
@@ -1555,12 +1570,11 @@ describe('MaestroPlugin', () => {
             await builder.build();
             expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
             expect(
-                getContents('components/maestro/generated/Comp.brs')
+                undent(getContents('components/maestro/generated/Comp.brs'))
             ).to.eql(undent`
-            'import "pkg:/source/comp.bs"
-
             function init()
                 m.top.content = ""
+
                 instance = __Comp_builder()
                 instance.delete("top")
                 instance.delete("global")
@@ -1570,9 +1584,11 @@ describe('MaestroPlugin', () => {
                 m.new()
                 m.top = top
                 m_wireUpObservers()
+
             end function
 
             function m_wireUpObservers()
+
             end function
 
             function __m_setTopField(field, value)
@@ -1580,8 +1596,7 @@ describe('MaestroPlugin', () => {
                     m.top[field] = value
                 end if
                 return value
-            end function
-            `);
+            end function`);
         });
 
     });
@@ -1597,35 +1612,39 @@ describe('MaestroPlugin', () => {
             `);
         program.validate();
         await builder.build();
-        expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.have.lengthOf(1);
+        assertHasDiagnostic(builder, 'MSTO1029');
     });
 
     it('gives diagnostics when a task nor parent extending component does not extend task', async () => {
         plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
         program.setFile('source/comp.bs', `
-                @node("ParentTask", "Group")
-                class Extended
-                end class
+            @node("ParentTask", "Group")
+            class Extended
+            end class
+        `);
 
-                @task("TaskTest", "ParentTask")
-                class Comp
-                    function execute(args)
-                    end function
-                end class
-            `);
+        program.setFile('source/comp2.bs', `
+        @task("TaskTest", "ParentTask")
+        class Comp
+        function execute(args)
+        end function
+        end class
+        `);
         program.validate();
         await builder.build();
-        expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.not.empty;
+        assertHasDiagnostic(builder, 'MSTO1029');
     });
     it('does not give diagnostics when parent extends Task', async () => {
         plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
         program.setFile('source/comp.bs', `
-                @task("ParentTask", "Task")
-                class Extended
-                    function execute(args)
-                    end function
-                end class
+            @task("ParentTask", "Task")
+            class Extended
+            function execute(args)
+            end function
+            end class
+        `);
 
+        program.setFile('source/comp2.bs', `
                 @task("TaskTest", "ParentTask")
                 class Comp
                     function execute(args)
@@ -1636,10 +1655,8 @@ describe('MaestroPlugin', () => {
         await builder.build();
         expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
         expect(
-            getContents('components/maestro/generated/TaskTest.brs')
+            undent(getContents('components/maestro/generated/TaskTest.brs'))
         ).to.eql(undent`
-        'import "pkg:/source/comp.bs"
-
         function __m_setTopField(field, value)
             if m.top.doesExist(field)
                 m.top[field] = value
@@ -1647,18 +1664,19 @@ describe('MaestroPlugin', () => {
             return value
         end function
 
+
         function init()
-            m.top.functionName = "exec"
+            m.top.functionName="exec"
         end function
 
         function exec()
             instance = __Comp_builder()
             m.top.output = mc_private_taskExec(instance)
         end function`);
+
         expect(
-            getContents('components/maestro/generated/TaskTest.xml')
-        ).to.eql(undent`
-        <?xml version="1.0" encoding="UTF-8" ?>
+            undent(getContents('components/maestro/generated/TaskTest.xml'))
+        ).to.eql(undent`<?xml version="1.0" encoding="UTF-8" ?>
         <component name="TaskTest" extends="ParentTask">
             <interface>
                 <field id="args" type="assocarray" />
@@ -1666,7 +1684,8 @@ describe('MaestroPlugin', () => {
                 <function name="exec" />
             </interface>
             <script type="text/brightscript" uri="pkg:/source/roku_modules/maestro/private/MaestroPluginUtils.brs" />
-            <script type="text/brightscript" uri="pkg:/components/maestro/generated/TaskTest.brs" />
+            <script uri="pkg:/source/comp2.brs" type="text/brightscript" />
+            <script uri="pkg:/components/maestro/generated/TaskTest.brs" type="text/brightscript" />
             <children>
             </children>
         </component>`);
@@ -1684,11 +1703,10 @@ describe('MaestroPlugin', () => {
         program.validate();
         await builder.build();
         expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
-        expect(
-            getContents('components/maestro/generated/TaskTest.brs')
-        ).to.eql(undent(`
-        'import "pkg:/source/comp.bs"
 
+        expect(
+            undent(getContents('components/maestro/generated/TaskTest.brs'))
+        ).to.eql(undent`
         function __m_setTopField(field, value)
             if m.top.doesExist(field)
                 m.top[field] = value
@@ -1696,17 +1714,18 @@ describe('MaestroPlugin', () => {
             return value
         end function
 
+
         function init()
-            m.top.functionName = "exec"
+            m.top.functionName="exec"
         end function
 
         function exec()
             instance = __Comp_builder()
             m.top.output = mc_private_taskExec(instance)
-        end function`));
+        end function`);
         expect(
-            getContents('components/maestro/generated/TaskTest.xml')
-        ).to.eql(undent(`
+            undent(getContents('components/maestro/generated/TaskTest.xml'))
+        ).to.eql(undent`
         <?xml version="1.0" encoding="UTF-8" ?>
         <component name="TaskTest" extends="Task">
             <interface>
@@ -1715,13 +1734,12 @@ describe('MaestroPlugin', () => {
                 <function name="exec" />
             </interface>
             <script type="text/brightscript" uri="pkg:/source/roku_modules/maestro/private/MaestroPluginUtils.brs" />
-            <script type="text/brightscript" uri="pkg:/components/maestro/generated/TaskTest.brs" />
-            <script type="text/brightscript" uri="pkg:/source/comp.brs" />
+            <script uri="pkg:/source/comp.brs" type="text/brightscript" />
+            <script uri="pkg:/components/maestro/generated/TaskTest.brs" type="text/brightscript" />
             <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
             <children>
             </children>
-        </component>
-        `));
+        </component>`);
 
     });
     it('does not produce diagnostics for missing observer function when extra validation is enabled', async () => {
@@ -1743,13 +1761,12 @@ describe('MaestroPlugin', () => {
         await builder.build();
         expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
         expect(
-            getContents('components/maestro/generated/Comp.brs')
+            undent(getContents('components/maestro/generated/Comp.brs'))
         ).to.eql(undent`
-        'import "pkg:/source/comp.bs"
-
         function init()
             m.top.title = ""
             m.top.content = ""
+
             instance = __Comp_builder()
             instance.delete("top")
             instance.delete("global")
@@ -1759,6 +1776,7 @@ describe('MaestroPlugin', () => {
             m.new()
             m.top = top
             m_wireUpObservers()
+
         end function
 
         function on_title(event)
@@ -1766,14 +1784,16 @@ describe('MaestroPlugin', () => {
         end function
 
         function m_wireUpObservers()
+
             m.top.observeField("title", "on_title")
+
         end function
 
         function __m_setTopField(field, value)
-            if m.top.doesExist(field)
-                m.top[field] = value
-            end if
-            return value
+                if m.top.doesExist(field)
+                    m.top[field] = value
+                end if
+                return value
         end function`);
     });
 
@@ -1797,45 +1817,46 @@ describe('MaestroPlugin', () => {
             `);
         program.validate();
         await builder.build();
-        expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.not.empty;
-
+        assertHasDiagnostic(builder, 'MSTO1038');
     });
+
     it('gives diagnostics for wrong constructor function params', async () => {
         plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
         program.setFile('source/comp.bs', `
-                @node("Comp", "Group")
-                class Comp
+        @node("Comp", "Group")
+        class Comp
 
-                    @observer("onTitleChange")
-                    public title = ""
-                    public content = ""
+        @observer("onTitleChange")
+        public title = ""
+        public content = ""
 
-                    function new()
-                    end function
-                end class
-            `);
+        function new()
+        end function
+        end class
+        `);
         program.validate();
         await builder.build();
         expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.not.empty;
+        assertHasDiagnostic(builder, 'MSTO1036');
 
     });
     it('gives diagnostics for no constructor', async () => {
         plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
         program.setFile('source/comp.bs', `
-                @node("Comp", "Group")
-                class Comp
+        @node("Comp", "Group")
+        class Comp
 
-                    @observer("onTitleChange")
-                    public title = ""
-                    public content = ""
+        @observer("onTitleChange")
+        public title = ""
+        public content = ""
 
-                end class
-            `);
+        end class
+        `);
         program.validate();
         await builder.build();
-        expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.not.empty;
-
+        assertHasDiagnostic(builder, 'MSTO1036');
     });
+
     describe('reflection', () => {
 
         it('adds __classname to all classes in a project', async () => {
@@ -1870,7 +1891,7 @@ describe('MaestroPlugin', () => {
             expect(cs.fields.length === 2);
             expect(cs.memberMap['__className'].name.text === '__className');
             expect(
-                getContents('source/myClass.brs')
+                undent(getContents('source/myClass.brs'))
             ).to.eql(undent`
                 function __myClass_builder()
                     instance = {}
@@ -1900,7 +1921,7 @@ describe('MaestroPlugin', () => {
                 end function
             `);
             expect(
-                getContents('source/comp.brs')
+                undent(getContents('source/comp.brs'))
             ).to.eql(undent`
                 function __Comp_builder()
                     instance = {}
@@ -1937,7 +1958,7 @@ describe('MaestroPlugin', () => {
             expect(cs.fields.length === 2);
             expect(cs.memberMap['__className'].name.text === '__className');
             expect(
-                getContents('source/myClass.brs')
+                undent(getContents('source/myClass.brs'))
             ).to.eql(undent`
                 function __ClassA_builder()
                     instance = {}
@@ -2196,7 +2217,7 @@ describe('MaestroPlugin', () => {
                 await builder.build();
                 expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
                 expect(
-                    getContents('source/VM.brs')
+                    undent(getContents('source/VM.brs'))
                 ).to.eql(undent`
                     function __VM_builder()
                         instance = {}
@@ -2260,7 +2281,7 @@ describe('MaestroPlugin', () => {
 
                 // expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
                 expect(
-                    getContents('source/VM.brs')
+                    undent(getContents('source/VM.brs'))
                 ).to.eql(undent`
             function __VM_builder()
                 instance = {}
@@ -2332,7 +2353,7 @@ describe('MaestroPlugin', () => {
                 await builder.build();
                 expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
                 expect(
-                    getContents('source/VM.brs')
+                    undent(getContents('source/VM.brs'))
                 ).to.eql(undent`
                     function __VM_builder()
                         instance = {}
@@ -2424,7 +2445,7 @@ describe('MaestroPlugin', () => {
                 await builder.build();
                 expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
                 expect(
-                    getContents('source/VM.brs')
+                    undent(getContents('source/VM.brs'))
                 ).to.eql(undent`
             function __VM_builder()
                 instance = {}
@@ -2540,7 +2561,7 @@ describe('MaestroPlugin', () => {
                 await builder.build();
                 expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
                 expect(
-                    getContents('source/VM.brs').trim()
+                    undent(getContents('source/VM.brs').trim())
                 ).to.eql(undent`
                     function __VM_builder()
                         instance = {}
@@ -2579,7 +2600,7 @@ describe('MaestroPlugin', () => {
                 await builder.build();
                 expectZeroDiagnostics(builder);
                 expect(
-                    getContents('source/VM.brs')
+                    undent(getContents('source/VM.brs'))
                 ).to.eql(undent`
                     function __VM_builder()
                         instance = {}
@@ -2742,7 +2763,7 @@ describe('MaestroPlugin', () => {
                 await builder.build();
                 expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
                 expect(
-                    getContents('source/VM.brs')
+                    undent(getContents('source/VM.brs'))
                 ).to.eql(undent`
                     function __MyView_builder()
                         instance = {}
@@ -2793,7 +2814,7 @@ describe('MaestroPlugin', () => {
                 await builder.build();
                 expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
                 expect(
-                    getContents('source/VM.brs')
+                    undent(getContents('source/VM.brs'))
                 ).to.eql(undent`
                 function __MyView_builder()
                     instance = {}
@@ -2851,7 +2872,7 @@ describe('MaestroPlugin', () => {
             await builder.build();
             expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
             expect(
-                getContents('components/comp.xml')
+                undent(getContents('components/comp.xml'))
             ).to.eql(undent`
                 <component name="mv_BaseScreen" extends="mv_BaseView">
                     <script type="text/brightscript" uri="pkg:/components/comp.brs" />
@@ -2862,7 +2883,7 @@ describe('MaestroPlugin', () => {
                 </component>
             `);
             expect(
-                getContents('components/comp.brs')
+                undent(getContents('components/comp.brs'))
             ).to.eql(undent`
                 'import "pkg:/source/AuthManager.bs"
 
@@ -3165,7 +3186,7 @@ describe('MaestroPlugin', () => {
             //ignore diagnostics - need to import core
 
             expect(
-                getContents('source/comp.brs')
+                undent(getContents('source/comp.brs'))
             ).to.eql(undent`
                 function test_ns_nsFunc(name, mTarget = invalid)
                 end function
@@ -3195,7 +3216,7 @@ describe('MaestroPlugin', () => {
             //ignore diagnostics - need to import core
 
             expect(
-                getContents('source/comp.brs')
+                undent(getContents('source/comp.brs'))
             ).to.eql(undent`
                 function test_ns_nsFunc(name, mTarget = invalid)
                 end function
@@ -3225,7 +3246,7 @@ describe('MaestroPlugin', () => {
             //ignore diagnostics - need to import core
 
             expect(
-                getContents('source/comp.brs')
+                undent(getContents('source/comp.brs'))
             ).to.eql(undent`
                 function test_ns_nsFunc(name, mTarget = invalid)
                 end function
@@ -3258,7 +3279,7 @@ describe('MaestroPlugin', () => {
             //ignore diagnostics - need to import core
 
             expect(
-                getContents('source/comp.brs')
+                undent(getContents('source/comp.brs'))
             ).to.eql(undent`
                 function test_ns_nsFunc(name, arg1 = "mark", arg2 = invalid, arg3 = [], arg4 = 123, mTarget = invalid)
                 end function
@@ -3295,7 +3316,7 @@ describe('MaestroPlugin', () => {
             //ignore diagnostics - need to import core
 
             expect(
-                getContents('source/comp.brs')
+                undent(getContents('source/comp.brs'))
             ).to.eql(undent`
                 function test_ns_nsFunc(name, arg1 = "mark", arg2 = invalid, arg3 = [], arg4 = 123, mTarget = invalid)
                 end function
@@ -3337,7 +3358,7 @@ describe('MaestroPlugin', () => {
             //ignore diagnostics - need to import core
 
             expect(
-                getContents('source/comp.brs')
+                undent(getContents('source/comp.brs'))
             ).to.eql(undent`
                 function notInClass()
                     m.expectOnce(mc_getAA(data, "Schedules.0.Productions.0"))
@@ -3368,7 +3389,7 @@ describe('MaestroPlugin', () => {
             await builder.build();
 
             expect(
-                getContents('source/comp.brs')
+                undent(getContents('source/comp.brs'))
             ).to.eql(undent`
             function notInClass()
                 ? index
@@ -3398,7 +3419,7 @@ describe('MaestroPlugin', () => {
             //ignore diagnostics - need to import core
 
             expect(
-                getContents('source/comp.brs')
+                undent(getContents('source/comp.brs'))
             ).to.eql(undent`
                 function notInClass()
                     m.expectOnce(mc_getAA(data, "Schedules.0.Productions.0"))
@@ -3435,7 +3456,7 @@ describe('MaestroPlugin', () => {
             //ignore diagnostics - need to import core
 
             expect(
-                getContents('source/comp.brs')
+                undent(getContents('source/comp.brs'))
             ).to.eql(undent`
                 function notInClass()
                     formatJson(fw_asAA(json.user))
@@ -3518,7 +3539,7 @@ describe('MaestroPlugin', () => {
             //ignore diagnostics - need to import core
 
             expect(
-                getContents('source/comp.brs')
+                undent(getContents('source/comp.brs'))
             ).to.eql(undent`
                 function ns_inNAmespace()
                     formatJson(mc_getAA(json, "user"))
@@ -3551,7 +3572,7 @@ describe('MaestroPlugin', () => {
             //ignore diagnostics - need to import core
 
             expect(
-                getContents('source/comp.brs')
+                undent(getContents('source/comp.brs'))
             ).to.eql(undent`
                 function __Comp_builder()
                     instance = {}
@@ -3600,7 +3621,7 @@ describe('MaestroPlugin', () => {
             //ignore diagnostics - need to import core
 
             expect(
-                getContents('source/comp.brs')
+                undent(getContents('source/comp.brs'))
             ).to.eql(undent`
             function notInClass()
                 print mc_getAA(data, invalid)
@@ -3646,7 +3667,7 @@ describe('MaestroPlugin', () => {
             //ignore diagnostics - need to import core
 
             expect(
-                getContents('source/comp.brs')
+                undent(getContents('source/comp.brs'))
             ).to.eql(undent`
                 function notInClass()
                     m.observe(node.field, m.callbackFunction)
@@ -3681,7 +3702,7 @@ describe('MaestroPlugin', () => {
             //ignore diagnostics - need to import core
 
             expect(
-                getContents('source/comp.brs')
+                undent(getContents('source/comp.brs'))
             ).to.eql(undent`
                 function __Comp_builder()
                     instance = {}
@@ -3869,7 +3890,7 @@ describe('MaestroPlugin', () => {
             //ignore diagnostics - need to import core
 
             expect(
-                getContents('source/comp.brs')
+                undent(getContents('source/comp.brs'))
             ).to.eql(undent`
                 function __Comp_builder()
                     instance = {}
@@ -3943,7 +3964,7 @@ describe('MaestroPlugin', () => {
             await builder.build();
             //ignore diagnostics - need to import core
             expect(
-                getContents('source/comp.brs')
+                undent(getContents('source/comp.brs'))
             ).to.eql(undent`
                 function __Comp_builder()
                     instance = {}
@@ -3985,9 +4006,14 @@ describe('MaestroPlugin', () => {
 
 function getContents(filename: string) {
     let name = path.join(_stagingFolderPath, filename);
-    let contents = fsExtra.readFileSync(name).toString();
-    contents = undent(contents);
-    return contents.trim();
+    return fsExtra.readFileSync(name).toString();
+}
+
+function assertHasDiagnostic(builder: ProgramBuilder, code: string, severity = DiagnosticSeverity.Error, count = 1, isOnly = true) {
+    expect(builder.getDiagnostics().filter((d) => d.severity === severity && d.code === code).length).to.equal(count);
+    if (isOnly) {
+        expect(builder.getDiagnostics().filter((d) => d.severity === severity).length).to.equal(1);
+    }
 }
 
 function checkDiagnostic(d: BsDiagnostic, expectedCode: number, line?: number) {
@@ -3996,3 +4022,5 @@ function checkDiagnostic(d: BsDiagnostic, expectedCode: number, line?: number) {
         expect(d.range.start.line).is.equal(line);
     }
 }
+
+

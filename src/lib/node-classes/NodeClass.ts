@@ -1,10 +1,9 @@
 /* eslint-disable @typescript-eslint/indent */
-import type { AnnotationExpression, BrsFile, MethodStatement, ClassStatement, CommentStatement, DottedGetExpression, EnumMemberStatement, FieldStatement, FunctionParameterExpression, Program, XmlFile } from 'brighterscript';
-import { isEnumMemberStatement, isDottedGetExpression, isEnumStatement, isNewExpression, TokenKind, isMethodStatement, ParseMode, createVisitor, isVariableExpression, WalkMode, isAALiteralExpression, isArrayLiteralExpression, isIntegerType, isLiteralExpression, isLiteralNumber, isLongIntegerType, isUnaryExpression, SymbolTypeFlag, util } from 'brighterscript';
+import type { AnnotationExpression, BrsFile, MethodStatement, ClassStatement, CommentStatement, DottedGetExpression, EnumMemberStatement, FieldStatement, FunctionParameterExpression, Program, XmlFile, SGElement } from 'brighterscript';
+import { isEnumMemberStatement, isDottedGetExpression, isEnumStatement, isNewExpression, TokenKind, isMethodStatement, ParseMode, createVisitor, isVariableExpression, WalkMode, isAALiteralExpression, isArrayLiteralExpression, isIntegerType, isLiteralExpression, isLiteralNumber, isLongIntegerType, isUnaryExpression, SymbolTypeFlag, util, createSGInterfaceField, createSGInterfaceFunction } from 'brighterscript';
 import type { ProjectFileMap } from '../files/ProjectFileMap';
-import { expressionToString, expressionToValue, getAllDottedGetParts, sanitizePkgPath } from '../Utils';
+import { expressionToString, expressionToValue, getAllDottedGetParts } from '../Utils';
 import { addNodeClassCallbackNotDefined, addNodeClassCallbackNotFound, addNodeClassCallbackWrongParams, addNodeClassFieldNoFieldType, addNodeClassNoExtendNodeFound, addNodeClassUnknownClassType, addNodeTaskMustExtendTaskComponent, addTooManyPublicParams } from '../utils/Diagnostics';
-import type { FileFactory } from '../utils/FileFactory';
 import { RawCodeStatement } from '../utils/RawCodeStatement';
 import { getAllFields } from '../utils/Utils';
 
@@ -43,6 +42,20 @@ export class NodeField {
     getObserverStatementText() {
         return `
     m.top.observeField("${this.name}", "on_${this.name}")`;
+    }
+
+    getInterfaceFieldElement(): SGElement {
+        let field = createSGInterfaceField(this.name, {
+            type: this.type
+        });
+        if (this.alwaysNotify) {
+            field.alwaysNotify = 'true';
+        }
+        return field;
+    }
+
+    getInterfaceFunctionElement(): SGElement {
+        return createSGInterfaceFunction(this.name);
     }
 
     getInterfaceText() {
@@ -107,19 +120,42 @@ export class NodeClass {
         public noCode: boolean
     ) {
         this.generatedNodeName = this.name.replace(/[^a-zA-Z0-9]/g, '_');
-        this.bsPath = path.join('components', 'maestro', 'generated', `${this.generatedNodeName}.bs`);
+        this.brsPath = path.join('components', 'maestro', 'generated', `${this.generatedNodeName}.brs`);
         this.xmlPath = path.join('components', 'maestro', 'generated', `${this.generatedNodeName}.xml`);
-        this.nodeFields = this.getNodeFields(this.file, this.classStatement, fileMap);
+        // this.nodeFields = this.getNodeFields(this.file, this.classStatement, fileMap);
+        this.needsTasks = this.getNeedsTasks();
+        this.nodeFields = [];
     }
     public generatedNodeName: string;
     public xmlFile: XmlFile;
+    public needsTasks = false;
     public brsFile: BrsFile;
-    public bsPath: string;
+    public brsPath: string;
     public xmlPath: string;
     public nodeFields: NodeField[] = [];
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     public classMemberFilter = (m) => isMethodStatement(m) && (!m.accessModifier || m.accessModifier.kind === TokenKind.Public) && m.name.text !== 'new';
 
+    private getNeedsTasks() {
+        let fields: BoundClassField[] = [];
+        let members = new Map<string, FieldStatement | MethodStatement>();
+        if (this.type !== NodeClassType.task) {
+            members = this.getClassMembers(this.classStatement, this.fileMap);
+            fields = [...this.getClassFields(this.classStatement, this.fileMap).values()];
+        }
+
+        for (let bf of fields.filter((bf) => (!bf.f.accessModifier || bf.f.accessModifier.kind === TokenKind.Public) && bf.f.name.text.toLocaleLowerCase() !== '__classname')) {
+            let field = bf.f;
+
+            let debounce = field.annotations?.find((a) => a.name.toLowerCase() === 'debounce') !== undefined;
+            let observerAnnotation = field.annotations?.find((a) => a.name.toLowerCase() === 'observer');
+            if (debounce) {
+                return true;
+            }
+        }
+
+        return false;
+    }
     private knownFieldTypes = {
         'integer': true,
         'longinteger': true,
@@ -168,8 +204,8 @@ export class NodeClass {
     function onTick()
       for each funcName in m.pendingCallbacks
         ${isLazy ? `_getVM()
-        m.[funcName]()`
-                : 'm.[funcName]()'}
+        m[funcName]()`
+                : 'm[funcName]()'}
       end for
       m.pendingCallbacks = {}
     end function
@@ -178,7 +214,7 @@ export class NodeClass {
     private getNodeTaskBrsCode(nodeFile: NodeClass) {
         let text = `
   function init()
-      m.top.functionName = "exec"
+      m.top.functionName="exec"
   end function
 
   function exec()
@@ -192,25 +228,47 @@ export class NodeClass {
     private makeFunction(name, args, bodyText) {
         let funcText = `
     function ${name}(${args})
-      ${bodyText}
-    end function
-    `;
+${bodyText}
+    end function\n`;
         return funcText;
         // this.brsFile.parser.statements.push(makeASTFunction(funcText));
     }
 
+
+    synchronizeInterface(program: Program) {
+        if (this.type === NodeClassType.task) {
+            return;
+        }
+
+        //update node fields, in case of them being present in base classes
+        this.nodeFields = this.getNodeFields(this.file, this.classStatement, this.fileMap);
+
+        let members = [...this.getClassMembers(this.classStatement, this.fileMap).values()];
+
+        this.xmlFile.ast.componentElement.interfaceElement.elements = [];
+        let elements = this.xmlFile.ast.componentElement.interfaceElement.elements;
+        for (let member of this.nodeFields) {
+            if (!this.getFieldInParents(member.name, program)) {
+                elements.push(member.getInterfaceFieldElement());
+            }
+        }
+        for (let member of members.filter(this.classMemberFilter)) {
+            if (!this.getFunctionInParents(member.name.text, program)) {
+                elements.push(createSGInterfaceFunction(member.name.text));
+            }
+        }
+    }
 
     private getNodeBrsCode(members: (FieldStatement | MethodStatement)[]) {
         let text = '';
         for (let member of members.filter(this.classMemberFilter)) {
             let params = (member as MethodStatement).func.parameters;
             if (params.length) {
-                let args = `${params.map((p) => p.name.text).join(',')}`;
-                text += this.makeFunction(member.name.text, this.getWrapperCallFuncParams(params), `
-                return m.${member.name.text}(${args})`);
+                let args = `${params.map((p) => p.name.text).join(',')} `;
+                text += this.makeFunction(member.name.text, this.getWrapperCallFuncParams(params), `        return m.${member.name.text}(${args})\n`);
             } else {
                 text += this.makeFunction(member.name.text, 'dummy = invalid', `
-                return m.${member.name.text}()`);
+            return m.${member.name.text}()`);
 
             }
         }
@@ -227,36 +285,36 @@ export class NodeClass {
                 defaultValue = `"${defaultValue}"`;
             }
             return p.name.text + ' = ' + (defaultValue !== undefined ? defaultValue : 'invalid');
-        }).join(',')}`;
+        }).join(',')
+            } `;
     }
 
     private getLazyNodeBrsCode(nodeFile: NodeClass, members: (FieldStatement | MethodStatement)[]) {
         let body = `
-        if m.__isVMCreated = invalid
-        instance = __${nodeFile.classStatement.getName(ParseMode.BrightScript)}_builder()
-        instance.delete("top")
-        instance.delete("global")
-        top = m.top
-        m.append(instance)
-        m.__isVMCreated = true
-        m.new()
-        m.top = top
-        `;
+                if m.__isVMCreated = invalid
+        instance = __${nodeFile.classStatement.getName(ParseMode.BrightScript)} _builder()
+                instance.delete("top")
+                instance.delete("global")
+                top = m.top
+                m.append(instance)
+                m.__isVMCreated = true
+                m.new()
+                m.top = top\n`;
         if (this.observersWaitInit) {
-            body += `m.isWiringObserversOnInit = true\n`;
+            body += `   m.isWiringObserversOnInit = true\n`;
         } else {
-            body += `m_wireUpObservers()\n`;
+            body += `   m_wireUpObservers()\n`;
         }
 
         body += `  end if
         return m
-        `;
+                        `;
         let text = this.makeFunction('_getVM', '', body);
 
         for (let member of members.filter(this.classMemberFilter)) {
             let params = (member as MethodStatement).func.parameters;
             if (params.length) {
-                let args = `${params.map((p) => p.name.text).join(',')}`;
+                let args = `${params.map((p) => p.name.text).join(',')} `;
                 text += this.makeFunction(member.name.text, this.getWrapperCallFuncParams(params), `
                 return _getVM().${member.name.text}(${args})`);
             } else {
@@ -270,29 +328,70 @@ export class NodeClass {
 
     private getNodeTaskFileXmlText(nodeFile: NodeClass): string {
         return `<?xml version="1.0" encoding="UTF-8" ?>
-<component
+                    <component
     name="${nodeFile.name}"
-    extends="${nodeFile.extendsName}">
-  <interface>
-    <field id="args" type="assocarray"/>
-    <field id="output" type="assocarray"/>
-    <function name="exec"/>
-    </interface>
-    <script type="text/brightscript" uri="pkg:/source/roku_modules/maestro/private/MaestroPluginUtils.brs" />
-    <children>
-    </children>
-    </component>
-    `;
+    extends="${nodeFile.extendsName}" >
+        <interface>
+        <field id="args" type="assocarray" />
+            <field id="output" type="assocarray" />
+                <function name="exec"/>
+                    </interface>
+                    <script type="text/brightscript" uri="pkg:/source/roku_modules/maestro/private/MaestroPluginUtils.brs" />
+                        <script uri="pkg:/${this.file.pkgPath}" />
+                        <script uri="pkg:/${this.brsPath}" />
+                            <children>
+                            </children>
+                            </component>
+                                `;
+    }
+    private getSimpleNodeTaskFileXmlText(nodeFile: NodeClass): string {
+        return `<?xml version="1.0" encoding="UTF-8" ?>
+    <component
+    name="${nodeFile.name}"
+    extends="${nodeFile.extendsName}" >
+    <interface>
+    <field id="args" type="assocarray" />
+        <field id="output" type="assocarray" />
+            <function name="exec" />
+                </interface>
+                <script type="text/brightscript" uri="pkg:/source/roku_modules/maestro/private/MaestroPluginUtils.brs" />
+                    <script uri="pkg:/${this.file.pkgPath}" />
+                    ${(this.needsTasks || this.observersWaitInit) ? '<script uri="pkg:/source/roku_modules/mc/Tasks.brs"/>' : ''}
+
+
+                    <script uri="pkg:/${this.brsPath}" />
+                        <children>
+                        </children>
+                        </component>
+                            `;
     }
 
-    private getNodeFileXmlText(nodeFile: NodeClass, members: (FieldStatement | MethodStatement)[], program: Program): string {
+    private getSimpleNodeFileXmlText(): string {
         let text = `<?xml version="1.0" encoding="UTF-8" ?>
-<component
-    name="${nodeFile.name}"
-    extends="${nodeFile.extendsName}">
-  <interface>
+    <component
+    name="${this.name}"
+    extends="${this.extendsName}" >
+    <interface>
+    </interface>
+    <script uri="pkg:/${this.file.pkgPath}" />
+    <script uri="pkg:/${this.brsPath}" />
+    ${(this.needsTasks || this.observersWaitInit) ? '<script uri="pkg:/source/roku_modules/mc/Tasks.brs"/>' : ''}
+
+        <children>
+        </children>
+        </component>
+            `;
+        return text;
+    }
+
+    private getNodeFileXmlText(members: (FieldStatement | MethodStatement)[], program: Program): string {
+        let text = `<?xml version="1.0" encoding="UTF-8" ?>
+    <component
+    name="${this.name}"
+    extends="${this.extendsName}" >
+    <interface>
     `;
-        for (let member of nodeFile.nodeFields) {
+        for (let member of this.nodeFields) {
             if (!this.getFieldInParents(member.name, program)) {
                 text += member.getInterfaceText();
             }
@@ -301,15 +400,17 @@ export class NodeClass {
 
             if (!this.getFunctionInParents(member.name.text, program)) {
                 text += `
-                <function name="${member.name.text}"/>`;
+    <function name="${member.name.text}" /> `;
             }
         }
         text += `
-      </interface>
-      <children>
-      </children>
-      </component>
-      `;
+        </interface>
+        <script uri="pkg:/${this.file.pkgPath}" />
+        <script uri="pkg:/${this.brsPath}" />
+            <children>
+            </children>
+            </component>
+                `;
         return text;
     }
 
@@ -349,96 +450,90 @@ export class NodeClass {
         return undefined;
     }
 
-    generateCode(fileFactory: FileFactory, program: Program, fileMap: ProjectFileMap, isIDEBuild: boolean) {
+    getXmlText(program: Program) {
+        let members = this.type === NodeClassType.task ? [] : [...this.getClassMembers(this.classStatement, this.fileMap).values()];
+        return this.type === NodeClassType.task ? this.getNodeTaskFileXmlText(this) : this.getNodeFileXmlText(members, program);
+    }
+
+    getSimpleXmlText() {
+        return this.type === NodeClassType.task ? this.getSimpleNodeTaskFileXmlText(this) : this.getSimpleNodeFileXmlText();
+    }
+
+    getCodeBehindText() {
+        const fileMap = this.fileMap;
         let members = this.type === NodeClassType.task ? [] : [...this.getClassMembers(this.classStatement, fileMap).values()];
-        // if (!isIDEBuild) {
-        //     console.log('Generating node class', this.name, 'isIDEBuild?', isIDEBuild
-        //     );
-        // }
-        if (!isIDEBuild && !this.noCode) {
-            //update node fields, in case of them being present in base classes
-            this.nodeFields = this.getNodeFields(this.file, this.classStatement, fileMap);
-            let source = `import "${sanitizePkgPath((this.file as any).destPath ?? this.file.pkgPath)}"\n`;
 
-            let initBody = ``;
-            let otherFunctionsText = ``;
-            let observerBody = ``;
-            let hasDebounce = false;
-            if (this.type === NodeClassType.node) {
-                for (let member of this.nodeFields) {
-                    if (member.isEnum) {
-                        initBody += `m.top.${member.name} = ${expressionToString(this.getEnumInitialValue(member.field))}\n`;
-                    } else {
-                        initBody += `m.top.${member.name} = ${member.value}\n`;
-                    }
-                    if (member.isRootOnlyObserver) {
-                        initBody += `m._p_${member.name} = invalid\n`;
-                    }
-                }
-                if (!this.isLazy) {
-                    initBody += `
-                    instance = __${this.classStatement.getName(ParseMode.BrightScript)}_builder()
-                    instance.delete("top")
-                    instance.delete("global")
-                    top = m.top
-                    m.append(instance)
-                    m.__isVMCreated = true
-                    m.new()
-                    m.top = top
-                    `;
-                    if (this.observersWaitInit) {
-                        initBody += `m.isWiringObserversOnInit = true\n`;
-                    } else {
-                        initBody += `m_wireUpObservers()\n`;
-                    }
-                }
+        let source = '';
 
-                for (let field of this.nodeFields.filter((f) => f.observerAnnotation)) {
-                    observerBody += field.getObserverStatementText() + `\n`;
-                    hasDebounce = hasDebounce || field.debounce;
-                    if (this.isLazy) {
-                        otherFunctionsText += field.debounce ? field.getLazyDebouncedCallbackStatement() : field.getLazyCallbackStatement();
-                    } else {
-                        otherFunctionsText += field.debounce ? field.getDebouncedCallbackStatement() : field.getCallbackStatement();
-                    }
+        let initBody = ``;
+        let otherFunctionsText = ``;
+        let observerBody = ``;
+        let hasDebounce = false;
+        if (this.type === NodeClassType.node) {
+            for (let member of this.nodeFields) {
+                if (member.isEnum) {
+                    initBody += `        m.top.${member.name} = ${expressionToString(this.getEnumInitialValue(member.field))}\n`;
+                } else {
+                    initBody += `        m.top.${member.name} = ${member.value}\n`;
                 }
-                if (hasDebounce || this.observersWaitInit) {
-                    initBody += `
-                m.pendingCallbacks = {}
-                `;
+                if (member.isRootOnlyObserver) {
+                    initBody += `        m._p_${member.name} = invalid\n`;
                 }
-                source += this.makeFunction('init', '', initBody);
-                source += otherFunctionsText;
-                source += this.makeFunction('m_wireUpObservers', '', observerBody);
-                if (hasDebounce || this.observersWaitInit) {
-                    source = `import "pkg:/source/roku_modules/mc/Tasks.brs"
-        ` + source;
-                    source += this.getDebounceFunction(this.isLazy);
+            }
+            if (!this.isLazy) {
+                initBody += `
+        instance = __${this.classStatement.getName(ParseMode.BrightScript)}_builder()
+        instance.delete("top")
+        instance.delete("global")
+        top = m.top
+        m.append(instance)
+        m.__isVMCreated = true
+        m.new()
+        m.top = top\n`;
+                if (this.observersWaitInit) {
+                    initBody += `        m.isWiringObserversOnInit = true\n`;
+                } else {
+                    initBody += `        m_wireUpObservers()\n`;
                 }
             }
 
-            source += `function __m_setTopField(field, value)
-              if m.top.doesExist(field)
-                m.top[field] = value
-              end if
-              return value
-            end function`;
-
-            if (this.type === NodeClassType.task) {
-                source += this.getNodeTaskBrsCode(this);
-            } else if (this.isLazy) {
-                source += this.getLazyNodeBrsCode(this, members);
-            } else {
-                source += this.getNodeBrsCode(members);
+            for (let field of this.nodeFields.filter((f) => f.observerAnnotation)) {
+                observerBody += field.getObserverStatementText() + `\n`;
+                hasDebounce = hasDebounce || field.debounce;
+                if (this.isLazy) {
+                    otherFunctionsText += field.debounce ? field.getLazyDebouncedCallbackStatement() : field.getLazyCallbackStatement();
+                } else {
+                    otherFunctionsText += field.debounce ? field.getDebouncedCallbackStatement() : field.getCallbackStatement();
+                }
             }
-
-            this.brsFile = fileFactory.addFile(this.bsPath, source);
-            this.brsFile.parser.invalidateReferences();
+            if (hasDebounce || this.observersWaitInit) {
+                initBody += `       m.pendingCallbacks = {}\n`;
+            }
+            source += this.makeFunction('init', '', initBody);
+            source += otherFunctionsText;
+            source += this.makeFunction('m_wireUpObservers', '', observerBody);
+            if (hasDebounce || this.observersWaitInit) {
+                source += this.getDebounceFunction(this.isLazy);
+            }
         }
-        let xmlText = this.type === NodeClassType.task ? this.getNodeTaskFileXmlText(this) : this.getNodeFileXmlText(this, members, program);
 
-        this.xmlFile = fileFactory.addFile(this.xmlPath, xmlText);
-        this.xmlFile.parser.invalidateReferences();
+        source += `
+    function __m_setTopField(field, value)
+        if m.top.doesExist(field)
+            m.top[field] = value
+        end if
+        return value
+    end function\n\n`;
+
+        if (this.type === NodeClassType.task) {
+            source += this.getNodeTaskBrsCode(this);
+        } else if (this.isLazy) {
+            source += this.getLazyNodeBrsCode(this, members);
+        } else {
+            source += this.getNodeBrsCode(members);
+        }
+        return source;
+
     }
 
     private getClassMembers(classStatement: ClassStatement, fileMap: ProjectFileMap) {
@@ -537,7 +632,7 @@ export class NodeClass {
                         // eslint-disable-next-line
                         (de as any)['obj'] = new RawCodeStatement(`m.top`, this.file, de.range);
                     } catch (e) {
-                        console.log(`Error updating m.public field to dotted get: ${this.file.pkgPath} ${e.getMessage()}`);
+                        console.log(`Error updating m.public field to dotted get: ${this.file.pkgPath} ${e.getMessage()} `);
                     }
                 }
             },
@@ -547,7 +642,7 @@ export class NodeClass {
                         // eslint-disable-next-line
                         (ds as any)['obj'] = new RawCodeStatement(`m.top`, this.file, ds.range);
                     } catch (e) {
-                        console.log(`Error updating m.public field to dotted get: ${this.file.pkgPath} ${e.getMessage()}`);
+                        console.log(`Error updating m.public field to dotted get: ${this.file.pkgPath} ${e.getMessage()} `);
                     }
                 }
             }
