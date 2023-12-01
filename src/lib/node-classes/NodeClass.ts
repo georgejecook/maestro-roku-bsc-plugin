@@ -138,9 +138,7 @@ export class NodeClass {
 
     private getNeedsTasks() {
         let fields: BoundClassField[] = [];
-        let members = new Map<string, FieldStatement | MethodStatement>();
         if (this.type !== NodeClassType.task) {
-            members = this.getClassMembers(this.classStatement, this.fileMap);
             fields = [...this.getClassFields(this.classStatement, this.fileMap).values()];
         }
 
@@ -148,7 +146,6 @@ export class NodeClass {
             let field = bf.f;
 
             let debounce = field.annotations?.find((a) => a.name.toLowerCase() === 'debounce') !== undefined;
-            let observerAnnotation = field.annotations?.find((a) => a.name.toLowerCase() === 'observer');
             if (debounce) {
                 return true;
             }

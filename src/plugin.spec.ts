@@ -7,11 +7,7 @@ import * as fsExtra from 'fs-extra';
 import * as path from 'path';
 import { expectDiagnostics, expectZeroDiagnostics } from './testHelpers.spec';
 
-let tmpPath = s`${process.cwd()}/tmp`;
-let _rootDir = s`${tmpPath}/rootDir`;
-let _stagingFolderPath = s`${tmpPath}/staging`;
-
-function undent(strings: TemplateStringsArray, ...values: any[]): string {
+function undent(strings: TemplateStringsArray | string, ...values: any[]): string {
     // Construct the full string by interleaving the strings and values
     let fullString = '';
     for (let i = 0; i < strings.length; i++) {
@@ -21,6 +17,10 @@ function undent(strings: TemplateStringsArray, ...values: any[]): string {
     // Split into lines, trim leading whitespace, and rejoin
     return fullString.split('\n').map(line => line.trim()).join('\n').trim();
 }
+
+let tmpPath = s`${process.cwd()}/tmp`;
+let _rootDir = s`${tmpPath}/rootDir`;
+let _stagingFolderPath = s`${tmpPath}/staging`;
 
 describe('MaestroPlugin', () => {
     let program: Program;

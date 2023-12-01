@@ -6,7 +6,8 @@ import type {
 import {
     Range,
     Expression,
-    Statement
+    Statement,
+    AstNodeKind
 } from 'brighterscript';
 
 import { SourceNode } from 'source-map';
@@ -14,6 +15,8 @@ import { SourceNode } from 'source-map';
 import type { BrsTranspileState } from 'brighterscript/dist/parser/BrsTranspileState';
 
 export class RawCodeStatement extends Statement {
+    kind = AstNodeKind.Body;
+
     constructor(
         public source: string,
         public sourceFile?: BscFile,
@@ -40,6 +43,8 @@ export class RawCodeStatement extends Statement {
     }
 }
 export class RawCodeExpression extends Expression {
+    kind = AstNodeKind.Body;
+
     constructor(
         public source: string,
         public sourceFile?: BscFile,

@@ -1,40 +1,40 @@
 {
-  "stagingFolderPath": "/tmp/out",
-  "rootDir": "src",
-  "files": [
-    "manifest",
-    "source/**/*.*",
-    "components/**/*.*",
-    "images/**/*.*"
-  ],
-  "retainStagingFolder": true,
-  "autoImportComponentScript": true,
-  "diagnosticFilters": [
-    1013,
-    {
-      "src": "components/roku_modules/mv/core/BaseView.brs",
-      "codes": [
-        1001,
+    "stagingDir": "/tmp/out",
+    "rootDir": "src",
+    "files": [
+        "manifest",
+        "source/**/*.*",
+        "components/**/*.*",
+        "images/**/*.*"
+    ],
+    "retainStagingFolder": true,
+    "autoImportComponentScript": true,
+    "diagnosticFilters": [
+        1013,
+        {
+            "src": "components/roku_modules/mv/core/BaseView.brs",
+            "codes": [
+                1001,
+                1067
+            ]
+        },
         1067
-      ]
+    ],
+    "diagnosticLevel": "warn",
+    "plugins": [
+        "../dist/plugin.js"
+    ],
+    "maestro": {
+        "buildTimeImports": {
+            "IAuthProvider": [
+                "pkg:/source/mixins/NetMixin.bs",
+                "pkg:/source/maestro/observable/ObservableMixin.bs"
+            ],
+            "IEntitlementsProvider": [],
+            "IBookmarksProvider": [],
+            "IPlayerAnalytics": [],
+            "IAnalytics": []
+        }
     },
-    1067
-  ],
-  "diagnosticLevel": "warn",
-  "plugins": [
-    "../dist/plugin.js"
-  ],
-  "maestro": {
-    "buildTimeImports": {
-      "IAuthProvider": [
-        "pkg:/source/mixins/NetMixin.bs",
-        "pkg:/source/maestro/observable/ObservableMixin.bs"
-      ],
-      "IEntitlementsProvider": [],
-      "IBookmarksProvider": [],
-      "IPlayerAnalytics": [],
-      "IAnalytics": []
-    }
-  },
-  "sourceMap": true
+    "sourceMap": true
 }
