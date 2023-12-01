@@ -1,4 +1,4 @@
-import type { BrsFile, BscType, MethodStatement, ClassStatement, DottedGetExpression, Editor, EnumType, Expression, FunctionStatement, LiteralExpression, Statement, ClassType } from 'brighterscript';
+import type { BrsFile, BscType, MethodStatement, ClassStatement, DottedGetExpression, Editor, EnumType, Expression, FunctionStatement, LiteralExpression, Statement, ClassType, InterfaceType } from 'brighterscript';
 import { isEnumMemberStatement, Range, createVariableExpression, isDottedGetExpression, isVariableExpression, BinaryExpression, Block, createStringLiteral, createToken, IfStatement, ImportStatement, isAALiteralExpression, isArrayLiteralExpression, isMethodStatement, isClassStatement, isCommentStatement, isImportStatement, isIntegerType, isLiteralBoolean, isLiteralNumber, isLiteralString, isLongIntegerType, isUnaryExpression, Lexer, ParseMode, Parser, Position, TokenKind, SymbolTypeFlag, createBooleanLiteral, createIntegerLiteral, createFloatLiteral, createLongIntegerLiteral, createInvalidLiteral } from 'brighterscript';
 import * as rokuDeploy from 'roku-deploy';
 import { createAA, createArray, createRange } from './utils/Utils';
@@ -187,13 +187,15 @@ export function typeToValueExpression(type: BscType): Expression {
             return createArray();
         case BscTypeKind.AssociativeArrayType:
             return createAA();
-        case BscTypeKind.ClassType:
-            switch ((type as ClassType).name?.toLowerCase()) {
-                case 'mc.types.array':
+        case BscTypeKind.InterfaceType:
+            switch ((type as InterfaceType).name?.toLowerCase()) {
+                case 'roarray':
                     return createArray();
-                case 'mc.types.assocarray':
+                case 'roassociativearray':
                     return createAA();
             }
+            return createInvalidLiteral();
+        case BscTypeKind.ClassType:
             return createInvalidLiteral();
         case BscTypeKind.EnumType:
             return typeToValueExpression((type as EnumType).defaultMemberType);

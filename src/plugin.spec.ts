@@ -1235,8 +1235,9 @@ describe('MaestroPlugin', () => {
                     public sTyped as string
                     public numTyped as integer
                     public numFloatTyped as float
-                    public arrTyped as mc.types.array
-                    public aaTyped as mc.types.assocarray
+                    public arrTyped as roArray
+                    public aaTyped as roAssociativeArray
+                    public nodeTyped as roSGNode
 
                     function new()
                     end function
@@ -1268,6 +1269,7 @@ describe('MaestroPlugin', () => {
                     <field id="numFloatTyped" type="float" />
                     <field id="arrTyped" type="array" />
                     <field id="aaTyped" type="assocarray" />
+                    <field id="nodeTyped" type="node" />
                 </interface>
                 <script uri="pkg:/source/comp.brs" type="text/brightscript" />
                 <script uri="pkg:/components/maestro/generated/Comp.brs" type="text/brightscript" />
@@ -1292,6 +1294,7 @@ describe('MaestroPlugin', () => {
                 m.top.numFloatTyped = invalid
                 m.top.arrTyped = invalid
                 m.top.aaTyped = invalid
+                m.top.nodeTyped = invalid
 
                 instance = __Comp_builder()
                 instance.delete("top")
@@ -2407,9 +2410,9 @@ describe('MaestroPlugin', () => {
                         @inject("myKey", "fromHere")
                         public fieldI as integer
                         @inject("myKey")
-                        public fieldJ as mc.types.assocarray
+                        public fieldJ as roAssociativeArray
                         @inject("myKey")
-                        public fieldK as mc.types.array
+                        public fieldK as roArray
                         @inject("myKey")
                         public fieldL = []
                         @inject("myKey")
@@ -2419,23 +2422,6 @@ describe('MaestroPlugin', () => {
                         @inject("myKey")
                         public fieldO = {"one": "two"}
                    end class
-                   namespace mc.types
-                        class Node
-                            sub new()
-                            end sub
-                            public __classname as string
-                        end class
-                        class Array
-                            sub new()
-                            end sub
-                            public __classname as string
-                        end class
-                        class AssocArray
-                            sub new()
-                            end sub
-                            public __classname as string
-                        end class
-                    end namespace
                    namespace mc.collections
                     class FieldMapper
                     end class
@@ -2447,89 +2433,50 @@ describe('MaestroPlugin', () => {
                 expect(
                     undent(getContents('source/VM.brs'))
                 ).to.eql(undent`
-            function __VM_builder()
-                instance = {}
-                instance.new = sub()
-                    m.fieldA = mioc_getInstance("myString", invalid, "defaultKey")
-                    m.fieldB = mioc_getInstance("myBool", invalid, true)
-                    m.fieldC = mioc_getInstance("myKey", "fromHere", 23)
-                    m.fieldD = mioc_getInstance("myKey", invalid, "")
-                    m.fieldE = mioc_getInstance("myKey", invalid, false)
-                    m.fieldF = mioc_getInstance("myKey", invalid, 0)
-                    m.fieldG = mioc_getInstance("myKey", "fromHere", "")
-                    m.fieldH = mioc_getInstance("myKey", "fromHere", false)
-                    m.fieldI = mioc_getInstance("myKey", "fromHere", 0)
-                    m.fieldJ = mioc_getInstance("myKey", invalid, {})
-                    m.fieldK = mioc_getInstance("myKey", invalid, [])
-                    m.fieldL = mioc_getInstance("myKey", invalid, [])
-                    m.fieldM = mioc_getInstance("myKey", invalid, [
-                        "one"
-                        "two"
-                    ])
-                    m.fieldN = mioc_getInstance("myKey", invalid, {})
-                    m.fieldO = mioc_getInstance("myKey", invalid, {
-                        "one": "two"
-                    })
-                    m.__classname = "VM"
-                end sub
-                return instance
-            end function
-            function VM()
-                instance = __VM_builder()
-                instance.new()
-                return instance
-            end function
-            function __mc_types_Node_builder()
-                instance = {}
-                instance.new = sub()
-                    m.__classname = invalid
-                    m.__className = "mc.types.Node"
-                end sub
-                return instance
-            end function
-            function mc_types_Node()
-                instance = __mc_types_Node_builder()
-                instance.new()
-                return instance
-            end function
-            function __mc_types_Array_builder()
-                instance = {}
-                instance.new = sub()
-                    m.__classname = invalid
-                    m.__className = "mc.types.Array"
-                end sub
-                return instance
-            end function
-            function mc_types_Array()
-                instance = __mc_types_Array_builder()
-                instance.new()
-                return instance
-            end function
-            function __mc_types_AssocArray_builder()
-                instance = {}
-                instance.new = sub()
-                    m.__classname = invalid
-                    m.__className = "mc.types.AssocArray"
-                end sub
-                return instance
-            end function
-            function mc_types_AssocArray()
-                instance = __mc_types_AssocArray_builder()
-                instance.new()
-                return instance
-            end function
-            function __mc_collections_FieldMapper_builder()
-                instance = {}
-                instance.new = sub()
-                    m.__classname = "mc.collections.FieldMapper"
-                end sub
-                return instance
-            end function
-            function mc_collections_FieldMapper()
-                instance = __mc_collections_FieldMapper_builder()
-                instance.new()
-                return instance
-            end function`);
+                function __VM_builder()
+                    instance = {}
+                    instance.new = sub()
+                        m.fieldA = mioc_getInstance("myString", invalid, "defaultKey")
+                        m.fieldB = mioc_getInstance("myBool", invalid, true)
+                        m.fieldC = mioc_getInstance("myKey", "fromHere", 23)
+                        m.fieldD = mioc_getInstance("myKey", invalid, "")
+                        m.fieldE = mioc_getInstance("myKey", invalid, false)
+                        m.fieldF = mioc_getInstance("myKey", invalid, 0)
+                        m.fieldG = mioc_getInstance("myKey", "fromHere", "")
+                        m.fieldH = mioc_getInstance("myKey", "fromHere", false)
+                        m.fieldI = mioc_getInstance("myKey", "fromHere", 0)
+                        m.fieldJ = mioc_getInstance("myKey", invalid, {})
+                        m.fieldK = mioc_getInstance("myKey", invalid, [])
+                        m.fieldL = mioc_getInstance("myKey", invalid, [])
+                        m.fieldM = mioc_getInstance("myKey", invalid, [
+                            "one"
+                            "two"
+                        ])
+                        m.fieldN = mioc_getInstance("myKey", invalid, {})
+                        m.fieldO = mioc_getInstance("myKey", invalid, {
+                            "one": "two"
+                        })
+                        m.__classname = "VM"
+                    end sub
+                    return instance
+                end function
+                function VM()
+                    instance = __VM_builder()
+                    instance.new()
+                    return instance
+                end function
+                function __mc_collections_FieldMapper_builder()
+                    instance = {}
+                    instance.new = sub()
+                        m.__classname = "mc.collections.FieldMapper"
+                    end sub
+                    return instance
+                end function
+                function mc_collections_FieldMapper()
+                    instance = __mc_collections_FieldMapper_builder()
+                    instance.new()
+                    return instance
+                end function`);
             });
 
             it('honors enums as default values', async () => {
