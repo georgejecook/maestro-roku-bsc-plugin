@@ -1,4 +1,4 @@
-import type { BrsFile, BscType, MethodStatement, ClassStatement, DottedGetExpression, Editor, EnumType, Expression, FunctionStatement, LiteralExpression, Statement, ClassType, InterfaceType } from 'brighterscript';
+import type { BrsFile, BscType, MethodStatement, ClassStatement, DottedGetExpression, Editor, EnumType, Expression, FunctionStatement, LiteralExpression, Statement, InterfaceType } from 'brighterscript';
 import { isEnumMemberStatement, Range, createVariableExpression, isDottedGetExpression, isVariableExpression, BinaryExpression, Block, createStringLiteral, createToken, IfStatement, ImportStatement, isAALiteralExpression, isArrayLiteralExpression, isMethodStatement, isClassStatement, isCommentStatement, isImportStatement, isIntegerType, isLiteralBoolean, isLiteralNumber, isLiteralString, isLongIntegerType, isUnaryExpression, Lexer, ParseMode, Parser, Position, TokenKind, SymbolTypeFlag, createBooleanLiteral, createIntegerLiteral, createFloatLiteral, createLongIntegerLiteral, createInvalidLiteral } from 'brighterscript';
 import * as rokuDeploy from 'roku-deploy';
 import { createAA, createArray, createRange } from './utils/Utils';
