@@ -29,6 +29,7 @@ describe('MaestroPlugin', () => {
             mvvm: {},
             nodeClasses: {},
             processXMLFiles: true,
+            customAnnotations: ['custom1', 'customTest2'],
             buildTimeImports: {
                 'IAuthProvider': ['pkg:/source/AuthManager.bs']
             }
@@ -3960,6 +3961,144 @@ describe('MaestroPlugin', () => {
                     return instance
                 end function
             `);
+        });
+    });
+    describe('get config', () => {
+        it('it uses default annotations', () => {
+            plugin.afterProgramCreate(program);
+            expect(plugin.defaultAnnotations).to.eql(new Set([
+                'todo',
+                'rootonly',
+                'fixme',
+                'deprecated',
+                'node',
+                'observerswaitinitialize',
+                'observefield',
+                'task',
+                'inject',
+                'alwaysnotify',
+                'debounce',
+                'observer',
+                'usesetfield',
+                'strict',
+                'nocode',
+                'lazy',
+                'injectclass',
+                'injectlocalm',
+                'createclass',
+                'sync',
+                'none',
+                'testsuite',
+                'describe',
+                'it',
+                'ignore',
+                'solo',
+                'nodetest',
+                'setup',
+                'teardown',
+                'beforeeach',
+                'aftereach',
+                'params',
+                'ignoreparams',
+                'soloparams',
+                'async',
+                'tags',
+                'nocatch',
+                'noearlyexit',
+                'custom1',
+                'customtest2'
+            ]));
+            expect(plugin.maestroConfig.validateAnnotations).to.be.true;
+        });
+    });
+
+    describe('annotation validation', () => {
+        it('does not report known annotations', async () => {
+            plugin.afterProgramCreate(program);
+
+            //NOTE - we want to have examples of..
+            //annotation on class
+            //annotation on method
+            //annotation IN code block
+            //annotation on namespaced method.
+            program.setFile('source/VM.bs', `
+                class VM
+                    'fields
+                    @inject("Entitlements")
+                    public fieldA
+                    @injectClass("mc.collections.FieldMapper")
+                    public fieldB
+
+                    @observer("something")
+                    @debounce
+                    public fieldC
+               end class
+
+               namespace mc.collections
+                'class
+                @node("something")
+                class FieldMapper
+                    function test()
+                        'code inside block
+                        @TODO update this
+                        ? "hello"
+                    end function
+                end class
+
+                'namespace function
+                @injectLocalM
+                function functionTest(mTarget as dynamic)
+                end function
+               end namespace
+
+            `);
+            program.validate();
+            await builder.transpile();
+
+            program.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error && d.code !== 'MSTO1065');
+        });
+
+        it('does not report errors for custom annotations', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/VM.bs', `
+                class VM
+                    @custom1
+                    public fieldA
+                    @customTest2("mc.collections.FieldMapper")
+                    public fieldB
+               end class
+               namespace mc.collections
+                class FieldMapper
+                end class
+               end namespace
+            `);
+            program.validate();
+            await builder.transpile();
+            let diagnostics = program.getDiagnostics();
+            expect(diagnostics).to.be.empty;
+        });
+
+        it('reports errors for unknown annotations', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/VM.bs', `
+                class VM
+                    @notKnown1
+                    public fieldA
+                    @notknown2("mc.collections.FieldMapper")
+                    public fieldB
+               end class
+               namespace mc.collections
+                class FieldMapper
+                end class
+               end namespace
+            `);
+            program.validate();
+            await builder.transpile();
+
+            let diagnostics = program.getDiagnostics();
+            expect(diagnostics).to.have.lengthOf(4);
+            checkDiagnostic(diagnostics[0], 1065, 2);
+            checkDiagnostic(diagnostics[1], 1065, 4);
         });
     });
 
