@@ -3330,7 +3330,7 @@ describe('MaestroPlugin', () => {
                     m.expectOnce(mc_getAA(data, "Schedules.0.Productions.0"))
                     print mc_getAA(data, "Schedules.0.Productions.0")
                     formatJson(mc_getAA(json, "user"))
-                    print (mc_getString(json, "user.name", "default name"))
+                    print (mc_getString(json?.user?.name, invalid, "default name"))
                     if mc_getBoolean(json, "user.favorites.0.isActive")
                         print mc_getInteger(json, "age.0.time." + rokucommunity_bslib_toString(thing) + ".other.this")
                     end if
@@ -3390,7 +3390,7 @@ describe('MaestroPlugin', () => {
                     m.expectOnce(mc_getAA(data, "Schedules.0.Productions.0"))
                     print mc_getAny(data, "Schedules.0.Productions.0")
                     formatJson(mc_getAA(json, "user"))
-                    print (mc_getString(json, "user.name", "default name"))
+                    print (mc_getString(json?.user?.name, invalid, "default name"))
                     if mc_getBoolean(json, "user.favorites.0.isActive")
                         print mc_getInteger(json, "age.0.time." + rokucommunity_bslib_toString(thing) + ".other.this")
                     end if
@@ -3546,7 +3546,7 @@ describe('MaestroPlugin', () => {
                         m.__classname = "Comp"
                     end sub
                     instance.classMethod = function()
-                        formatJson(mc_getAA(m, "json.user"))
+                        formatJson(mc_getAA(m?.json?.user))
                         if mc_getBoolean(m, "json.user.favorites.0.isActive")
                             print mc_getInteger(m, "json.age.0.time." + rokucommunity_bslib_toString(thing) + ".other.this")
                         end if
@@ -3602,6 +3602,69 @@ describe('MaestroPlugin', () => {
                     print mc_getLong(numSeconds, invalid, - 1)
                 end if
                 print m.items.getValue(mc_getArray(items, invalid))
+            end function
+            `);
+        });
+        it('supports optimized compiling', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                function notInClass()
+                    data = {
+                        user: {
+                            profiles: [
+                                {name: "one"}
+                                {name: "two"}
+                            ]
+                            name: "three"
+                        }
+                    }
+
+                    'should be optimized as mc_getString(data?.user?.name)
+                    print(asString(data.user.name))
+
+                    'should be optimized as mc_getString(data?.user?.name, invalid, "default")
+                    print(asString(data.user.name, "default"))
+
+                    'cannot be optimized: will be mc_getString(data, "user.profiles.0.name", invalid, "default")
+                    print(asString(data.user.profiles[0].name, "default"))
+
+                    'cannot be optimized: will be mc_getString(data, "user.profiles.0.name")
+                    print(asString(data.user.profiles[0].name))
+
+                    'should be optimized as mc_getString(data.user.profile?.name, invalid, "default")
+                    print(asString(data.user.profile?.name, "default"))
+                end function
+            `);
+            program.validate();
+            await builder.transpile();
+            //ignore diagnostics - need to import core
+            expect(
+                getContents('source/comp.brs')
+            ).to.eql(undent`
+            function notInClass()
+                data = {
+                    user: {
+                        profiles: [
+                            {
+                                name: "one"
+                            }
+                            {
+                                name: "two"
+                            }
+                        ]
+                        name: "three"
+                    }
+                }
+                'should be optimized as mc_getString(data?.user?.name)
+                print (mc_getString(data?.user?.name))
+                'should be optimized as mc_getString(data?.user?.name, invalid, "default")
+                print (mc_getString(data?.user?.name, invalid, "default"))
+                'cannot be optimized: will be mc_getString(data, "user.profiles.0.name", invalid, "default")
+                print (mc_getString(data, "user.profiles.0.name", invalid, "default"))
+                'cannot be optimized: will be mc_getString(data, "user.profiles.0.name")
+                print (mc_getString(data, "user.profiles.0.name"))
+                'should be optimized as mc_getString(data.user.profile?.name, invalid, "default")
+                print (mc_getString(data?.user?.profile?.name, invalid, "default"))
             end function
             `);
         });

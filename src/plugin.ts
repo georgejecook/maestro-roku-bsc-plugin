@@ -550,15 +550,27 @@ export class MaestroPlugin implements CompilerPlugin {
                                     name = 'mc_getAny';
                                 }
                                 callExpression.callee.name.text = name;
+                                let rootValue = this.getRootValue(value);
                                 if (stringPath) {
-                                    //FIXME do not use a raw code expression here
-                                    let rawCode = new RawCodeExpression(`"${stringPath}"`, file, value.range);
-                                    callExpression.args.unshift(rawCode);
+                                    let defaultValue = callExpression.args.shift() as DottedGetExpression;
+
+                                    if (defaultValue) {
+                                        callExpression.args.unshift(defaultValue);
+                                        callExpression.args.unshift(createInvalidLiteral());
+                                    }
+                                    if (stringPath.includes('?')) {
+                                        let rawCode = new RawCodeExpression(`${rootValue.name.text}?.${stringPath}`, file, value.range);
+                                        callExpression.args.unshift(rawCode);
+                                    } else {
+                                        let rawCode = new RawCodeExpression(`"${stringPath}"`, file, value.range);
+                                        callExpression.args.unshift(rawCode);
+                                        callExpression.args.unshift(rootValue);
+                                    }
                                 } else {
                                     callExpression.args.unshift(createInvalidLiteral());
+                                    callExpression.args.unshift(rootValue);
                                 }
-                                let rootValue = this.getRootValue(value);
-                                callExpression.args.unshift(rootValue);
+
                             } catch (error) {
                                 if (error.message !== 'unsupportedValue') {
                                     console.error('could not update asXXX function call, due to unexpected error', error);
@@ -674,7 +686,11 @@ export class MaestroPlugin implements CompilerPlugin {
             }
             root = root.obj;
         }
-        let joinedParts = parts.reverse().join('.');
+        let canBeOptimized = !parts.some((str) => /\d/.test(str));
+        if (parts.some((str) => str?.includes('rokucommunity_bslib_toString'))) {
+            canBeOptimized = false;
+        }
+        let joinedParts = parts.reverse().join(canBeOptimized ? '?.' : '.');
         return joinedParts === '' ? undefined : joinedParts;
     }
 
