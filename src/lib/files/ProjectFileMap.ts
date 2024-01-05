@@ -9,12 +9,17 @@ import { addProjectFileMapErrorDuplicateXMLComp } from '../utils/Diagnostics';
 import type { NodeClass } from '../node-classes/NodeClass';
 
 export class ProjectFileMap {
+    processFileRemoveEvent(event: brighterscript.BeforeFileRemoveEvent<brighterscript.File>) {
+        let mFile = this.allFiles[event.file.srcPath];
+        if (mFile) {
+            this.removeFile(mFile);
+        }
+    }
 
     addProvidedFiles(event: brighterscript.ProvideFileEvent) {
         for (const file of event.files) {
             if (brighterscript.isBrsFile(file) || brighterscript.isXmlFile(file)) {
-                // afp(file: (BrsFile | XmlFile)): void {
-                // console.log('MAESTRO afp-----', file.srcPath);
+                console.log('MAESTRO afp-----', file.srcPath);
                 let mFile = this.allFiles[file.srcPath];
                 if (!mFile) {
                     mFile = this.createFile(file);
@@ -166,6 +171,9 @@ export class ProjectFileMap {
     public removeFile(file: MaestroFile) {
         this.removeFileClasses(file);
         delete this.allFiles[file.fullPath];
+        if (file.bscFile) {
+            delete this.nodeClassesByPath[file.bscFile.srcPath];
+        }
     }
 
     public getFileForClass(className: string) {
@@ -177,6 +185,7 @@ export class ProjectFileMap {
 
     public addFile(file: MaestroFile) {
         this.removeFile(file);
+        console.log('>>>>>>ADDING ', file.fullPath);
         if (brighterscript.isBrsFile(file.bscFile)) {
             this.addNamespaces(file.bscFile);
         }

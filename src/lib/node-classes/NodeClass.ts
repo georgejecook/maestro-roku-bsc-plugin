@@ -696,7 +696,7 @@ ${bodyText}
         if (fieldType) {
             if (fieldType === 'roassociativearray') {
                 fieldType = 'assocarray';
-            } else if (fieldType === 'rosgnode') {
+            } else if (fieldType.startsWith('rosgnode')) {
                 fieldType = 'node';
             } else if (fieldType === 'roarray') {
                 fieldType = 'array';

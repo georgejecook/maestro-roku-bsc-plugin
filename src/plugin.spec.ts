@@ -642,6 +642,140 @@ describe('MaestroPlugin', () => {
             end function`);
         });
 
+        it.only('does not fail if changing a node class, or a file consuming it', async () => {
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
+            console.log('>+>+>+>>>+>+>+>+>+> EDIT1');
+            program.setFile('source/comp.bs', `
+                @node("Comp", "Group")
+                class Comp
+
+                    public title = ""
+                    public content = ""
+
+                    function new()
+                    end function
+                end class
+            `);
+            program.setFile('source/client.bs', `
+                class Client
+
+                    public myComp as roSGNodeComp
+
+                    function new()
+                        ? m.myComp.title
+                    end function
+                end class
+            `);
+            program.validate();
+            await builder.build();
+            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+
+            // program.setFile('source/client.bs', `
+            //     class Client
+
+            //         public myComp as roSGNodeComp
+
+
+            //         function new()
+            //             ? m.myComp.title
+            //         end function
+            //     end class
+            // `);
+            console.log('>+>+>+>>>+>+>+>+>+> EDIT2');
+            program.setFile('source/comp.bs', `
+            @node("Comp", "Group")
+            class Comp
+
+            public title = ""
+            public content = ""
+
+
+            function new()
+            end function
+            end class
+            `);
+            program.setFile('source/client.bs', `
+            class Client
+
+            public myComp as roSGNodeComp
+
+
+            function new()
+            ? m.myComp.title
+            end function
+            end class
+            `);
+
+            program.validate();
+            await builder.build();
+            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+
+        });
+
+        it('does not fail if changing a node class, or a file consuming it', async () => {
+            plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
+            program.setFile('components/comp.xml', `
+                    <component
+                    name='Comp'
+                    extends='Group'>
+                <interface>
+                    <field
+                        id='title'
+                        type='string' />
+                    <field
+                        id='settings'
+                        type='node' />
+                </interface>
+                </component>
+                    `);
+            program.setFile('source/client.bs', `
+                class Client
+
+                    public myComp as roSGNodeComp
+
+                    function new()
+                        ? m.myComp.title
+                    end function
+                end class
+            `);
+            program.validate();
+            await builder.build();
+            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+
+            program.setFile('components/comp.xml', `
+                    <component
+                    name='Comp'
+                    extends='Group'>
+                <interface>
+                    <field
+                        id='title'
+                        type='string' />
+
+                    <field
+                        id='settings'
+                        type='node' />
+                </interface>
+                </component>
+                    `);
+
+            program.setFile('source/client.bs', `
+                class Client
+
+                    public myComp as roSGNodeComp
+
+
+                    function new()
+                        ? m.myComp.title
+                    end function
+                end class
+            `);
+
+            program.validate();
+            await builder.build();
+            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+
+        });
+
         it('parses tunnels public functions', async () => {
             plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `

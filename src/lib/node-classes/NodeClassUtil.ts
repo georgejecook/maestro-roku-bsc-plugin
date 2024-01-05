@@ -129,7 +129,6 @@ export default class NodeClassUtil {
                         return nodeClass;
 
                     } else {
-                        console.log('not adding invalid class', classStatement.name.text);
                     }
                 }
             }

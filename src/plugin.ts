@@ -57,7 +57,8 @@ import type {
     AfterFileAddEvent,
     SerializeFileEvent,
     BeforeSerializeFileEvent,
-    BeforeProgramValidateEvent
+    BeforeProgramValidateEvent,
+    BeforeFileRemoveEvent
 } from 'brighterscript';
 import { ProjectFileMap } from './lib/files/ProjectFileMap';
 import type { MaestroConfig } from './lib/files/MaestroConfig';
@@ -184,6 +185,10 @@ export class MaestroPlugin implements CompilerPlugin {
     afterProvideFile(event: ProvideFileEvent): void {
         this.fileMap.addProvidedFiles(event);
         this.nodeClassUtil.processProvideFileEvent(event);
+    }
+
+    beforeFileRemove(event: BeforeFileRemoveEvent) {
+        this.fileMap.processFileRemoveEvent(event);
     }
 
     // afterProvideFile(event: AfterProvideFileEvent): void {
