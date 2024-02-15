@@ -413,12 +413,55 @@ export function addNodeClassDoesNotOverrideNewError(file: BrsFile, name: string,
 
 export function addNodeTaskMustExtendTaskComponent(file: BrsFile, name: string, line = 0, col = 0) {
     file.addDiagnostics([createDiagnostic(file, 1029, `Task "${name}" does not extend Task. Ensure that the node, or one of it'a ancestors extends Task`, line, col)]);
-
 }
 
 export function addWrongAnnotation(file: BrsFile, name: string, line = 0, col = 0) {
     file.addDiagnostics([createDiagnostic(file, 1065, `Annotation "${name}" does not exist`, line, col)]);
-
 }
 
+export function noNameForNotification() {
+    return {
+        message: `@onNotification tag requires only 1 string argument to indicate what notification to listen for. e.g @onNotification("userChanged")`,
+        code: `MSTO${1066}`,
+        severity: DiagnosticSeverity.Error
+    };
+}
 
+export function onNotificationFieldError() {
+    return {
+        message: `@onNotification can only be used on methods, not fields`,
+        code: `MSTO${1067}`,
+        severity: DiagnosticSeverity.Error
+    };
+}
+
+export function notificationAnnotationDisabled() {
+    return {
+        message: `@onNotification are disabled. To enable them, set the 'allowNotificationAnnotations' flag in your maestro config to true`,
+        code: `MSTO${1068}`,
+        severity: DiagnosticSeverity.Error
+    };
+}
+export function onNotificationWrongParameter() {
+    return {
+        message: `@onNotification methods must have 1 parameter type mc.notification, which is the notification payload`,
+        code: `MSTO${1069}`,
+        severity: DiagnosticSeverity.Error
+    };
+}
+
+export function onNotificationConstructorError() {
+    return {
+        message: `@onNotification cannot be set on a constructor`,
+        code: `MSTO${1070}`,
+        severity: DiagnosticSeverity.Error
+    };
+}
+
+export function onNotificationNotSupported() {
+    return {
+        message: `@onNotification is only supported on methods in a node class`,
+        code: `MSTO${1071}`,
+        severity: DiagnosticSeverity.Error
+    };
+}

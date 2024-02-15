@@ -237,6 +237,7 @@ export let defaultAnnotations = new Set<string>([
     'rootOnly',
     'node',
     'observersWaitInitialize',
+    'onNotification',
     'observeField',
     'task',
     'inject',

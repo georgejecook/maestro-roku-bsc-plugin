@@ -59,7 +59,7 @@ import ReflectionUtil from './lib/reflection/ReflectionUtil';
 import { FileFactory } from './lib/utils/FileFactory';
 import NodeClassUtil from './lib/node-classes/NodeClassUtil';
 import { RawCodeStatement, RawCodeExpression } from './lib/utils/RawCodeStatement';
-import { addClassFieldsNotFoundOnSetOrGet, addIOCNoTypeSupplied, addIOCWrongArgs, noCallsInAsXXXAllowed, functionNotImported, IOCClassNotInScope, namespaceNotImported, noPathForInject, noPathForIOCSync, unknownClassMethod, unknownConstructorMethod, unknownSuperClass, unknownType, wrongConstructorArgs, wrongMethodArgs, observeRequiresFirstArgumentIsField, observeRequiresFirstArgumentIsNotM, observeFunctionNameNotFound, observeFunctionNameWrongArgs, addWrongAnnotation } from './lib/utils/Diagnostics';
+import { addClassFieldsNotFoundOnSetOrGet, addIOCNoTypeSupplied, addIOCWrongArgs, noCallsInAsXXXAllowed, functionNotImported, IOCClassNotInScope, namespaceNotImported, noPathForInject, noPathForIOCSync, unknownClassMethod, unknownConstructorMethod, unknownSuperClass, unknownType, wrongConstructorArgs, wrongMethodArgs, observeRequiresFirstArgumentIsField, observeRequiresFirstArgumentIsNotM, observeFunctionNameNotFound, observeFunctionNameWrongArgs, addWrongAnnotation, noNameForNotification, onNotificationFieldError, notificationAnnotationDisabled, onNotificationWrongParameter, onNotificationConstructorError, onNotificationNotSupported } from './lib/utils/Diagnostics';
 import { getAllAnnotations, getAllFields, defaultAnnotations } from './lib/utils/Utils';
 import { getSGMembersLookup } from './SGApi';
 import { DynamicType } from 'brighterscript/dist/types/DynamicType';
@@ -125,6 +125,7 @@ export class MaestroPlugin implements CompilerPlugin {
         config.processXMLFiles = config.processXMLFiles ?? true;
         config.updateAsFunctionCalls = config.updateAsFunctionCalls ?? true;
         config.updateObserveCalls = config.updateObserveCalls ?? true;
+        config.allowNotificationAnnotations = config.allowNotificationAnnotations ?? true;
 
         config.paramStripExceptions = config.paramStripExceptions ?? ['onKeyEvent'];
         config.applyStrictToAllClasses = config.applyStrictToAllClasses ?? true;
@@ -274,6 +275,55 @@ export class MaestroPlugin implements CompilerPlugin {
             this.checkAnnotations(file, this.findAnnotations(file.parser.references.classStatements));
             this.checkAnnotations(file, this.findAnnotations(file.parser.references.namespaceStatements));
         }
+        if (this.maestroConfig.allowNotificationAnnotations) {
+            this.checkNotificationAnnotations(file);
+        }
+    }
+
+    private checkNotificationAnnotations(file: BrsFile) {
+        let classes = file.parser.references.classStatements;
+        for (let cs of classes) {
+            for (let method of cs.methods) {
+                let annotation = (method.annotations || []).find((a) => a.name.toLowerCase() === 'onnotification');
+                if (!annotation) {
+                    continue;
+                }
+                let classAnnotations = this.findAnnotations(method.parent) || [];
+                if (!classAnnotations.find((a) => a.name.toLowerCase() === 'node' || a.name.toLowerCase() === 'task')) {
+                    file.addDiagnostics([{
+                        ...onNotificationNotSupported(),
+                        range: cs.range,
+                        file: file
+                    }]);
+                    continue;
+                }
+                if (method.name.text.toLowerCase() === 'new') {
+                    file.addDiagnostics([{
+                        ...onNotificationConstructorError(),
+                        range: method.range,
+                        file: file
+                    }]);
+                    continue;
+                }
+                if (method.func.parameters.length !== 1) {
+                    file.addDiagnostics([{
+                        ...onNotificationWrongParameter(),
+                        range: method.range,
+                        file: file
+                    }]);
+                    continue;
+                } else if (method.func.parameters.length === 1) {
+                    if (method.func.parameters[0].type.toString() !== 'mc.notification') {
+                        file.addDiagnostics([{
+                            ...onNotificationWrongParameter(),
+                            range: method.range,
+                            file: file
+                        }]);
+                        continue;
+                    }
+                }
+            }
+        }
     }
 
     private findAnnotations(obj: any): any[] {
@@ -311,6 +361,25 @@ export class MaestroPlugin implements CompilerPlugin {
                 if (!this.defaultAnnotations.has(annotationName)) {
                     addWrongAnnotation(file, annotation.name, annotation.range.start.line, annotation.range.start.character);
                 }
+                if (this.maestroConfig.allowNotificationAnnotations) {
+                    if (annotationName === 'onnotification') {
+                        let args = annotation.getArguments();
+                        if (args.length !== 1) {
+                            file.addDiagnostics([{
+                                ...noNameForNotification(),
+                                range: annotation.range,
+                                file: file
+                            }]);
+                        }
+                    }
+                } else {
+                    file.addDiagnostics([{
+                        ...notificationAnnotationDisabled(),
+                        range: annotation.range,
+                        file: file
+                    }]);
+                }
+
             }
         }
     }
@@ -510,6 +579,9 @@ export class MaestroPlugin implements CompilerPlugin {
                 }
                 this.injectIOCCode(cs, event.file, event.editor);
                 this.updateObserveCalls(cs, event.file);
+                if (this.maestroConfig.allowNotificationAnnotations) {
+                    this.updateNotificationAnnotation(cs, event);
+                }
             }
             if (this.maestroConfig.stripParamTypes) {
                 for (let fs of event.file.parser.references.functionExpressions) {
@@ -639,6 +711,28 @@ export class MaestroPlugin implements CompilerPlugin {
                                     console.error('could not update asXXX function call, due to unexpected error', error);
                                 }
                             }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private updateNotificationAnnotation(cs: ClassStatement, event: BeforeFileTranspileEvent) {
+        for (let method of cs.methods) {
+            let annotation = (method.annotations || []).find((a) => a.name.toLowerCase() === 'onnotification');
+            if (annotation && method.name.text.toLowerCase() !== 'new') {
+                let args = annotation.getArguments();
+                if (args.length === 1) {
+                    let initializeMethod = cs.memberMap.initialize;
+                    // eslint-disable-next-line
+                    let observeStatement = new RawCodeStatement(`m.observeNotification("${args[0].toString()}", m.${method?.func.functionStatement?.name?.text})`, event.file, cs.range);
+                    if (isMethodStatement(initializeMethod)) {
+                        initializeMethod.func.body.statements.push(observeStatement);
+                    } else {
+                        let constructor = cs.memberMap.new as MethodStatement;
+                        if (constructor) {
+                            constructor.func.body.statements.push(observeStatement);
                         }
                     }
                 }
@@ -848,6 +942,14 @@ export class MaestroPlugin implements CompilerPlugin {
             }
 
             for (let f of cs.fields) {
+                let onNotificationAnnotation = (f.annotations || []).find((a) => a.name === 'onNotification');
+                if (onNotificationAnnotation) {
+                    file.addDiagnostics([{
+                        ...onNotificationFieldError(),
+                        range: cs.range,
+                        file: file
+                    }]);
+                }
                 let annotation = (f.annotations || []).find((a) => a.name === 'inject' || a.name === 'injectClass' || a.name === 'createClass');
                 if (annotation) {
                     let args = annotation.getArguments();
