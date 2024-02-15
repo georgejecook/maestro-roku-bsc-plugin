@@ -4000,10 +4000,30 @@ describe('MaestroPlugin', () => {
                 end function
             `);
         });
+
+        it('fails validation if onNotification annotation is added on a method class that is not a node', async () => {
+            plugin.maestroConfig.allowNotificationAnnotations = true;
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                class Comp
+                    function initialize()
+                    end function
+                    private json
+                    @onNotification("test")
+                    function classMethod(arg1 as mc.notification)
+                    end function
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            let d = builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error && d.code !== 1044);
+            expect(d[0].code).to.equal('MSTO1071');
+        });
         it('fails validation if onNotification annotation are disabled', async () => {
             plugin.maestroConfig.allowNotificationAnnotations = false;
             plugin.afterProgramCreate(program);
             program.setFile('source/comp.bs', `
+                @node("Comp", "Group")
                 class Comp
                     function initialize()
                     end function
@@ -4023,6 +4043,7 @@ describe('MaestroPlugin', () => {
             plugin.maestroConfig.allowNotificationAnnotations = true;
             plugin.afterProgramCreate(program);
             program.setFile('source/comp.bs', `
+                @node("Comp", "Group")
                 class Comp
                     function initialize()
                     end function
@@ -4042,6 +4063,7 @@ describe('MaestroPlugin', () => {
             plugin.maestroConfig.allowNotificationAnnotations = true;
             plugin.afterProgramCreate(program);
             program.setFile('source/comp.bs', `
+                @node("Comp", "Group")
                 class Comp
                     function initialize()
                     end function
@@ -4051,6 +4073,8 @@ describe('MaestroPlugin', () => {
                     end function
                 end class
             `);
+
+
             program.validate();
             await builder.transpile();
             let d = builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error);
@@ -4061,6 +4085,7 @@ describe('MaestroPlugin', () => {
             plugin.maestroConfig.allowNotificationAnnotations = true;
             plugin.afterProgramCreate(program);
             program.setFile('source/comp.bs', `
+                @node("Comp", "Group")
                 class Comp
                     private json
                     @onNotification("test")
@@ -4078,6 +4103,7 @@ describe('MaestroPlugin', () => {
             plugin.maestroConfig.allowNotificationAnnotations = true;
             plugin.afterProgramCreate(program);
             program.setFile('source/comp.bs', `
+                @node("Comp", "Group")
                 class Comp
                     private json
                     function initialize()
@@ -4090,6 +4116,57 @@ describe('MaestroPlugin', () => {
             program.validate();
             await builder.transpile();
             //ignore diagnostics - need to import core
+            expect(
+                getContents('components/maestro/generated/Comp.xml')
+            ).to.eql(undent`
+                <?xml version="1.0" encoding="UTF-8" ?>
+                <component name="Comp" extends="Group">
+                    <interface>
+                        <function name="initialize" />
+                        <function name="classMethod" />
+                    </interface>
+                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
+                    <children />
+                </component>
+            `);
+
+            expect(
+                getContents('components/maestro/generated/Comp.brs')
+            ).to.eql(undent`
+                'import "pkg:/source/comp.bs"
+
+                function init()
+                    instance = __Comp_builder()
+                    instance.delete("top")
+                    instance.delete("global")
+                    top = m.top
+                    m.append(instance)
+                    m.__isVMCreated = true
+                    m.new()
+                    m.top = top
+                    m_wireUpObservers()
+                end function
+
+                function m_wireUpObservers()
+                end function
+
+                function __m_setTopField(field, value)
+                    if m.top.doesExist(field)
+                        m.top[field] = value
+                    end if
+                    return value
+                end function
+
+                function initialize(dummy = invalid)
+                    return m.initialize()
+                end function
+
+                function classMethod(notification = invalid)
+                    return m.classMethod(notification)
+                end function
+            `);
             expect(
                 getContents('source/comp.brs')
                 ).to.eql(undent`
@@ -4118,6 +4195,7 @@ describe('MaestroPlugin', () => {
             plugin.maestroConfig.allowNotificationAnnotations = true;
             plugin.afterProgramCreate(program);
             program.setFile('source/comp.bs', `
+                @node("Comp", "Group")
                 class Comp
                     private json
                     @onNotification("test")
@@ -4134,6 +4212,52 @@ describe('MaestroPlugin', () => {
 
             let d = builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error && d.code !== 1044);
             expect(d[0].code).to.equal('MSTO1070');
+            expect(
+                getContents('components/maestro/generated/Comp.xml')
+            ).to.eql(undent`
+                <?xml version="1.0" encoding="UTF-8" ?>
+                <component name="Comp" extends="Group">
+                    <interface>
+                        <function name="classMethod" />
+                    </interface>
+                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
+                    <children />
+                </component>
+            `);
+
+            expect(
+                getContents('components/maestro/generated/Comp.brs')
+            ).to.eql(undent`
+                'import "pkg:/source/comp.bs"
+
+                function init()
+                    instance = __Comp_builder()
+                    instance.delete("top")
+                    instance.delete("global")
+                    top = m.top
+                    m.append(instance)
+                    m.__isVMCreated = true
+                    m.new()
+                    m.top = top
+                    m_wireUpObservers()
+                end function
+
+                function m_wireUpObservers()
+                end function
+
+                function __m_setTopField(field, value)
+                    if m.top.doesExist(field)
+                        m.top[field] = value
+                    end if
+                    return value
+                end function
+
+                function classMethod(notification = invalid)
+                    return m.classMethod(notification)
+                end function
+            `);
             expect(
                 getContents('source/comp.brs')
                 ).to.eql(undent`
@@ -4159,6 +4283,7 @@ describe('MaestroPlugin', () => {
             plugin.maestroConfig.allowNotificationAnnotations = true;
             plugin.afterProgramCreate(program);
             program.setFile('source/comp.bs', `
+                @node("Comp", "Group")
                 class Comp
                     private json
                     sub new()
@@ -4339,6 +4464,7 @@ describe('MaestroPlugin', () => {
             plugin.afterProgramCreate(program);
             plugin.maestroConfig.allowNotificationAnnotations = true;
             program.setFile('source/comp.bs', `
+                @node("Comp", "Group")
                 class Comp
                     private json
                     @onNotification()
@@ -4358,6 +4484,7 @@ describe('MaestroPlugin', () => {
             plugin.maestroConfig.allowNotificationAnnotations = true;
             plugin.afterProgramCreate(program);
             program.setFile('source/comp.bs', `
+                @node("Comp", "Group")
                 class Comp
                     @onNotification("test")
                     private json
@@ -4377,6 +4504,7 @@ describe('MaestroPlugin', () => {
             plugin.maestroConfig.allowNotificationAnnotations = false;
             plugin.afterProgramCreate(program);
             program.setFile('source/comp.bs', `
+            @node("Comp", "Group")
                 class Comp
                     private json
                     @onNotification("test")

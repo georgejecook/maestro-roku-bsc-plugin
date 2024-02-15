@@ -458,4 +458,10 @@ export function onNotificationConstructorError() {
     };
 }
 
-
+export function onNotificationNotSupported() {
+    return {
+        message: `@onNotification is only supported on methods in a node class`,
+        code: `MSTO${1071}`,
+        severity: DiagnosticSeverity.Error
+    };
+}

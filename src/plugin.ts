@@ -59,7 +59,7 @@ import ReflectionUtil from './lib/reflection/ReflectionUtil';
 import { FileFactory } from './lib/utils/FileFactory';
 import NodeClassUtil from './lib/node-classes/NodeClassUtil';
 import { RawCodeStatement, RawCodeExpression } from './lib/utils/RawCodeStatement';
-import { addClassFieldsNotFoundOnSetOrGet, addIOCNoTypeSupplied, addIOCWrongArgs, noCallsInAsXXXAllowed, functionNotImported, IOCClassNotInScope, namespaceNotImported, noPathForInject, noPathForIOCSync, unknownClassMethod, unknownConstructorMethod, unknownSuperClass, unknownType, wrongConstructorArgs, wrongMethodArgs, observeRequiresFirstArgumentIsField, observeRequiresFirstArgumentIsNotM, observeFunctionNameNotFound, observeFunctionNameWrongArgs, addWrongAnnotation, noNameForNotification, onNotificationFieldError, notificationAnnotationDisabled,onNotificationWrongParameter, onNotificationConstructorError } from './lib/utils/Diagnostics';
+import { addClassFieldsNotFoundOnSetOrGet, addIOCNoTypeSupplied, addIOCWrongArgs, noCallsInAsXXXAllowed, functionNotImported, IOCClassNotInScope, namespaceNotImported, noPathForInject, noPathForIOCSync, unknownClassMethod, unknownConstructorMethod, unknownSuperClass, unknownType, wrongConstructorArgs, wrongMethodArgs, observeRequiresFirstArgumentIsField, observeRequiresFirstArgumentIsNotM, observeFunctionNameNotFound, observeFunctionNameWrongArgs, addWrongAnnotation, noNameForNotification, onNotificationFieldError, notificationAnnotationDisabled,onNotificationWrongParameter, onNotificationConstructorError, onNotificationNotSupported } from './lib/utils/Diagnostics';
 import { getAllAnnotations, getAllFields, defaultAnnotations } from './lib/utils/Utils';
 import { getSGMembersLookup } from './SGApi';
 import { DynamicType } from 'brighterscript/dist/types/DynamicType';
@@ -288,6 +288,24 @@ export class MaestroPlugin implements CompilerPlugin {
                     if (!annotation) {
                         continue;
                     }
+                    let classAnnotations = this.findAnnotations(method.parent) || [];
+                    if (!classAnnotations.find((a) => a.name.toLowerCase() === 'node' || a.name.toLowerCase() === 'nodeclass')) {
+                        file.addDiagnostics([{
+                            ...onNotificationNotSupported(),
+                            range: cs.range,
+                            file: file
+                        }]);
+                        continue
+                    }
+                    // let isNodeClass = (method.parent.annotations|| []).find((a) => a.name.toLowerCase() === 'node' || a.name.toLowerCase() === 'nodeclass' ;
+                    // if (!isNodeClass) {
+                    //     file.addDiagnostics([{
+                    //         ...onNotificationNotSupported(),
+                    //         range: cs.range,
+                    //         file: file
+                    //     }]);
+                    //     continue
+                    // }
                 if (method.name.text.toLowerCase() == "new") {
                     file.addDiagnostics([{
                         ...onNotificationConstructorError(),
