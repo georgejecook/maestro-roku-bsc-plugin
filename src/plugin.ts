@@ -289,7 +289,7 @@ export class MaestroPlugin implements CompilerPlugin {
                         continue;
                     }
                     let classAnnotations = this.findAnnotations(method.parent) || [];
-                    if (!classAnnotations.find((a) => a.name.toLowerCase() === 'node' || a.name.toLowerCase() === 'nodeclass')) {
+                    if (!classAnnotations.find((a) => a.name.toLowerCase() === 'node' || a.name.toLowerCase() === 'task')) {
                         file.addDiagnostics([{
                             ...onNotificationNotSupported(),
                             range: cs.range,
@@ -297,15 +297,6 @@ export class MaestroPlugin implements CompilerPlugin {
                         }]);
                         continue
                     }
-                    // let isNodeClass = (method.parent.annotations|| []).find((a) => a.name.toLowerCase() === 'node' || a.name.toLowerCase() === 'nodeclass' ;
-                    // if (!isNodeClass) {
-                    //     file.addDiagnostics([{
-                    //         ...onNotificationNotSupported(),
-                    //         range: cs.range,
-                    //         file: file
-                    //     }]);
-                    //     continue
-                    // }
                 if (method.name.text.toLowerCase() == "new") {
                     file.addDiagnostics([{
                         ...onNotificationConstructorError(),
