@@ -10,6 +10,7 @@ export enum MaestroLogLevel {
 
 export interface MaestroConfig {
     updateObserveCalls?: boolean;
+    allowNotificationAnnotations?: boolean;
     updateAsFunctionCalls?: boolean;
     validateAnnotations?: boolean;
     defaultAnnotations?: Set<string>;
