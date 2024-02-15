@@ -59,7 +59,7 @@ import ReflectionUtil from './lib/reflection/ReflectionUtil';
 import { FileFactory } from './lib/utils/FileFactory';
 import NodeClassUtil from './lib/node-classes/NodeClassUtil';
 import { RawCodeStatement, RawCodeExpression } from './lib/utils/RawCodeStatement';
-import { addClassFieldsNotFoundOnSetOrGet, addIOCNoTypeSupplied, addIOCWrongArgs, noCallsInAsXXXAllowed, functionNotImported, IOCClassNotInScope, namespaceNotImported, noPathForInject, noPathForIOCSync, unknownClassMethod, unknownConstructorMethod, unknownSuperClass, unknownType, wrongConstructorArgs, wrongMethodArgs, observeRequiresFirstArgumentIsField, observeRequiresFirstArgumentIsNotM, observeFunctionNameNotFound, observeFunctionNameWrongArgs, addWrongAnnotation, noNameForNotification, onNotificationFieldError, notificationAnnotationDisabled,onNotificationWrongParameter, onNotificationConstructorError, onNotificationNotSupported } from './lib/utils/Diagnostics';
+import { addClassFieldsNotFoundOnSetOrGet, addIOCNoTypeSupplied, addIOCWrongArgs, noCallsInAsXXXAllowed, functionNotImported, IOCClassNotInScope, namespaceNotImported, noPathForInject, noPathForIOCSync, unknownClassMethod, unknownConstructorMethod, unknownSuperClass, unknownType, wrongConstructorArgs, wrongMethodArgs, observeRequiresFirstArgumentIsField, observeRequiresFirstArgumentIsNotM, observeFunctionNameNotFound, observeFunctionNameWrongArgs, addWrongAnnotation, noNameForNotification, onNotificationFieldError, notificationAnnotationDisabled, onNotificationWrongParameter, onNotificationConstructorError, onNotificationNotSupported } from './lib/utils/Diagnostics';
 import { getAllAnnotations, getAllFields, defaultAnnotations } from './lib/utils/Utils';
 import { getSGMembersLookup } from './SGApi';
 import { DynamicType } from 'brighterscript/dist/types/DynamicType';
@@ -284,20 +284,20 @@ export class MaestroPlugin implements CompilerPlugin {
         let classes = file.parser.references.classStatements;
         for (let cs of classes) {
             for (let method of cs.methods) {
-                    let annotation = (method.annotations|| []).find((a) => a.name.toLowerCase() === 'onnotification');
-                    if (!annotation) {
-                        continue;
-                    }
-                    let classAnnotations = this.findAnnotations(method.parent) || [];
-                    if (!classAnnotations.find((a) => a.name.toLowerCase() === 'node' || a.name.toLowerCase() === 'task')) {
-                        file.addDiagnostics([{
-                            ...onNotificationNotSupported(),
-                            range: cs.range,
-                            file: file
-                        }]);
-                        continue
-                    }
-                if (method.name.text.toLowerCase() == "new") {
+                let annotation = (method.annotations || []).find((a) => a.name.toLowerCase() === 'onnotification');
+                if (!annotation) {
+                    continue;
+                }
+                let classAnnotations = this.findAnnotations(method.parent) || [];
+                if (!classAnnotations.find((a) => a.name.toLowerCase() === 'node' || a.name.toLowerCase() === 'task')) {
+                    file.addDiagnostics([{
+                        ...onNotificationNotSupported(),
+                        range: cs.range,
+                        file: file
+                    }]);
+                    continue;
+                }
+                if (method.name.text.toLowerCase() === 'new') {
                     file.addDiagnostics([{
                         ...onNotificationConstructorError(),
                         range: method.range,
@@ -305,15 +305,15 @@ export class MaestroPlugin implements CompilerPlugin {
                     }]);
                     continue;
                 }
-                if (method.func.parameters.length !== 1 ) {
+                if (method.func.parameters.length !== 1) {
                     file.addDiagnostics([{
                         ...onNotificationWrongParameter(),
                         range: method.range,
                         file: file
                     }]);
                     continue;
-                } else if (method.func.parameters.length == 1) {
-                    if (method.func.parameters[0].type.toString() !== "mc.notification")  {
+                } else if (method.func.parameters.length === 1) {
+                    if (method.func.parameters[0].type.toString() !== 'mc.notification') {
                         file.addDiagnostics([{
                             ...onNotificationWrongParameter(),
                             range: method.range,
@@ -719,24 +719,25 @@ export class MaestroPlugin implements CompilerPlugin {
     }
 
     private updateNotificationAnnotation(cs: ClassStatement, event: BeforeFileTranspileEvent) {
-            for (let method of cs.methods) {
-                let annotation = (method.annotations|| []).find((a) => a.name.toLowerCase() === 'onnotification');
-                if (annotation && method.name.text.toLowerCase() !== "new") {
-                    let args = annotation.getArguments();
-                    if (args.length == 1) {
-                        let initializeMethod = cs.memberMap["initialize"];
-                        let observeStatement = new RawCodeStatement(`m.observeNotification("${args[0].toString()}", m.${method?.func.functionStatement?.name?.text})`, event.file, cs.range);
-                        if (isMethodStatement(initializeMethod)) {
-                            initializeMethod.func.body.statements.push(observeStatement);
-                        } else {
-                            let constructor = cs.memberMap.new as MethodStatement;
-                            if (constructor) {
-                                constructor.func.body.statements.push(observeStatement);
-                            }
+        for (let method of cs.methods) {
+            let annotation = (method.annotations || []).find((a) => a.name.toLowerCase() === 'onnotification');
+            if (annotation && method.name.text.toLowerCase() !== 'new') {
+                let args = annotation.getArguments();
+                if (args.length === 1) {
+                    let initializeMethod = cs.memberMap.initialize;
+                    // eslint-disable-next-line
+                    let observeStatement = new RawCodeStatement(`m.observeNotification("${args[0].toString()}", m.${method?.func.functionStatement?.name?.text})`, event.file, cs.range);
+                    if (isMethodStatement(initializeMethod)) {
+                        initializeMethod.func.body.statements.push(observeStatement);
+                    } else {
+                        let constructor = cs.memberMap.new as MethodStatement;
+                        if (constructor) {
+                            constructor.func.body.statements.push(observeStatement);
                         }
                     }
                 }
             }
+        }
     }
 
     private getRootValue(value: DottedGetExpression) {

@@ -4169,7 +4169,7 @@ describe('MaestroPlugin', () => {
             `);
             expect(
                 getContents('source/comp.brs')
-                ).to.eql(undent`
+            ).to.eql(undent`
                 function __Comp_builder()
                     instance = {}
                     instance.new = sub()
@@ -4260,7 +4260,7 @@ describe('MaestroPlugin', () => {
             `);
             expect(
                 getContents('source/comp.brs')
-                ).to.eql(undent`
+            ).to.eql(undent`
                 function __Comp_builder()
                     instance = {}
                     instance.new = sub()
@@ -4299,7 +4299,7 @@ describe('MaestroPlugin', () => {
             //ignore diagnostics - need to import core
             expect(
                 getContents('source/comp.brs')
-                ).to.eql(undent`
+            ).to.eql(undent`
                 function __Comp_builder()
                     instance = {}
                     instance.new = sub()
