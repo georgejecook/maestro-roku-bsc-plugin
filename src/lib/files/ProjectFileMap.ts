@@ -19,7 +19,7 @@ export class ProjectFileMap {
     addProvidedFiles(event: brighterscript.ProvideFileEvent) {
         for (const file of event.files) {
             if (brighterscript.isBrsFile(file) || brighterscript.isXmlFile(file)) {
-                console.log('MAESTRO afp-----', file.srcPath);
+                // console.log('MAESTRO afp-----', file.srcPath);
                 let mFile = this.allFiles[file.srcPath];
                 if (!mFile) {
                     mFile = this.createFile(file);
@@ -185,7 +185,7 @@ export class ProjectFileMap {
 
     public addFile(file: MaestroFile) {
         this.removeFile(file);
-        console.log('>>>>>>ADDING ', file.fullPath);
+        // console.log('>>>>>>ADDING ', file.fullPath);
         if (brighterscript.isBrsFile(file.bscFile)) {
             this.addNamespaces(file.bscFile);
         }
