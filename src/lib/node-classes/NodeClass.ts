@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/indent */
 import type { AnnotationExpression, BrsFile, MethodStatement, ClassStatement, CommentStatement, DottedGetExpression, EnumMemberStatement, FieldStatement, FunctionParameterExpression, Program, XmlFile, SGElement } from 'brighterscript';
-import { isEnumMemberStatement, isDottedGetExpression, isEnumStatement, isNewExpression, TokenKind, isMethodStatement, ParseMode, createVisitor, isVariableExpression, WalkMode, isAALiteralExpression, isArrayLiteralExpression, isIntegerType, isLiteralExpression, isLiteralNumber, isLongIntegerType, isUnaryExpression, util, createSGInterfaceField, createSGInterfaceFunction, } from 'brighterscript';
+import { isEnumMemberStatement, isDottedGetExpression, isEnumStatement, isNewExpression, TokenKind, isMethodStatement, ParseMode, createVisitor, isVariableExpression, WalkMode, isAALiteralExpression, isArrayLiteralExpression, isIntegerType, isLiteralExpression, isLiteralNumber, isLongIntegerType, isUnaryExpression, util, createSGInterfaceField, createSGInterfaceFunction } from 'brighterscript';
 import type { ProjectFileMap } from '../files/ProjectFileMap';
 import { expressionToString, expressionToValue, getAllDottedGetParts } from '../Utils';
 import { addNodeClassCallbackNotDefined, addNodeClassCallbackNotFound, addNodeClassCallbackWrongParams, addNodeClassFieldNoFieldType, addNodeClassNoExtendNodeFound, addNodeClassUnknownClassType, addNodeTaskMustExtendTaskComponent, addTooManyPublicParams } from '../utils/Diagnostics';

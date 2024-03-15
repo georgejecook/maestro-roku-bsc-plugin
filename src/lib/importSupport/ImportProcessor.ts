@@ -22,7 +22,7 @@ export default class ImportProcessor {
                     let filePathToken = createToken(TokenKind.SourceFilePathLiteral, `"${pkg}"`, previousImport.tokens.import.range);
                     imports.push(new ImportStatement({
                         import: importToken,
-                        path:filePathToken
+                        path: filePathToken
                     }));
                 }
             } else {
@@ -47,11 +47,10 @@ export default class ImportProcessor {
         }
 
         if (statementsToRemove.length > 0) {
-
             let statements = file.parser.ast.statements.filter((el) => !statementsToRemove.includes(el));
             statements = statementsToAdd.concat(file.parser.ast.statements);
             statements = statements.filter((el) => !statementsToRemove.includes(el));
-            file.parser.ast = new Body({statements: statements})
+            file.parser.ast = new Body({ statements: statements });
         }
     }
 }

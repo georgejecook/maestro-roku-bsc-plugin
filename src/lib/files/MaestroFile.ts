@@ -38,7 +38,7 @@ export class MaestroFile {
     public componentName: string;
     public parentComponentName: string;
     public componentIds: Set<string>;
-    public bscFile: BrsFile | XmlFile | BscFile;
+    public bscFile: BrsFile | BscFile | XmlFile ;
     public componentTag: SGComponent;
     public vmClassFile: string;
     public vmClassName: string;

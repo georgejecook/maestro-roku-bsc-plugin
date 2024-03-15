@@ -70,7 +70,7 @@ export default class ReflectionUtil {
     public addFile(file: BrsFile) {
         let mFile = this.fileMap.allFiles[file.srcPath];
         this.fileMap.removeFileClasses(mFile);
-        for (let cs of file.parser.ast.statements.filter(s => isClassStatement(s))as ClassStatement[]) {
+        for (let cs of file.parser.ast.statements.filter(s => isClassStatement(s)) as ClassStatement[]) {
             this.fileMap.addClass(cs, mFile);
         }
     }

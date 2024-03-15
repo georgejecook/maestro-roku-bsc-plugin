@@ -1,13 +1,3 @@
-import {
-    FunctionStatement,
-    IfStatement,
-    BrsFile,
-    XmlFile,
-    Program,
-    Editor,
-    createSGAttribute
-} from 'brighterscript';
-import {util, Lexer, Parser, ParseMode } from 'brighterscript';
 import undent from 'undent';
 import type { MaestroFile } from '../files/MaestroFile';
 import { FileType } from '../files/FileType';
@@ -33,8 +23,8 @@ import * as fsExtra from 'fs-extra';
 import { BrsTranspileState } from 'brighterscript/dist/parser/BrsTranspileState';
 import { SourceNode } from 'source-map';
 import type { MaestroConfig } from '../files/MaestroConfig';
-import { isFunctionStatement } from 'brighterscript';
-
+import { isFunctionStatement, createSGAttribute, util, Lexer, Parser, ParseMode } from 'brighterscript';
+import type { FunctionStatement, BrsFile, XmlFile, Editor, Program, IfStatement } from 'brighterscript';
 import { SGScript } from 'brighterscript/dist/parser/SGTypes';
 
 export class BindingProcessor {

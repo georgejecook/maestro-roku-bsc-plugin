@@ -5,7 +5,7 @@ import { MaestroPlugin } from './plugin';
 import { standardizePath as s } from './lib/Utils';
 import * as fsExtra from 'fs-extra';
 import * as path from 'path';
-import { expectDiagnostics,expectDiagnosticsIncludes, expectZeroDiagnostics } from './testHelpers.spec';
+import { expectDiagnostics, expectDiagnosticsIncludes, expectZeroDiagnostics } from './testHelpers.spec';
 
 function undent(strings: TemplateStringsArray | string, ...values: any[]): string {
     // Construct the full string by interleaving the strings and values
@@ -1626,7 +1626,7 @@ describe('MaestroPlugin', () => {
             `);
             program.validate();
             await builder.build();
-            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error && d.code !==  1028 && !d.message.includes('mc.types.'))).to.be.empty;
+            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error && d.code !== 1028 && !d.message.includes('mc.types.'))).to.be.empty;
 
             expect(
                 undent(getContents('components/maestro/generated/Comp.xml'))
@@ -2168,11 +2168,11 @@ describe('MaestroPlugin', () => {
                 `);
                 program.validate();
                 expectDiagnosticsIncludes(builder, [
-                    {message: `Cannot find name 'count'`, code: 1001},
-                    {message: `Cannot find name 'doesExist'`, code: 1001},
-                    {message: `Cannot find name 'keys'`, code: 1001},
-                    {message: `Cannot find name 'lookup'`, code: 1001},
-                    {message: `class field: "m.__className " was not found on VM or it's parent classes`, code: 'MSTO1040'},
+                    { message: `Cannot find name 'count'`, code: 1001 },
+                    { message: `Cannot find name 'doesExist'`, code: 1001 },
+                    { message: `Cannot find name 'keys'`, code: 1001 },
+                    { message: `Cannot find name 'lookup'`, code: 1001 },
+                    { message: `class field: "m.__className " was not found on VM or it's parent classes`, code: 'MSTO1040' }
                 ]);
             });
 

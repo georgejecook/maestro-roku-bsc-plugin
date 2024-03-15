@@ -109,7 +109,7 @@ export function sanitizeBsJsonString(text: string) {
 export function createIfStatement(condition: Expression, statements: Statement[]): IfStatement {
     let ifToken = createToken(TokenKind.If, 'if', Range.create(1, 1, 1, 999999));
     let thenBranch = new Block({
-        statements:statements,
+        statements: statements,
         startingRange: Range.create(1, 1, 1, 1)
     });
     return new IfStatement({
@@ -303,7 +303,7 @@ export function createImportStatement(pkgPath: string, range: Range) {
     let importToken = createToken(TokenKind.Import, 'import', range);
     let filePathToken = createToken(TokenKind.SourceFilePathLiteral, `"${sanitizePkgPath(pkgPath)}"`, range);
     return new ImportStatement({
-        import:importToken,
+        import: importToken,
         path: filePathToken
     });
 }

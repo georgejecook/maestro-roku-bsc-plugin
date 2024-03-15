@@ -1,4 +1,4 @@
-import { Position, BrsFile, XmlFile, ClassStatement, FunctionStatement, MethodStatement, Statement, Expression, FieldStatement, AstNode, AAMemberExpression, BscFile } from 'brighterscript';
+import type { Position, BrsFile, XmlFile, ClassStatement, FunctionStatement, MethodStatement, Statement, Expression, FieldStatement, AstNode, AAMemberExpression, BscFile } from 'brighterscript';
 import { Range, Lexer, Parser, ParseMode, createVariableExpression, IfStatement, BinaryExpression, Block, createStringLiteral, createToken, isMethodStatement, isClassStatement, TokenKind, isExpression, createIdentifier, VariableExpression, CallExpression, AALiteralExpression, ArrayLiteralExpression } from 'brighterscript';
 import type { MaestroFile } from '../files/MaestroFile';
 import type { ProjectFileMap } from '../files/ProjectFileMap';
@@ -74,7 +74,7 @@ export function getAlternateFileNames(fileName: string): string[] {
     }
 }
 
-export function getAssociatedFile(file: BrsFile | XmlFile | BscFile , fileMap: ProjectFileMap): MaestroFile | undefined {
+export function getAssociatedFile(file: BrsFile | BscFile | XmlFile, fileMap: ProjectFileMap): MaestroFile | undefined {
     for (let filePath of getAlternateFileNames(file.srcPath)) {
         let mFile = fileMap.allFiles[filePath];
         if (mFile) {
@@ -121,33 +121,31 @@ export function createCallExpression(funcName: string, args: (Expression | strin
             if (arg.startsWith('"') && arg.endsWith('"')) {
                 argExpressions.push(createStringLiteral(arg));
             } else {
-                argExpressions.push(new VariableExpression({
-                    name:createIdentifier(arg)})
-                );
+                argExpressions.push(new VariableExpression({ name: createIdentifier(arg) }));
             }
         }
     }
     return new CallExpression({
-        callee: new VariableExpression({name:createIdentifier(funcName)}),
-        openingParen:createToken(TokenKind.LeftParen),
-        closingParen:createToken(TokenKind.RightParen),
+        callee: new VariableExpression({ name: createIdentifier(funcName) }),
+        openingParen: createToken(TokenKind.LeftParen),
+        closingParen: createToken(TokenKind.RightParen),
         args: argExpressions
     });
 }
 
 export function createAA(elements: AAMemberExpression[] = []) {
     return new AALiteralExpression({
-        elements:elements,
-        open:createToken(TokenKind.LeftCurlyBrace),
-        close:createToken(TokenKind.RightCurlyBrace)
+        elements: elements,
+        open: createToken(TokenKind.LeftCurlyBrace),
+        close: createToken(TokenKind.RightCurlyBrace)
     });
 }
 
 export function createArray(elements: Expression[] = []) {
     return new ArrayLiteralExpression({
         elements: elements,
-        open:createToken(TokenKind.LeftSquareBracket),
-        close:createToken(TokenKind.RightSquareBracket)
+        open: createToken(TokenKind.LeftSquareBracket),
+        close: createToken(TokenKind.RightSquareBracket)
     });
 }
 
@@ -197,7 +195,7 @@ export function createIfStatement(condition: Expression, statements: Statement[]
 
 export function createVarExpression(varName: string, operator: TokenKind, value: string): BinaryExpression {
     let variableExpression = createVariableExpression(varName, Range.create(1, 1, 1, 999999));
-    let stringLiteral= createStringLiteral('"' + value, Range.create(1, 1, 1, 999999));
+    let stringLiteral = createStringLiteral('"' + value, Range.create(1, 1, 1, 999999));
     let token = createToken(operator, getTokenText(operator), Range.create(1, 1, 1, 999999));
     return new BinaryExpression({
         left: variableExpression,

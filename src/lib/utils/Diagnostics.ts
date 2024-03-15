@@ -30,7 +30,7 @@ function addErrorDiagnosticForBinding(
 }
 
 function createDiagnostic(
-    bscFile: BrsFile | XmlFile | BscFile,
+    bscFile: BrsFile | BscFile | XmlFile,
     code: number,
     message: string,
     startLine = 0,
