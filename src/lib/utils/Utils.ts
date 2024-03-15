@@ -1,4 +1,4 @@
-import type { Position, BrsFile, XmlFile, ClassStatement, FunctionStatement, MethodStatement, Statement, Expression, FieldStatement, AstNode, AAMemberExpression } from 'brighterscript';
+import { Position, BrsFile, XmlFile, ClassStatement, FunctionStatement, MethodStatement, Statement, Expression, FieldStatement, AstNode, AAMemberExpression, BscFile } from 'brighterscript';
 import { Range, Lexer, Parser, ParseMode, createVariableExpression, IfStatement, BinaryExpression, Block, createStringLiteral, createToken, isMethodStatement, isClassStatement, TokenKind, isExpression, createIdentifier, VariableExpression, CallExpression, AALiteralExpression, ArrayLiteralExpression } from 'brighterscript';
 import type { MaestroFile } from '../files/MaestroFile';
 import type { ProjectFileMap } from '../files/ProjectFileMap';
@@ -74,7 +74,7 @@ export function getAlternateFileNames(fileName: string): string[] {
     }
 }
 
-export function getAssociatedFile(file: BrsFile | XmlFile, fileMap: ProjectFileMap): MaestroFile | undefined {
+export function getAssociatedFile(file: BrsFile | XmlFile | BscFile , fileMap: ProjectFileMap): MaestroFile | undefined {
     for (let filePath of getAlternateFileNames(file.srcPath)) {
         let mFile = fileMap.allFiles[filePath];
         if (mFile) {
@@ -121,32 +121,34 @@ export function createCallExpression(funcName: string, args: (Expression | strin
             if (arg.startsWith('"') && arg.endsWith('"')) {
                 argExpressions.push(createStringLiteral(arg));
             } else {
-                argExpressions.push(new VariableExpression(createIdentifier(arg)));
+                argExpressions.push(new VariableExpression({
+                    name:createIdentifier(arg)})
+                );
             }
         }
     }
-    return new CallExpression(
-        new VariableExpression(createIdentifier(funcName)),
-        createToken(TokenKind.LeftParen),
-        createToken(TokenKind.RightParen),
-        argExpressions
-    );
+    return new CallExpression({
+        callee: new VariableExpression({name:createIdentifier(funcName)}),
+        openingParen:createToken(TokenKind.LeftParen),
+        closingParen:createToken(TokenKind.RightParen),
+        args: argExpressions
+    });
 }
 
 export function createAA(elements: AAMemberExpression[] = []) {
-    return new AALiteralExpression(
-        elements,
-        createToken(TokenKind.LeftCurlyBrace),
-        createToken(TokenKind.RightCurlyBrace)
-    );
+    return new AALiteralExpression({
+        elements:elements,
+        open:createToken(TokenKind.LeftCurlyBrace),
+        close:createToken(TokenKind.RightCurlyBrace)
+    });
 }
 
 export function createArray(elements: Expression[] = []) {
-    return new ArrayLiteralExpression(
-        elements,
-        createToken(TokenKind.LeftSquareBracket),
-        createToken(TokenKind.RightSquareBracket)
-    );
+    return new ArrayLiteralExpression({
+        elements: elements,
+        open:createToken(TokenKind.LeftSquareBracket),
+        close:createToken(TokenKind.RightSquareBracket)
+    });
 }
 
 export function addOverriddenMethod(target: ClassStatement, name: string, source: string): boolean {
@@ -166,7 +168,7 @@ export function addOverriddenMethod(target: ClassStatement, name: string, source
 }
 
 export function changeClassMethodBody(target: ClassStatement, name: string, source: string): boolean {
-    let method = target.methods.find((m) => m.name.text === name);
+    let method = target.methods.find((m) => m.tokens.name.text === name);
     if (isMethodStatement(method)) {
         changeFunctionBody(method, source);
         return true;
@@ -181,16 +183,27 @@ export function sanitizeBsJsonString(text: string) {
 export function createIfStatement(condition: Expression, statements: Statement[]): IfStatement {
     let ifToken = createToken(TokenKind.If, 'else if', Range.create(1, 1, 1, 999999));
     ifToken.text = 'else if';
-    let thenBranch = new Block(statements, Range.create(1, 1, 1, 1));
-    return new IfStatement({ if: ifToken, then: createToken(TokenKind.Then, '', Range.create(1, 1, 1, 999999)) }, condition, thenBranch);
+    let thenBranch = new Block({
+        statements: statements,
+        startingRange: Range.create(1, 1, 1, 1)
+    });
+    return new IfStatement({
+        if: ifToken,
+        then: createToken(TokenKind.Then, '', Range.create(1, 1, 1, 999999)),
+        condition: condition,
+        thenBranch: thenBranch
+    });
 }
 
 export function createVarExpression(varName: string, operator: TokenKind, value: string): BinaryExpression {
-    let variable = createVariableExpression(varName, Range.create(1, 1, 1, 999999));
-    let v = createStringLiteral('"' + value, Range.create(1, 1, 1, 999999));
-
-    let t = createToken(operator, getTokenText(operator), Range.create(1, 1, 1, 999999));
-    return new BinaryExpression(variable, t, v);
+    let variableExpression = createVariableExpression(varName, Range.create(1, 1, 1, 999999));
+    let stringLiteral= createStringLiteral('"' + value, Range.create(1, 1, 1, 999999));
+    let token = createToken(operator, getTokenText(operator), Range.create(1, 1, 1, 999999));
+    return new BinaryExpression({
+        left: variableExpression,
+        operator: token,
+        right: stringLiteral
+    });
 }
 
 export function getTokenText(operator: TokenKind): string {
@@ -214,15 +227,15 @@ export function getAllFields(fileMap: ProjectFileMap, classStatement: ClassState
     let result = new Map<string, FieldStatement>();
     while (classStatement) {
         if (accessModifier === TokenKind.Public) {
-            for (let field of classStatement.fields) {
-                if (!field.accessModifier || field.accessModifier?.kind === accessModifier) {
-                    result.set(field.name.text.toLowerCase(), field);
+            for (let field of classStatement.fields || []) {
+                if (!field.tokens.accessModifier || field.tokens.accessModifier?.kind === accessModifier) {
+                    result.set(field.tokens.name.text.toLowerCase(), field);
                 }
             }
         } else {
-            for (let field of classStatement.fields) {
-                if (!accessModifier || field.accessModifier?.kind === accessModifier) {
-                    result.set(field.name.text.toLowerCase(), field);
+            for (let field of classStatement.fields || []) {
+                if (!accessModifier || field.tokens.accessModifier?.kind === accessModifier) {
+                    result.set(field.tokens.name.text.toLowerCase(), field);
                 }
             }
         }
@@ -238,13 +251,13 @@ export function getAllMethods(fileMap: ProjectFileMap, cs: ClassStatement, acces
         if (accessModifier === TokenKind.Public) {
             for (let method of cs.methods) {
                 if (!method.accessModifier || method.accessModifier?.kind === accessModifier) {
-                    result[method.name.text.toLowerCase()] = method;
+                    result[method.tokens.name.text.toLowerCase()] = method;
                 }
             }
         } else {
             for (let method of cs.methods) {
                 if (!accessModifier || method.accessModifier?.kind === accessModifier) {
-                    result[method.name.text.toLowerCase()] = method;
+                    result[method.tokens.name.text.toLowerCase()] = method;
                 }
             }
         }

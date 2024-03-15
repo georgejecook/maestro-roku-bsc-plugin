@@ -29,10 +29,13 @@ import {
     CallExpression,
     TypeExpression,
     VariableExpression,
-    SymbolTypeFlag,
-    isFunctionExpression
+    isFunctionExpression,
+    isClassStatement,
+    FunctionParameterExpression,
+    isNamespaceStatement,
+    isExpressionStatement,
 } from 'brighterscript';
-import type {
+import {
     BrsFile,
     BscFile,
     ClassStatement,
@@ -76,6 +79,7 @@ import { createCallExpression, getAllAnnotations, getAllFields } from './lib/uti
 import { getSGMembersLookup } from './SGApi';
 import { BrsTranspileState } from 'brighterscript/dist/parser/BrsTranspileState';
 import { typeToValueExpression } from './lib/Utils';
+import { SymbolTypeFlag } from 'brighterscript/dist/SymbolTableFlag';
 
 interface FunctionInfo {
     minArgs: number;
@@ -111,7 +115,7 @@ export class MaestroPlugin implements CompilerPlugin {
     private filesThatNeedParsingInBeforeProgramValidate = new Map<string, MaestroFile>();
 
     private skips = {
-        '__classname': true,
+        '__className': true,
         'addreplace': true,
         'lookup': true,
         'lookupci': true,
@@ -280,28 +284,26 @@ export class MaestroPlugin implements CompilerPlugin {
     private validateAsXXXCalls(file: BrsFile) {
         let state = new BrsTranspileState(file);
         if (this.maestroConfig.updateAsFunctionCalls && this.shouldDoExtraValidationsOnFile(file)) {
-            for (let functionScope of file.functionScopes) {
-                // event.file.functionCalls
-                for (let callExpression of functionScope.func.callExpressions) {
-                    let regex = /as(Any|Array|AA|Boolean|Float|Integer|Long|Node|Point|String)/i;
-                    if (isVariableExpression(callExpression.callee) && isExpression(callExpression.args[0])) {
-                        let name = callExpression.callee.name.text;
-                        if (regex.test(name)) {
-                            try {
-                                let value = callExpression.args[0] as DottedGetExpression;
-                                this.getRawTextFromDottedGet(value, state);
-                                this.getRootValue(value);
-                            } catch (error) {
-                                if (error.message === 'unsupportedValue') {
-                                    file.addDiagnostics([{
-                                        ...noCallsInAsXXXAllowed(error.functionName),
-                                        range: error.range,
-                                        file: file
-                                    }]);
+            let callExpressions = Array.from(file['_cachedLookups'].expressions as Expression[]).filter(e => isCallExpression(e)) as CallExpression[];
+            for (let callExpression of callExpressions) {
+                let regex = /as(Any|Array|AA|Boolean|Float|Integer|Long|Node|Point|String)/i;
+                if (isVariableExpression(callExpression.callee) && isExpression(callExpression.args[0])) {
+                    let name = callExpression.callee.getName();
+                    if (regex.test(name)) {
+                        try {
+                            let value = callExpression.args[0] as DottedGetExpression;
+                            this.getRawTextFromDottedGet(value, state);
+                            this.getRootValue(value);
+                        } catch (error) {
+                            if (error.message === 'unsupportedValue') {
+                                file.addDiagnostics([{
+                                    ...noCallsInAsXXXAllowed(error.functionName),
+                                    range: error.range,
+                                    file: file
+                                }]);
 
-                                } else {
-                                    console.error('could not update asXXX function call, due to unexpected error', error);
-                                }
+                            } else {
+                                console.error('could not update asXXX function call, due to unexpected error', error);
                             }
                         }
                     }
@@ -398,7 +400,7 @@ export class MaestroPlugin implements CompilerPlugin {
         return compFiles;
     }
 
-    shouldParseFile(file: BrsFile | XmlFile) {
+    shouldParseFile(file: BrsFile | XmlFile | BscFile) {
         if (!isBrsFile(file) && !isXmlFile(file)) {
             return false;
         }
@@ -443,18 +445,35 @@ export class MaestroPlugin implements CompilerPlugin {
         }
 
         if (isBrsFile(event.file)) {
-            let classes = event.file.parser.references.classStatements;
-            for (let cs of classes) {
+            let classStatements = [];
+            event.file.parser.ast.statements.map(s => {
+                if (isClassStatement(s)) {
+                    classStatements.push(s);
+                } else if (isNamespaceStatement(s)) {
+                    classStatements.push(...s.body.statements.filter(s => isClassStatement(s)));
+                }
+            });
+            for (let cs of classStatements as ClassStatement[]) {
                 //do class updates in here
                 let fieldMap = getAllFields(this.fileMap, cs);
-                let id = createToken(TokenKind.Identifier, '__classname', cs.range);
+                let id = createToken(TokenKind.Identifier, '__className', cs.range);
                 // eslint-disable-next-line @typescript-eslint/dot-notation
-                if (!fieldMap.has('__classname')) {
+                if (!fieldMap.has('__className')) {
                     let p = createToken(TokenKind.Public, 'public', cs.range);
                     let a = createToken(TokenKind.As, 'as', cs.range);
-                    let s = new TypeExpression(new VariableExpression(createToken(TokenKind.Identifier, 'string', cs.range)));
 
-                    let classNameStatement = new FieldStatement(p, id, a, s, createToken(TokenKind.Equal, '=', cs.range), createStringLiteral('"' + cs.getName(ParseMode.BrighterScript), cs.range));
+                    let fieldTypeExpression = new TypeExpression({
+                        expression: new VariableExpression({name: createToken(TokenKind.Identifier, 'string', cs.range)})
+                    });
+                    let classNameStatement = new FieldStatement({
+                        accessModifier: p,
+                        name: id,
+                        as: a,
+                        typeExpression: fieldTypeExpression,
+                        equals: createToken(TokenKind.Equal, '=', cs.range),
+                        initialValue: createStringLiteral('"' + cs.getName(ParseMode.BrighterScript), cs.range)
+                    })
+
                     cs.body.push(classNameStatement);
                     cs.fields.push(classNameStatement);
                     cs.memberMap.__className = classNameStatement;
@@ -479,19 +498,45 @@ export class MaestroPlugin implements CompilerPlugin {
                 this.updateObserveCalls(cs, event.file);
             }
             if (this.maestroConfig.stripParamTypes) {
-                for (let fs of event.file.parser.references.functionExpressions) {
-                    const returnType = fs.returnTypeExpression?.getType({ flags: SymbolTypeFlag.runtime });
-                    if (returnType && !isVoidType(returnType) && !isDynamicType(returnType)) {
-                        const parentFunctionExpression: FunctionExpression = fs.findAncestor(isFunctionExpression);
-                        const name = fs.functionStatement?.name?.text ?? parentFunctionExpression?.functionStatement?.name?.text;
-                        if (!this.maestroConfig.paramStripExceptions.includes(name)) {
-                            fs.returnTypeExpression.expression = new VariableExpression(createIdentifier('dynamic'));
-                        }
+                // Replace the items with the specified IDs
+
+                event.file.parser.ast.statements.map(statement => {
+                    if (isFunctionExpression(statement)) {
+                        let functionExpression = statement as FunctionExpression;
+                        const returnType = statement.returnTypeExpression?.getType({ flags: SymbolTypeFlag.runtime });
+                        if (returnType && !isVoidType(returnType) && !isDynamicType(returnType)) {
+                            const parentFunctionExpression: FunctionExpression = statement.findAncestor(isFunctionExpression);
+                            const name = statement.functionStatement.getName(ParseMode.BrighterScript) ?? parentFunctionExpression.functionStatement.getName(ParseMode.BrighterScript);
+                            if (!this.maestroConfig.paramStripExceptions.includes(name)) {
+                                functionExpression = new FunctionExpression({
+                                    parameters: statement.parameters.map(parameter => {
+                                        return new FunctionParameterExpression({
+                                            name: parameter.tokens.name,
+                                            equals: parameter.tokens.equals,
+                                            defaultValue: parameter.defaultValue,
+                                            as: parameter.tokens.as,
+                                            typeExpression: null
+                                        })
+                                    }),
+                                    body: statement.body,
+                                    functionType: statement.tokens.functionType,
+                                    endFunctionType: statement.tokens.endFunctionType,
+                                    leftParen: statement.tokens.leftParen,
+                                    rightParen: statement.tokens.rightParen,
+                                    as: statement.tokens.as,
+                                    returnTypeExpression: new TypeExpression({
+                                        expression: new VariableExpression({
+                                            name: createIdentifier('dynamic')
+                                        })
+                                    })
+                                });
+                            }
+                        return functionExpression;
+                        } else {
+                            return statement;
                     }
-                    for (let param of fs.parameters) {
-                        param.typeExpression = null;
                     }
-                }
+                });
             }
             this.updateAsFunctionCalls(event.file);
             this.autoInjectNamespaceFunctionCalls(event.file);
@@ -503,35 +548,32 @@ export class MaestroPlugin implements CompilerPlugin {
 
         if (this.maestroConfig.updateAsFunctionCalls) {
             let transpileAsNodeAsAny = this.maestroConfig.transpileAsNodeAsAny;
-            for (let functionScope of file.functionScopes) {
-
-                // event.file.functionCalls
-                for (let callExpression of functionScope.func.callExpressions) {
-                    let regex = /^as(Any|Array|AA|Boolean|Number|Float|Long|Integer|Node|Point|String)/i;
-                    if (isVariableExpression(callExpression.callee) && isExpression(callExpression.args[0])) {
-                        let name = callExpression.callee.name.text;
-                        if (regex.test(name)) {
-                            try {
-                                let value = callExpression.args.shift() as DottedGetExpression;
-                                let stringPath = this.getRawTextFromDottedGet(value, state);
-                                name = `mc_get${name.match(regex)[1]}`;
-                                if (transpileAsNodeAsAny && name === 'mc_getNode') {
-                                    name = 'mc_getAny';
-                                }
-                                callExpression.callee.name.text = name;
-                                if (stringPath) {
-                                    //FIXME do not use a raw code expression here
-                                    let rawCode = new RawCodeExpression(`"${stringPath}"`, file, value.range);
-                                    callExpression.args.unshift(rawCode);
-                                } else {
-                                    callExpression.args.unshift(createInvalidLiteral());
-                                }
-                                let rootValue = this.getRootValue(value);
-                                callExpression.args.unshift(rootValue);
-                            } catch (error) {
-                                if (error.message !== 'unsupportedValue') {
-                                    console.error('could not update asXXX function call, due to unexpected error', error);
-                                }
+            let callExpressions = Array.from(file['_cachedLookups'].expressions as Expression[]).filter(e => isCallExpression(e)) as CallExpression[];
+            for(let callExpression of callExpressions) {
+                let regex = /^as(Any|Array|AA|Boolean|Number|Float|Long|Integer|Node|Point|String)/i;
+                if (isVariableExpression(callExpression.callee) && isExpression(callExpression.args[0])) {
+                    let name = callExpression.callee.getName();
+                    if (regex.test(name)) {
+                        try {
+                            let value = callExpression.args.shift() as DottedGetExpression;
+                            let stringPath = this.getRawTextFromDottedGet(value, state);
+                            name = `mc_get${name.match(regex)[1]}`;
+                            if (transpileAsNodeAsAny && name === 'mc_getNode') {
+                                name = 'mc_getAny';
+                            }
+                            callExpression.callee.tokens.name.text = name;
+                            if (stringPath) {
+                                //FIXME do not use a raw code expression here
+                                let rawCode = new RawCodeExpression(`"${stringPath}"`, file, value.range);
+                                callExpression.args.unshift(rawCode);
+                            } else {
+                                callExpression.args.unshift(createInvalidLiteral());
+                            }
+                            let rootValue = this.getRootValue(value);
+                            callExpression.args.unshift(rootValue);
+                        } catch (error) {
+                            if (error.message !== 'unsupportedValue') {
+                                console.error('could not update asXXX function call, due to unexpected error', error);
                             }
                         }
                     }
@@ -542,46 +584,44 @@ export class MaestroPlugin implements CompilerPlugin {
 
     private autoInjectNamespaceFunctionCalls(file: BrsFile) {
         if (this.maestroConfig.updateAsFunctionCalls && Object.keys(this.fileMap.allAutoInjectedNamespaceMethods).length > 0) {
-            for (let functionScope of file.functionScopes) {
+            // event.file.functionCalls
+            let callExpressions = Array.from(file['_cachedLookups'].expressions as Expression[]).filter(e => isCallExpression(e)) as CallExpression[];
+                for (let callExpression of callExpressions) {
+                //1. get the namespace
+                //2. check if all params are called
+                //3. if tag
+                //4.   get defaults for missing params
+                //5.   add m
 
-                // event.file.functionCalls
-                for (let callExpression of functionScope.func.callExpressions) {
-                    //1. get the namespace
-                    //2. check if all params are called
-                    //3. if tag
-                    //4.   get defaults for missing params
-                    //5.   add m
 
+                try {
+                    let dg = callExpression.callee as DottedGetExpression;
+                    let parts = this.getAllDottedGetParts(dg);
+                    if (parts.length > 1) {
 
-                    try {
-                        let dg = callExpression.callee as DottedGetExpression;
-                        let parts = this.getAllDottedGetParts(dg);
-                        if (parts.length > 1) {
+                        let fullPathName = this.getAllDottedGetParts(dg).join('.');
 
-                            let fullPathName = this.getAllDottedGetParts(dg).join('.');
+                        let nsFunc = this.fileMap.allAutoInjectedNamespaceMethods[fullPathName];
 
-                            let nsFunc = this.fileMap.allAutoInjectedNamespaceMethods[fullPathName];
-
-                            //is a namespace?
-                            if (isFunctionStatement(nsFunc) && callExpression.args.length < nsFunc.func.parameters.length) {
-                                for (let i = callExpression.args.length; i < nsFunc.func.parameters.length - 1; i++) {
-                                    let param = nsFunc.func.parameters[i];
-                                    if (param.defaultValue) {
-                                        callExpression.args.push(param.defaultValue);
-                                    } else {
-                                        callExpression.args.push(createInvalidLiteral());
-                                    }
+                        //is a namespace?
+                        if (isFunctionStatement(nsFunc) && callExpression.args.length < nsFunc.func.parameters.length) {
+                            for (let i = callExpression.args.length; i < nsFunc.func.parameters.length - 1; i++) {
+                                let param = nsFunc.func.parameters[i];
+                                if (param.defaultValue) {
+                                    callExpression.args.push(param.defaultValue);
+                                } else {
+                                    callExpression.args.push(createInvalidLiteral());
                                 }
-                                callExpression.args.push(createVariableExpression('m'));
                             }
-                        }
-                    } catch (error) {
-                        if (error.message !== 'unsupportedValue') {
-                            console.error('could not update asXXX function call, due to unexpected error', error);
+                            callExpression.args.push(createVariableExpression('m'));
                         }
                     }
-
+                } catch (error) {
+                    if (error.message !== 'unsupportedValue') {
+                        console.error('could not update asXXX function call, due to unexpected error', error);
+                    }
                 }
+
             }
         }
     }
@@ -591,18 +631,19 @@ export class MaestroPlugin implements CompilerPlugin {
             for (let method of cs.methods) {
 
                 // event.file.functionCalls
-                for (let callExpression of method.func.callExpressions) {
+                for (let s of method.func.body.statements.filter(s => isExpressionStatement(s) && isCallExpression(s.expression)) as ExpressionStatement[]) {
+                    let callExpression = s.expression as CallExpression;
                     let regex = /^(observe|unobserve)$/i;
                     if (isDottedGetExpression(callExpression.callee) && isDottedGetExpression(callExpression.args[0])) {
-                        let name = callExpression.callee.name.text;
+                        let name = callExpression.callee.tokens.name.text;
                         if (regex.test(name)) {
                             try {
                                 let arg0 = callExpression.args[0];
-                                let functionName = arg0.name.text;
+                                let functionName = arg0.tokens.name.text;
                                 arg0 = callExpression.args.shift() as DottedGetExpression;
                                 callExpression.args.unshift(createStringLiteral(functionName));
                                 callExpression.args.unshift(arg0.obj);
-                                callExpression.callee.name.text = `${name.match(regex)[1]}NodeField`;
+                                callExpression.callee.tokens.name.text = `${name.match(regex)[1]}NodeField`;
                             } catch (error) {
                                 if (error.message !== 'unsupportedValue') {
                                     console.error('could not update asXXX function call, due to unexpected error', error);
@@ -654,14 +695,14 @@ export class MaestroPlugin implements CompilerPlugin {
         if (isCallExpression(expr)) {
             if (isDottedGetExpression(expr.callee)) {
                 // eslint-disable-next-line @typescript-eslint/dot-notation
-                error['functionName'] = expr.callee.name.text;
+                error['functionName'] = expr.callee.tokens.name.text;
             } else {
                 // eslint-disable-next-line @typescript-eslint/dot-notation
                 error['functionName'] = '#unknown#';
             }
         } else if (isCallfuncExpression(expr)) {
             // eslint-disable-next-line @typescript-eslint/dot-notation
-            error['functionName'] = expr.methodName.text;
+            error['functionName'] = expr.tokens.methodName.text;
         }
         return error;
     }
@@ -673,17 +714,18 @@ export class MaestroPlugin implements CompilerPlugin {
             return undefined;
         }
         if (isDottedGetExpression(expr)) {
-            return expr.name.text;
+            return expr.tokens.name.text;
         } else if (isIndexedGetExpression(expr)) {
-            if (isLiteralExpression(expr.index)) {
-                return `${expr.index.token.text.replace(/^"/, '').replace(/"$/, '')}`;
-                // } else if (isVariableExpression(expr.index)) {
-                // return expr.index.name.text;
-            } else {
-                return `" + rokucommunity_bslib_toString(${expr.index.transpile(state).join('')}) + "`;
-                // return `\${m.text}}`;
+            for (let i = 0; i < expr.indexes.length; i++) {
+                let expression = expr.indexes[i] as Expression;
+                if (isLiteralExpression(expression)) {
+                    return `${expression.tokens.value.text.replace(/^"/, '').replace(/"$/, '')}`;
+                } else {
+                    return `" + rokucommunity_bslib_toString(${expression.transpile(state).join('')}) + "`;
+                }
             }
         }
+
     }
 
     beforeBuildProgram(event: BeforeBuildProgramEvent) {
@@ -744,22 +786,25 @@ export class MaestroPlugin implements CompilerPlugin {
 
         cs.walk(createVisitor({
             DottedSetStatement: (ds) => {
-                if (isVariableExpression(ds.obj) && ds.obj?.name?.text === 'm') {
-                    let lowerName = ds.name.text.toLowerCase();
+                if (isVariableExpression(ds.obj) && ds.obj?.tokens.name?.text === 'm') {
+                    let lowerName = ds.tokens.name.text.toLowerCase();
                     if (fieldMap.has(lowerName)) {
-                        let callE = new CallExpression(
-                            new DottedGetExpression(
-                                ds.obj,
-                                createIdentifier('setField', ds.range),
-                                createToken(TokenKind.Dot, '.', ds.range)),
-                            createToken(TokenKind.LeftParen, '(', ds.range),
-                            createToken(TokenKind.RightParen, ')', ds.range),
-                            [
-                                createStringLiteral(`"${ds.name.text}"`, ds.range),
+                        let callE = new CallExpression({
+                            callee: new DottedGetExpression({
+                                obj: ds.obj,
+                                name: createIdentifier('setField', ds.range),
+                                dot: createToken(TokenKind.Dot, '.', ds.range)
+                            }),
+                            openingParen: createToken(TokenKind.LeftParen, '(', ds.range),
+                            closingParen: createToken(TokenKind.RightParen, ')', ds.range),
+                            args: [
+                                createStringLiteral(`"${ds.tokens.name.text}"`, ds.range),
                                 ds.value
                             ]
+                        }
+
                         );
-                        let callS = new ExpressionStatement(callE);
+                        let callS = new ExpressionStatement({expression:callE});
                         return callS;
                     }
                 }
@@ -772,7 +817,7 @@ export class MaestroPlugin implements CompilerPlugin {
     }
 
     private checkMReferences(file: MaestroFile) {
-        for (let cs of (file.bscFile as BrsFile).parser.references.classStatements) {
+        for (let cs of (file.bscFile as BrsFile).parser.ast.statements.filter(s => isClassStatement(s)) as ClassStatement[]){
             // eslint-disable-next-line @typescript-eslint/dot-notation
             if (!this.maestroConfig.applyStrictToAllClasses && !getAllAnnotations(this.fileMap, cs)['strict']) {
                 continue;
@@ -783,23 +828,23 @@ export class MaestroPlugin implements CompilerPlugin {
             let funcMap = file.getAllFuncs(cs);
             cs.walk(createVisitor({
                 DottedSetStatement: (ds) => {
-                    if (isVariableExpression(ds.obj) && ds.obj?.name?.text === 'm') {
-                        let lowerName = ds.name.text.toLowerCase();
+                    if (isVariableExpression(ds.obj) && ds.obj?.tokens.name?.text === 'm') {
+                        let lowerName = ds.tokens.name.text.toLowerCase();
                         if (!fieldMap.has(lowerName) && !this.skips[lowerName]) {
                             if (lowerName !== 'top' && lowerName !== 'global') {
-                                addClassFieldsNotFoundOnSetOrGet(file, `${ds.obj.name.text}.${ds.name.text} `, cs.name.text, ds.range);
+                                addClassFieldsNotFoundOnSetOrGet(file, `${ds.obj.tokens.name.text}.${ds.tokens.name.text} `, cs.tokens.name.text, ds.range);
                             }
                         }
                     }
                 },
                 DottedGetExpression: (ds) => {
-                    if (isVariableExpression(ds.obj) && ds?.obj?.name.text === 'm') {
-                        let lowerName = ds.name.text.toLowerCase();
+                    if (isVariableExpression(ds.obj) && ds?.obj?.tokens.name.text === 'm') {
+                        let lowerName = ds.tokens.name.text.toLowerCase();
                         //TODO - make this not get dotted get's in function calls
                         if (!fieldMap.has(lowerName) && !funcMap[lowerName] && !this.skips[lowerName]) {
                             if (lowerName !== 'top' && lowerName !== 'global') {
                                 // if (!isNodeClass && (lowerName !== 'top' && lowerName !== 'global')) {
-                                addClassFieldsNotFoundOnSetOrGet(file, `${ds.obj.name.text}.${ds.name.text} `, cs.name.text, ds.range);
+                                addClassFieldsNotFoundOnSetOrGet(file, `${ds.obj.tokens.name.text}.${ds.tokens.name.text} `, cs.tokens.name.text, ds.range);
                             }
                         }
                     }
@@ -835,27 +880,27 @@ export class MaestroPlugin implements CompilerPlugin {
                 if (annotation) {
                     let args = annotation.getArguments();
                     if (args.length === 0 || args[0].toString().trim() === '') {
-                        addIOCWrongArgs(file, `${f.name.text}`, cs.name.text, f.range);
+                        addIOCWrongArgs(file, `${f.tokens.name.text}`, cs.tokens.name.text, f.range);
                     } else if (annotation.name === 'inject') {
                         if (args.length === 0 || args.length > 2) {
-                            addIOCNoTypeSupplied(file, `${f.name.text} `, cs.name.text, f.range);
+                            addIOCNoTypeSupplied(file, `${f.tokens.name.text} `, cs.tokens.name.text, f.range);
                         }
                     } else if (annotation.name === 'injectClass') {
                         if (args.length !== 1) {
-                            addIOCWrongArgs(file, `${f.name.text} `, cs.name.text, f.range);
+                            addIOCWrongArgs(file, `${f.tokens.name.text} `, cs.tokens.name.text, f.range);
                         } else {
                             let targetClass = classMap.get(args[0].toString().toLowerCase());
                             if (!targetClass) {
-                                IOCClassNotInScope(file, args[0].toString(), `${f.name.text} `, cs.name.text, f.range);
+                                IOCClassNotInScope(file, args[0].toString(), `${f.tokens.name.text} `, cs.tokens.name.text, f.range);
                             }
                         }
                     } else if (annotation.name === 'createClass') {
                         if (args.length < 1) {
-                            addIOCWrongArgs(file, `${cs.name.text}.${f.name.text} `, cs.name.text, f.range);
+                            addIOCWrongArgs(file, `${cs.tokens.name.text}.${f.tokens.name.text} `, cs.tokens.name.text, f.range);
                         } else {
                             let targetClass = classMap.get(args[0].toString().toLowerCase());
                             if (!targetClass) {
-                                IOCClassNotInScope(file, args[0].toString(), `${f.name.text}`, cs.name.text, f.range);
+                                IOCClassNotInScope(file, args[0].toString(), `${f.tokens.name.text}`, cs.tokens.name.text, f.range);
                             } //
                             // TODO - check constructor arg length
                             //
@@ -929,7 +974,7 @@ export class MaestroPlugin implements CompilerPlugin {
                     try {
                         if (field?.initialValue) {
                             defaultValueExpression = field.initialValue;
-                        } else if (field.as) {
+                        } else if (field.tokens.as) {
                             defaultValueExpression = typeToValueExpression(field.typeExpression.getType({ flags: SymbolTypeFlag.typetime }));
                         }
                     } catch (error) {
@@ -941,10 +986,10 @@ export class MaestroPlugin implements CompilerPlugin {
                     const miocGetInstanceWithoutIocPath = createCallExpression('mioc_getInstance', [`"${iocKey}"`, createInvalidLiteral(), defaultValueExpression]);
                     const miocGetInstanceWithIocPath = createCallExpression('mioc_getInstance', [`"${iocKey}"`, `"${iocPath}"`, defaultValueExpression]);
 
-                    const setTopFieldWithoutIocPath = createCallExpression('__m_setTopField', [`"${field.name.text}"`, miocGetInstanceWithoutIocPath]);
-                    const setTopFieldWithIocPath = createCallExpression('__m_setTopField', [`"${field.name.text}"`, miocGetInstanceWithIocPath]);
+                    const setTopFieldWithoutIocPath = createCallExpression('__m_setTopField', [`"${field.tokens.name.text}"`, miocGetInstanceWithoutIocPath]);
+                    const setTopFieldWithIocPath = createCallExpression('__m_setTopField', [`"${field.tokens.name.text}"`, miocGetInstanceWithIocPath]);
 
-                    if (isNodeClass && (field.accessModifier?.kind === TokenKind.Public)) {
+                    if (isNodeClass && (field.tokens.accessModifier?.kind === TokenKind.Public)) {
                         if (syncAnnotation) {
                             file.addDiagnostics([{
                                 ...noPathForIOCSync(),
@@ -988,7 +1033,7 @@ export class MaestroPlugin implements CompilerPlugin {
                                     file: file
                                 }]);
                             } else {
-                                astEditor.setProperty(field, 'initialValue', new RawCodeStatement(`m._addIOCObserver("${field.name.text}", "${iocKey}", "${iocPath}", "${observePath}", "${observeField}", ${funcName})`, file, field.range));
+                                astEditor.setProperty(field, 'initialValue', new RawCodeStatement(`m._addIOCObserver("${field.tokens.name.text}", "${iocKey}", "${iocPath}", "${observePath}", "${observeField}", ${funcName})`, file, field.range));
                             }
                         } else {
                             if (!iocPath) {
@@ -1014,7 +1059,15 @@ export class MaestroPlugin implements CompilerPlugin {
 
                     }
                 }
-                astEditor.setProperty(field, 'equal', createToken(TokenKind.Equal, '=', field.range));
+                // astEditor.setProperty(field, 'equals' , createToken(TokenKind.Equal, '=', field.range));
+                let tokens = {
+                    accessModifier: field.tokens.accessModifier,
+                    name: field.tokens.name,
+                    as: field.tokens.as,
+                    equals: createToken(TokenKind.Equal, '=', field.range),
+                    optional: field.tokens.optional
+                    };
+                astEditor.setProperty(field, 'tokens' , tokens)
             }
         }
     }
@@ -1037,7 +1090,7 @@ export class MaestroPlugin implements CompilerPlugin {
 
         let importedPkgPaths = (file.program as any).dependencyGraph.getAllDependencies(file.dependencyGraphKey).map((d) => d.replace('.d.bs', '.bs'));
         importedPkgPaths.push(file.pkgPath.toLowerCase());
-        for (let cs of file.parser.references.classStatements) {
+        for (let cs of file.parser.ast.statements.filter(s => isClassStatement(s)) as ClassStatement[]) {
             if (cs.parentClassName && this.maestroConfig.extraValidation.doExtraImportValidation) {
                 let name = cs.parentClassName.getName(ParseMode.BrighterScript);
                 if (!methodLookup[name]) {
@@ -1191,12 +1244,12 @@ export class MaestroPlugin implements CompilerPlugin {
                                             }]);
                                         } else {
                                             let arg0 = ce.args[0];
-                                            let objectName = isVariableExpression(arg0.obj) ? arg0.obj.name.text : '';
+                                            let objectName = isVariableExpression(arg0.obj) ? arg0.obj.tokens.name.text : '';
                                             let fieldName;
                                             let name;
                                             if (isDottedGetExpression(ce.args[1]) && isVariableExpression(ce.args[1].obj)) {
-                                                fieldName = ce.args[1].obj.name.text;
-                                                name = ce.args[1].name.text;
+                                                fieldName = ce.args[1].obj.tokens.name.text;
+                                                name = ce.args[1].tokens.name.text;
                                             }
                                             if (objectName === 'm') {
                                                 file.addDiagnostics([{
@@ -1208,7 +1261,7 @@ export class MaestroPlugin implements CompilerPlugin {
                                                 let memberStatement = cs.memberMap[name.toLowerCase()];
                                                 if (isMethodStatement(memberStatement)) {
                                                     let numArgs = memberStatement.func.parameters.length;
-                                                    let sendMode = isLiteralString(ce.args[2]) ? ce.args[2].token.text : '"value"';
+                                                    let sendMode = isLiteralString(ce.args[2]) ? ce.args[2].tokens.value.text : '"value"';
                                                     let expectedArgs = 0;
                                                     if (sendMode === '"none"') {
                                                         expectedArgs = 0;
@@ -1286,9 +1339,9 @@ export class MaestroPlugin implements CompilerPlugin {
                 continue;
             }
             filesSearched.add(file);
-            for (let cs of file.parser.references.classStatements) {
+            for (let cs of file.parser.ast.statements.filter(s => isClassStatement(s)) as ClassStatement[]) {
                 for (let s of [...cs.fields]) {
-                    let lowerName = s.name.text.toLowerCase();
+                    let lowerName = s.tokens.name.text.toLowerCase();
                     lookup[lowerName] = s;
                 }
             }
@@ -1304,10 +1357,10 @@ export class MaestroPlugin implements CompilerPlugin {
                 continue;
             }
             filesSearched.add(file);
-            for (let cs of file.parser.references.classStatements) {
+            for (let cs of file.parser.ast.statements.filter(s => isClassStatement(s)) as ClassStatement[]) {
                 let hasNew = false;
                 for (let s of [...cs.methods]) {
-                    let lowerName = s.name.text.toLowerCase();
+                    let lowerName = s.tokens.name.text.toLowerCase();
                     let currentInfo = lookup[lowerName];
                     if (lowerName === 'new') {
                         lowerName = cs.getName(ParseMode.BrighterScript);
@@ -1347,10 +1400,10 @@ export class MaestroPlugin implements CompilerPlugin {
     }
 
     getAllDottedGetParts(dg: DottedGetExpression) {
-        let parts = [dg?.name?.text];
+        let parts = [dg?.tokens.name?.text];
         let nextPart = dg.obj;
         while (isDottedGetExpression(nextPart) || isVariableExpression(nextPart)) {
-            parts.push(nextPart?.name?.text);
+            parts.push(nextPart?.tokens.name?.text);
             nextPart = isDottedGetExpression(nextPart) ? nextPart.obj : undefined;
         }
         return parts.reverse();

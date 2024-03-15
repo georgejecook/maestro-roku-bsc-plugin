@@ -1,5 +1,5 @@
-import type { BrsFile, BscFile, ClassStatement, FunctionStatement, XmlFile } from 'brighterscript';
-import { isFunctionStatement } from 'brighterscript';
+import type { BrsFile, BscFile, ClassStatement, NamespaceStatement, FunctionStatement, XmlFile } from 'brighterscript';
+import { isFunctionStatement, isNamespaceStatement } from 'brighterscript';
 import * as brighterscript from 'brighterscript';
 
 import { MaestroFile } from './MaestroFile';
@@ -9,7 +9,7 @@ import { addProjectFileMapErrorDuplicateXMLComp } from '../utils/Diagnostics';
 import type { NodeClass } from '../node-classes/NodeClass';
 
 export class ProjectFileMap {
-    processFileRemoveEvent(event: brighterscript.BeforeFileRemoveEvent<brighterscript.File>) {
+    processFileRemoveEvent(event: brighterscript.BeforeFileRemoveEvent<brighterscript.BscFile>) {
         let mFile = this.allFiles[event.file.srcPath];
         if (mFile) {
             this.removeFile(mFile);
@@ -137,9 +137,9 @@ export class ProjectFileMap {
         this.allClasses[className] = classStatement;
         mFile.classNames.add(className);
     }
-    public addNamespaces(file: BrsFile) {
 
-        for (let ns of file.parser.references.namespaceStatements) {
+    public addNamespaces(file: BrsFile) {
+        for (let ns of file.parser.statements.filter(s => isNamespaceStatement(s)) as NamespaceStatement[]) {
             let nsName = ns.getName(brighterscript.ParseMode.BrighterScript).toLowerCase();
             let paths = this.pathsByNamespace[nsName];
             if (!paths) {
@@ -149,7 +149,7 @@ export class ProjectFileMap {
             this.pathsByNamespace[nsName] = paths;
             for (let func of ns.body.statements) {
                 if (isFunctionStatement(func) && func.annotations?.find((a) => a.name === 'injectLocalM')) {
-                    this.allAutoInjectedNamespaceMethods[`${nsName}.${func.name.text}`] = func;
+                    this.allAutoInjectedNamespaceMethods[`${nsName}.${func.tokens.name.text}`] = func;
                 }
             }
         }

@@ -1,8 +1,9 @@
 import type { BrsFile, BscType, MethodStatement, ClassStatement, DottedGetExpression, Editor, EnumType, Expression, FunctionStatement, LiteralExpression, Statement, InterfaceType } from 'brighterscript';
-import { isEnumMemberStatement, Range, createVariableExpression, isDottedGetExpression, isVariableExpression, BinaryExpression, Block, createStringLiteral, createToken, IfStatement, ImportStatement, isAALiteralExpression, isArrayLiteralExpression, isMethodStatement, isClassStatement, isCommentStatement, isImportStatement, isIntegerType, isLiteralBoolean, isLiteralNumber, isLiteralString, isLongIntegerType, isUnaryExpression, Lexer, ParseMode, Parser, Position, TokenKind, SymbolTypeFlag, createBooleanLiteral, createIntegerLiteral, createFloatLiteral, createLongIntegerLiteral, createInvalidLiteral } from 'brighterscript';
+import { isEnumMemberStatement, Range, createVariableExpression, isDottedGetExpression, isVariableExpression, BinaryExpression, Block, createStringLiteral, createToken, IfStatement, ImportStatement, isAALiteralExpression, isArrayLiteralExpression, isMethodStatement, isClassStatement, isCommentStatement, isImportStatement, isIntegerType, isLiteralBoolean, isLiteralNumber, isLiteralString, isLongIntegerType, isUnaryExpression, Lexer, ParseMode, Parser, Position, TokenKind, createBooleanLiteral, createIntegerLiteral, createFloatLiteral, createLongIntegerLiteral, createInvalidLiteral, Body } from 'brighterscript';
 import * as rokuDeploy from 'roku-deploy';
 import { createAA, createArray, createRange } from './utils/Utils';
 import { BscTypeKind } from 'brighterscript/dist/types/BscTypeKind';
+import { SymbolTypeFlag } from 'brighterscript/dist/SymbolTableFlag';
 
 export function spliceString(str: string, index: number, count: number, add: string): string {
     // We cannot pass negative indexes directly to the 2nd slicing operation.
@@ -93,7 +94,7 @@ export function addOverriddenMethod(target: ClassStatement, name: string, source
 }
 
 export function changeClassMethodBody(target: ClassStatement, name: string, source: Statement[] | string): boolean {
-    let method = target.methods.find((m) => m.name.text === name);
+    let method = target.methods.find((m) => m.tokens.name.text === name);
     if (isMethodStatement(method)) {
         changeFunctionBody(method, source);
         return true;
@@ -107,16 +108,28 @@ export function sanitizeBsJsonString(text: string) {
 
 export function createIfStatement(condition: Expression, statements: Statement[]): IfStatement {
     let ifToken = createToken(TokenKind.If, 'if', Range.create(1, 1, 1, 999999));
-    let thenBranch = new Block(statements, Range.create(1, 1, 1, 1));
-    return new IfStatement({ if: ifToken, then: createToken(TokenKind.Then, '', Range.create(1, 1, 1, 999999)) }, condition, thenBranch);
+    let thenBranch = new Block({
+        statements:statements,
+        startingRange: Range.create(1, 1, 1, 1)
+    });
+    return new IfStatement({
+        if: ifToken,
+        then: createToken(TokenKind.Then, '', Range.create(1, 1, 1, 999999)),
+        thenBranch: thenBranch,
+        condition: condition
+    });
 }
 
 export function createVarExpression(varName: string, operator: TokenKind, value: string): BinaryExpression {
-    let variable = createVariableExpression(varName, Range.create(1, 1, 1, 999999));
-    let v = createStringLiteral(value, Range.create(1, 1, 1, 999999));
+    let variableExpression = createVariableExpression(varName, Range.create(1, 1, 1, 999999));
+    let stringLiteral = createStringLiteral(value, Range.create(1, 1, 1, 999999));
 
-    let t = createToken(operator, getTokenText(operator), Range.create(1, 1, 1, 999999));
-    return new BinaryExpression(variable, t, v);
+    let token = createToken(operator, getTokenText(operator), Range.create(1, 1, 1, 999999));
+    return new BinaryExpression({
+        left: variableExpression,
+        operator: token,
+        right: stringLiteral
+    });
 }
 
 export function getTokenText(operator: TokenKind): string {
@@ -210,18 +223,18 @@ export function expressionToString(expr: Expression): string {
         return 'invalid';
     }
     if (isUnaryExpression(expr) && isLiteralNumber(expr.right)) {
-        return numberExpressionToValue(expr.right, expr.operator.text).toString();
+        return numberExpressionToValue(expr.right, expr.tokens.operator.text).toString();
     }
     if (isLiteralString(expr)) {
         //remove leading and trailing quotes
-        return `"${expr.token.text.replace(/^"/, '').replace(/"$/, '')}"`;
+        return `"${expr.tokens.value.text.replace(/^"/, '').replace(/"$/, '')}"`;
     }
     if (isLiteralNumber(expr)) {
         return numberExpressionToValue(expr).toString();
     }
 
     if (isLiteralBoolean(expr)) {
-        return expr.token.text.toLowerCase() === 'true' ? 'true' : 'false';
+        return expr.tokens.value.text.toLowerCase() === 'true' ? 'true' : 'false';
     }
     if (isArrayLiteralExpression(expr)) {
         return `[${expr.elements
@@ -232,7 +245,7 @@ export function expressionToString(expr: Expression): string {
         let text = `{${expr.elements.reduce((acc, e) => {
             if (!isCommentStatement(e)) {
                 const sep = acc === '' ? '' : ', ';
-                acc += `${sep}${e.keyToken.text}: ${expressionToString(e.value)}`;
+                acc += `${sep}${e.tokens.key.text}: ${expressionToString(e.value)}`;
             }
             return acc;
         }, '')}}`;
@@ -248,18 +261,18 @@ export function expressionToValue(expr: Expression): any | undefined {
         return expressionToValue(expr.value);
     }
     if (isUnaryExpression(expr) && isLiteralNumber(expr.right)) {
-        return numberExpressionToValue(expr.right, expr.operator.text);
+        return numberExpressionToValue(expr.right, expr.tokens.operator.text);
     }
     if (isLiteralString(expr)) {
         //remove leading and trailing quotes
-        return expr.token.text.replace(/^"/, '').replace(/"$/, '');
+        return expr.tokens.value.text.replace(/^"/, '').replace(/"$/, '');
     }
     if (isLiteralNumber(expr)) {
         return numberExpressionToValue(expr);
     }
 
     if (isLiteralBoolean(expr)) {
-        return expr.token.text.toLowerCase() === 'true';
+        return expr.tokens.value.text.toLowerCase() === 'true';
     }
     if (isArrayLiteralExpression(expr)) {
         return expr.elements
@@ -269,7 +282,7 @@ export function expressionToValue(expr: Expression): any | undefined {
     if (isAALiteralExpression(expr)) {
         return expr.elements.reduce((acc, e) => {
             if (!isCommentStatement(e)) {
-                acc[e.keyToken.text] = expressionToValue(e.value);
+                acc[e.tokens.key.text] = expressionToValue(e.value);
             }
             return acc;
         }, {});
@@ -280,16 +293,19 @@ export function expressionToValue(expr: Expression): any | undefined {
 function numberExpressionToValue(expr: LiteralExpression, operator = '') {
     const exprType = expr.getType({ flags: SymbolTypeFlag.runtime });
     if (isIntegerType(exprType) || isLongIntegerType(exprType)) {
-        return parseInt(operator + expr.token.text);
+        return parseInt(operator + expr.tokens.value.text);
     } else {
-        return parseFloat(operator + expr.token.text);
+        return parseFloat(operator + expr.tokens.value.text);
     }
 }
 
 export function createImportStatement(pkgPath: string, range: Range) {
     let importToken = createToken(TokenKind.Import, 'import', range);
     let filePathToken = createToken(TokenKind.SourceFilePathLiteral, `"${sanitizePkgPath(pkgPath)}"`, range);
-    return new ImportStatement(importToken, filePathToken);
+    return new ImportStatement({
+        import:importToken,
+        path: filePathToken
+    });
 }
 
 export function addImport(file: BrsFile, pkgPath: string, astEditor: Editor) {
@@ -297,8 +313,7 @@ export function addImport(file: BrsFile, pkgPath: string, astEditor: Editor) {
     let existingImports = file.parser.ast.statements.find((el) => isImportStatement(el) && el.filePath === pkgPath);
     if (!existingImports) {
         let importStatement = createImportStatement(pkgPath, createRange(Position.create(1, 1)));
-        file.parser.ast.statements = [importStatement, ...file.parser.ast.statements];
-        file.parser.invalidateReferences();
+        file.parser.ast = new Body({ statements: [importStatement, ...file.ast.statements] });
         const scriptImport = {
             //TODO remove this eventually once the file api lands, pkgPath was deprecated on imports
             pkgPath: pkgPath,
@@ -329,10 +344,10 @@ export function sanitizePkgPath(pkgPath: string) {
 }
 
 export function getAllDottedGetParts(dg: DottedGetExpression) {
-    let parts = [dg?.name?.text];
+    let parts = [dg?.tokens.name?.text];
     let nextPart = dg.obj;
     while (isDottedGetExpression(nextPart) || isVariableExpression(nextPart)) {
-        parts.push(nextPart?.name?.text);
+        parts.push(nextPart?.tokens.name?.text);
         nextPart = isDottedGetExpression(nextPart) ? nextPart.obj : undefined;
     }
     return parts.reverse();

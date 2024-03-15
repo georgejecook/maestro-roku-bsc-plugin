@@ -1,12 +1,13 @@
-import type {
+import {
     FunctionStatement,
     IfStatement,
     BrsFile,
     XmlFile,
     Program,
-    Editor
+    Editor,
+    createSGAttribute
 } from 'brighterscript';
-import { createSGAttribute, util, Lexer, Parser, ParseMode } from 'brighterscript';
+import {util, Lexer, Parser, ParseMode } from 'brighterscript';
 import undent from 'undent';
 import type { MaestroFile } from '../files/MaestroFile';
 import { FileType } from '../files/FileType';
@@ -23,7 +24,6 @@ import { BindingType } from './BindingType';
 import { XMLTag } from './XMLTag';
 import { RawCodeStatement } from '../utils/RawCodeStatement';
 import type { SGComponent, SGElement, SGNode } from 'brighterscript/dist/parser/SGTypes';
-import { SGScript } from 'brighterscript/dist/parser/SGTypes';
 import { addImport } from '../Utils';
 import type { FileFactory } from '../utils/FileFactory';
 import type { DependencyGraph } from 'brighterscript/dist/DependencyGraph';
@@ -33,6 +33,9 @@ import * as fsExtra from 'fs-extra';
 import { BrsTranspileState } from 'brighterscript/dist/parser/BrsTranspileState';
 import { SourceNode } from 'source-map';
 import type { MaestroConfig } from '../files/MaestroConfig';
+import { isFunctionStatement } from 'brighterscript';
+
+import { SGScript } from 'brighterscript/dist/parser/SGTypes';
 
 export class BindingProcessor {
     constructor(public fileMap: ProjectFileMap, public fileFactory: FileFactory, public config: MaestroConfig) {
@@ -76,8 +79,6 @@ export class BindingProcessor {
             if (file.bindings.length > 0) {
                 this.addBindingMethodsForFile(file, astEditor);
             }
-
-            (file.associatedFile.bscFile as BrsFile).parser.invalidateReferences();
         }
 
     }
@@ -125,12 +126,12 @@ export class BindingProcessor {
     }
 
     private createSGScript(uri: string) {
-        return new SGScript(
-            { text: '<' },
-            { text: 'script' },
-            [createSGAttribute('uri', `pkg:/${uri}`)],
-            { text: '' }
-        );
+        return new SGScript({
+            startTagOpen: { text: '<' },
+            startTagName: { text: 'script' },
+            attributes: [createSGAttribute('uri', `pkg:/${uri}`)],
+            startTagClose: { text: '' }
+        });
     }
     /**
      * given a file, will load it's xml, identify bindings and clear out binding text.
@@ -144,7 +145,7 @@ export class BindingProcessor {
 
         let xmlFile = file.bscFile as XmlFile;
         //we have to reparse the xml each time we do this..
-        xmlFile.parse(file.bscFile.fileContents);
+        xmlFile.parse(xmlFile.fileContents);
         // eslint-disable-next-line @typescript-eslint/no-confusing-void-expression
         xmlFile.ast.componentElement?.setAttributeValue('vm', undefined);
         xmlFile.needsTranspiled = true;
@@ -157,9 +158,10 @@ export class BindingProcessor {
         }
         if (file.associatedFile) {
             file.resetBindings();
+            let xmlFile = file.bscFile as XmlFile;
 
             //we have to reparse the xml each time we do this..
-            file.bscFile.parse(file.bscFile.fileContents);
+            xmlFile.parse(xmlFile.fileContents);
             this.processElementsForTagIds(file);
             if (file.tagIds.size > 0) {
                 this.addFindNodeVarsMethodForFile(file, astEditor);
@@ -184,7 +186,7 @@ export class BindingProcessor {
     }
 
     private addInitCreateNodeVarsCall(file: BrsFile, astEditor: Editor) {
-        let initFunc = file.parser.references.functionStatements.find((f) => f.name.text.toLowerCase() === 'init');
+        let initFunc = file.parser.ast.statements.find((s) => isFunctionStatement(s) && s.tokens.name.text.toLowerCase() === 'init') as FunctionStatement;
         if (initFunc) {
             astEditor.arraySplice(initFunc.func.body.statements, 0, 0, new RawCodeStatement(undent`
             m_createNodeVars()
@@ -197,13 +199,13 @@ export class BindingProcessor {
                     m_createNodeVars()
                 end function
             `);
-            astEditor.arrayPush(file.parser.references.functionStatements, initFunc);
-            astEditor.edit((data) => {
-                data.oldValue = file.parser.references.functionStatementLookup.get('init');
-                file.parser.references.functionStatementLookup.set('init', initFunc);
-            }, (data) => {
-                file.parser.references.functionStatementLookup.set('init', data.oldValue);
-            });
+            // astEditor.arrayPush(file.parser.ast.statements, initFunc);
+            // astEditor.edit((data) => {
+            //     data.oldValue = file.parser.ast.statements.find((s) => isFunctionStatement(s) && s.tokens.name.text.toLowerCase() === 'init');
+            //     file.parser.references.functionStatementLookup.set('init', initFunc);
+            // }, (data) => {
+            //     file.parser.references.functionStatementLookup.set('init', data.oldValue);
+            // });
             astEditor.arrayPush(file.parser.ast.statements, initFunc);
         }
     }
@@ -398,7 +400,7 @@ export class BindingProcessor {
     private addFindNodeVarsMethodForFile(file: MaestroFile, astEditor: Editor) {
         let createNodeVarsFunction = this.makeASTFunction(this.getNodeVarMethodText(file));
         let brsFile = file.associatedFile.bscFile as BrsFile;
-        if (createNodeVarsFunction && file.associatedFile?.bscFile?.parser) {
+        if (createNodeVarsFunction && brsFile.parser) {
             astEditor.arrayPush(brsFile.parser.statements, createNodeVarsFunction);
             file.associatedFile.isASTChanged = true;
         }

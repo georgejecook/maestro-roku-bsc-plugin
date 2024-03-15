@@ -13,7 +13,7 @@
         "**/.hg": true,
         "**/CVS": true,
         "**/.DS_Store": true,
-        "**/dist": true
+        "**/dist": false
     },
     "editor.tabSize": 4,
     "editor.insertSpaces": true,

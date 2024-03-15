@@ -1,4 +1,4 @@
-import type { BrsFile, XmlFile } from 'brighterscript';
+import type { BrsFile, BscFile, XmlFile } from 'brighterscript';
 import { isBrsFile, isXmlFile, DiagnosticSeverity, Range } from 'brighterscript';
 import type Binding from '../binding/Binding';
 
@@ -30,7 +30,7 @@ function addErrorDiagnosticForBinding(
 }
 
 function createDiagnostic(
-    bscFile: BrsFile | XmlFile,
+    bscFile: BrsFile | XmlFile | BscFile,
     code: number,
     message: string,
     startLine = 0,

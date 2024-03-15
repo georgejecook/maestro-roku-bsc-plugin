@@ -1,7 +1,9 @@
-import type { BrsFile, FunctionStatement, BscFile, Program } from 'brighterscript';
+import type { BrsFile, FunctionStatement, ClassStatement, BscFile, Program } from 'brighterscript';
 import type { MaestroConfig } from '../files/MaestroConfig';
 import type { ProjectFileMap } from '../files/ProjectFileMap';
 import { RawCodeStatement } from '../utils/RawCodeStatement';
+import { isClassStatement } from 'brighterscript';
+
 import * as minimatch from 'minimatch';
 
 /*
@@ -68,7 +70,7 @@ export default class ReflectionUtil {
     public addFile(file: BrsFile) {
         let mFile = this.fileMap.allFiles[file.srcPath];
         this.fileMap.removeFileClasses(mFile);
-        for (let cs of file.parser.references.classStatements) {
+        for (let cs of file.parser.ast.statements.filter(s => isClassStatement(s))as ClassStatement[]) {
             this.fileMap.addClass(cs, mFile);
         }
     }

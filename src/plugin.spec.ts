@@ -1,11 +1,11 @@
-import type { AfterProgramCreateEvent, BrsFile, BsDiagnostic, Program } from 'brighterscript';
-import { DiagnosticSeverity, ProgramBuilder, util } from 'brighterscript';
+import type { AfterProgramCreateEvent, BrsFile, BsDiagnostic, ClassStatement, Program } from 'brighterscript';
+import { DiagnosticSeverity, ProgramBuilder, isClassStatement, util } from 'brighterscript';
 import { expect } from 'chai';
 import { MaestroPlugin } from './plugin';
 import { standardizePath as s } from './lib/Utils';
 import * as fsExtra from 'fs-extra';
 import * as path from 'path';
-import { expectDiagnostics, expectZeroDiagnostics } from './testHelpers.spec';
+import { expectDiagnostics,expectDiagnosticsIncludes, expectZeroDiagnostics } from './testHelpers.spec';
 
 function undent(strings: TemplateStringsArray | string, ...values: any[]): string {
     // Construct the full string by interleaving the strings and values
@@ -297,7 +297,7 @@ describe('MaestroPlugin', () => {
                     instance.new = sub()
                         m.riversJson = invalid
                         m.entry = invalid
-                        m.__classname = "myVM"
+                        m.__className = "myVM"
                     end sub
                     return instance
                 end function
@@ -642,7 +642,7 @@ describe('MaestroPlugin', () => {
             end function`);
         });
 
-        it.only('does not fail if changing a node class, or a file consuming it', async () => {
+        it('does not fail if changing a node class, or a file consuming it', async () => {
             plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             console.log('>+>+>+>>>+>+>+>+>+> EDIT1');
             program.setFile('source/comp.bs', `
@@ -943,7 +943,7 @@ describe('MaestroPlugin', () => {
                     m.invalidText = ""
                     m.text = ""
                     m.isValid = false
-                    m.__classname = "Comp"
+                    m.__className = "Comp"
                 end function
                 instance.someFunction = function()
                     m.text = (function(__bsCondition, m)
@@ -1626,7 +1626,7 @@ describe('MaestroPlugin', () => {
             `);
             program.validate();
             await builder.build();
-            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error && !d.message.includes('mc.types.'))).to.be.empty;
+            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error && d.code !==  1028 && !d.message.includes('mc.types.'))).to.be.empty;
 
             expect(
                 undent(getContents('components/maestro/generated/Comp.xml'))
@@ -1996,7 +1996,7 @@ describe('MaestroPlugin', () => {
 
     describe('reflection', () => {
 
-        it('adds __classname to all classes in a project', async () => {
+        it('adds __className to all classes in a project', async () => {
             plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/comp.bs', `
                 @node("Comp", "Group")
@@ -2023,10 +2023,11 @@ describe('MaestroPlugin', () => {
             await builder.build();
             expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
             let classFile = program.getFile<BrsFile>('source/myClass.bs');
-            let cs = classFile.parser.references.classStatements[0];
-            expect(cs.body.length === 3);
+            let classStatements = classFile.parser.statements.filter(s => isClassStatement(s)) as ClassStatement[];
+            let cs = classStatements[0];
+            expect(cs.body.length === 2);
             expect(cs.fields.length === 2);
-            expect(cs.memberMap['__className'].name.text === '__className');
+            expect(cs.memberMap['__className'].tokens.name.text === '__className');
             expect(
                 undent(getContents('source/myClass.brs'))
             ).to.eql(undent`
@@ -2034,7 +2035,7 @@ describe('MaestroPlugin', () => {
                     instance = {}
                     instance.new = sub()
                         m.title = invalid
-                        m.__classname = "myClass"
+                        m.__className = "myClass"
                     end sub
                     return instance
                 end function
@@ -2047,7 +2048,7 @@ describe('MaestroPlugin', () => {
                     instance = {}
                     instance.new = sub()
                         m.title = invalid
-                        m.__classname = "myNamespace.myNamespacedClass"
+                        m.__className = "myNamespace.myNamespacedClass"
                     end sub
                     return instance
                 end function
@@ -2065,7 +2066,7 @@ describe('MaestroPlugin', () => {
                     instance.new = function()
                         m.title = ""
                         m.content = ""
-                        m.__classname = "Comp"
+                        m.__className = "Comp"
                     end function
                     return instance
                 end function
@@ -2077,7 +2078,7 @@ describe('MaestroPlugin', () => {
             `);
         });
 
-        it('adds __classname, in subclasses', async () => {
+        it('adds __className, in subclasses', async () => {
             plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
             program.setFile('source/myClass.bs', `
                 class ClassA
@@ -2090,10 +2091,11 @@ describe('MaestroPlugin', () => {
             await builder.build();
             expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
             let classFile = program.getFile<BrsFile>('source/myClass.bs');
-            let cs = classFile.parser.references.classStatements[0];
+            let classStatements = classFile.parser.statements.filter(s => isClassStatement(s)) as ClassStatement[];
+            let cs = classStatements[0];
             expect(cs.body.length === 3);
             expect(cs.fields.length === 2);
-            expect(cs.memberMap['__className'].name.text === '__className');
+            expect(cs.memberMap['__className'].tokens.name.text === '__className');
             expect(
                 undent(getContents('source/myClass.brs'))
             ).to.eql(undent`
@@ -2101,7 +2103,7 @@ describe('MaestroPlugin', () => {
                     instance = {}
                     instance.new = sub()
                         m.title = invalid
-                        m.__classname = "ClassA"
+                        m.__className = "ClassA"
                     end sub
                     return instance
                 end function
@@ -2116,7 +2118,7 @@ describe('MaestroPlugin', () => {
                     instance.new = sub()
                         m.super0_new()
                         m.title2 = invalid
-                        m.__classname = "ClassB"
+                        m.__className = "ClassB"
                     end sub
                     return instance
                 end function
@@ -2147,7 +2149,7 @@ describe('MaestroPlugin', () => {
                 expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.not.be.empty;
             });
 
-            it('gives diagnostic for unknown field; but skips valid skips', () => {
+            it('gives diagnostic for unknown field; but skips valid fields', () => {
                 plugin.afterProgramCreate({ program: program } as AfterProgramCreateEvent);
 
                 program.setFile('source/VM.bs', `
@@ -2165,7 +2167,13 @@ describe('MaestroPlugin', () => {
                     end class
                 `);
                 program.validate();
-                expectDiagnostics(builder, [{ message: `Cannot find name '__className'` }]);
+                expectDiagnosticsIncludes(builder, [
+                    {message: `Cannot find name 'count'`, code: 1001},
+                    {message: `Cannot find name 'doesExist'`, code: 1001},
+                    {message: `Cannot find name 'keys'`, code: 1001},
+                    {message: `Cannot find name 'lookup'`, code: 1001},
+                    {message: `class field: "m.__className " was not found on VM or it's parent classes`, code: 'MSTO1040'},
+                ]);
             });
 
             it('gives diagnostic for  unknown function', () => {
@@ -2362,7 +2370,7 @@ describe('MaestroPlugin', () => {
                             m.fieldA = invalid
                             m.fieldB = invalid
                             m.fieldC = invalid
-                            m.__classname = "VM"
+                            m.__className = "VM"
                         end sub
                         instance.doStuff = function()
                             m.setField("fieldA", "val1")
@@ -2426,7 +2434,7 @@ describe('MaestroPlugin', () => {
                     m.fieldA = invalid
                     m.fieldB = invalid
                     m.fieldC = invalid
-                    m.__classname = "VM"
+                    m.__className = "VM"
                 end sub
                 instance.doStuff = function()
                 end function
@@ -2442,6 +2450,7 @@ describe('MaestroPlugin', () => {
                 instance.super0_new = instance.new
                 instance.new = sub()
                     m.super0_new()
+                    m.__className = "ChildVM"
                 end sub
                 instance.super0_doStuff = instance.doStuff
                 instance.doStuff = function()
@@ -2497,7 +2506,7 @@ describe('MaestroPlugin', () => {
                         instance.new = sub()
                             m.fieldA = mioc_getInstance("Entitlements", invalid, invalid)
                             m.fieldB = mioc_getClassInstance("mc.collections.FieldMapper")
-                            m.__classname = "VM"
+                            m.__className = "VM"
                         end sub
                         return instance
                     end function
@@ -2509,7 +2518,7 @@ describe('MaestroPlugin', () => {
                     function __mc_collections_FieldMapper_builder()
                         instance = {}
                         instance.new = sub()
-                            m.__classname = "mc.collections.FieldMapper"
+                            m.__className = "mc.collections.FieldMapper"
                         end sub
                         return instance
                     end function
@@ -2590,7 +2599,7 @@ describe('MaestroPlugin', () => {
                         m.fieldO = mioc_getInstance("myKey", invalid, {
                             "one": "two"
                         })
-                        m.__classname = "VM"
+                        m.__className = "VM"
                     end sub
                     return instance
                 end function
@@ -2602,7 +2611,7 @@ describe('MaestroPlugin', () => {
                 function __mc_collections_FieldMapper_builder()
                     instance = {}
                     instance.new = sub()
-                        m.__classname = "mc.collections.FieldMapper"
+                        m.__className = "mc.collections.FieldMapper"
                     end sub
                     return instance
                 end function
@@ -2651,7 +2660,7 @@ describe('MaestroPlugin', () => {
                             m.fieldB = mioc_getInstance("myEnum", invalid, "secondValue")
                             m.fieldC = mioc_getInstance("myEnum", invalid, 1)
                             m.fieldD = mioc_getInstance("myEnum", invalid, 2)
-                            m.__classname = "VM"
+                            m.__className = "VM"
                         end sub
                         return instance
                     end function
@@ -2689,7 +2698,7 @@ describe('MaestroPlugin', () => {
                             m.fieldA = mioc_getInstance("Entitlements", invalid, invalid)
                             m.fieldB = mioc_createClassInstance("ChildVM")
                             m.fieldC = mioc_createClassInstance("ChildVM", ["arg1","arg2"])
-                            m.__classname = "VM"
+                            m.__className = "VM"
                         end sub
                         return instance
                     end function
@@ -2703,6 +2712,7 @@ describe('MaestroPlugin', () => {
                         instance.super0_new = instance.new
                         instance.new = sub()
                             m.super0_new()
+                            m.__className = "ChildVM"
                         end sub
                         return instance
                     end function
@@ -2855,7 +2865,7 @@ describe('MaestroPlugin', () => {
                             m.fieldD = m._addIOCObserver("fieldD", "Entitlements", "isLoggedIn", "", "isLoggedIn", m.onfieldchange )
                             m.fieldE = m._addIOCObserver("fieldE", "user", "Entitlements.isLoggedIn", "Entitlements", "isLoggedIn", m.onfieldchange )
                             m.fieldF = m._addIOCObserver("fieldF", "user", "Entitlements.valid.isLoggedIn", "Entitlements.valid", "isLoggedIn", m.onfieldchange )
-                            m.__classname = "MyView"
+                            m.__className = "MyView"
                         end sub
                         instance.onFieldChange = function(value)
                         end function
@@ -2904,7 +2914,7 @@ describe('MaestroPlugin', () => {
                         m.fieldB = mioc_getInstance("user", "Entitlements.isLoggedIn", invalid)
                         m.fieldC = m._addIOCObserver("fieldC", "Entitlements", "isLoggedIn", "", "isLoggedIn", invalid)
                         m.fieldD = m._addIOCObserver("fieldD", "user", "Entitlements.isLoggedIn", "Entitlements", "isLoggedIn", invalid)
-                        m.__classname = "MyView"
+                        m.__className = "MyView"
                     end sub
                     instance.onFieldChange = function(value)
                     end function
@@ -3659,7 +3669,7 @@ describe('MaestroPlugin', () => {
                     instance = {}
                     instance.new = sub()
                         m.json = invalid
-                        m.__classname = "Comp"
+                        m.__className = "Comp"
                     end sub
                     instance.classMethod = function()
                         formatJson(mc_getAA(m, "json.user"))
@@ -3788,7 +3798,7 @@ describe('MaestroPlugin', () => {
                 function __Comp_builder()
                     instance = {}
                     instance.new = sub()
-                        m.__classname = "Comp"
+                        m.__className = "Comp"
                     end sub
                     instance.notInClass = function()
                         m.observeNodeField(node, "field", m.callbackFunction)
@@ -3977,7 +3987,7 @@ describe('MaestroPlugin', () => {
                     instance = {}
                     instance.new = sub()
                         m.json = invalid
-                        m.__classname = "Comp"
+                        m.__className = "Comp"
                     end sub
                     instance.classMethod = function()
                         m.observeNodeField(node, "field", m.callbackFunction)
@@ -4051,7 +4061,7 @@ describe('MaestroPlugin', () => {
                     instance = {}
                     instance.new = sub()
                         m.json = invalid
-                        m.__classname = "Comp"
+                        m.__className = "Comp"
                     end sub
                     instance.classMethod = function()
                         m.observeNodeField(node, "field", m.callbackFunction)

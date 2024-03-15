@@ -38,7 +38,7 @@ export class MaestroFile {
     public componentName: string;
     public parentComponentName: string;
     public componentIds: Set<string>;
-    public bscFile: BrsFile | XmlFile;
+    public bscFile: BrsFile | XmlFile | BscFile;
     public componentTag: SGComponent;
     public vmClassFile: string;
     public vmClassName: string;
@@ -178,7 +178,7 @@ export class MaestroFile {
                 }
             }
         }
-        if (field && (!vis || (field.accessModifier?.kind === vis || (vis === TokenKind.Public && !field.accessModifier)))) {
+        if (field && (!vis || (field.tokens.accessModifier?.kind === vis || (vis === TokenKind.Public && !field.tokens.accessModifier)))) {
             return field;
         } else {
             return undefined;
@@ -189,7 +189,7 @@ export class MaestroFile {
         let result = {};
         while (cs) {
             for (let method of cs.methods) {
-                result[method.name.text.toLowerCase()] = true;
+                result[method.tokens.name.text.toLowerCase()] = true;
             }
             cs = cs.parentClassName ? this.fileMap.allClasses[cs.parentClassName.getName(ParseMode.BrighterScript).replace(/_/g, '.')] : null;
         }

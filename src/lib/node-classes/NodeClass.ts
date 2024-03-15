@@ -1,11 +1,13 @@
 /* eslint-disable @typescript-eslint/indent */
 import type { AnnotationExpression, BrsFile, MethodStatement, ClassStatement, CommentStatement, DottedGetExpression, EnumMemberStatement, FieldStatement, FunctionParameterExpression, Program, XmlFile, SGElement } from 'brighterscript';
-import { isEnumMemberStatement, isDottedGetExpression, isEnumStatement, isNewExpression, TokenKind, isMethodStatement, ParseMode, createVisitor, isVariableExpression, WalkMode, isAALiteralExpression, isArrayLiteralExpression, isIntegerType, isLiteralExpression, isLiteralNumber, isLongIntegerType, isUnaryExpression, SymbolTypeFlag, util, createSGInterfaceField, createSGInterfaceFunction } from 'brighterscript';
+import { isEnumMemberStatement, isDottedGetExpression, isEnumStatement, isNewExpression, TokenKind, isMethodStatement, ParseMode, createVisitor, isVariableExpression, WalkMode, isAALiteralExpression, isArrayLiteralExpression, isIntegerType, isLiteralExpression, isLiteralNumber, isLongIntegerType, isUnaryExpression, util, createSGInterfaceField, createSGInterfaceFunction, } from 'brighterscript';
 import type { ProjectFileMap } from '../files/ProjectFileMap';
 import { expressionToString, expressionToValue, getAllDottedGetParts } from '../Utils';
 import { addNodeClassCallbackNotDefined, addNodeClassCallbackNotFound, addNodeClassCallbackWrongParams, addNodeClassFieldNoFieldType, addNodeClassNoExtendNodeFound, addNodeClassUnknownClassType, addNodeTaskMustExtendTaskComponent, addTooManyPublicParams } from '../utils/Diagnostics';
 import { RawCodeStatement } from '../utils/RawCodeStatement';
 import { getAllFields } from '../utils/Utils';
+import { SymbolTypeFlag } from 'brighterscript/dist/SymbolTableFlag';
+
 
 // eslint-disable-next-line
 const path = require('path');
@@ -25,7 +27,7 @@ export enum NodeClassType {
 export class NodeField {
     isEnum: boolean;
     constructor(public file: BrsFile, public classStatement: ClassStatement, public field: FieldStatement, public fieldType: string, public observerAnnotation?: AnnotationExpression, public alwaysNotify?: boolean, public debounce?: boolean, public isPossibleClassType = false, public isRootOnlyObserver = false) {
-        this.name = field.name.text;
+        this.name = field.tokens.name.text;
         this.type = isPossibleClassType ? 'assocarray' : fieldType;
         this.classType = isPossibleClassType ? fieldType : '';
         this.value = expressionToString(this.field.initialValue);
@@ -134,7 +136,7 @@ export class NodeClass {
     public xmlPath: string;
     public nodeFields: NodeField[] = [];
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-    public classMemberFilter = (m) => isMethodStatement(m) && (!m.accessModifier || m.accessModifier.kind === TokenKind.Public) && m.name.text !== 'new';
+    public classMemberFilter = (m) => isMethodStatement(m) && (!m.accessModifier || m.accessModifier.kind === TokenKind.Public) && m.tokens.name.text !== 'new';
 
     private getNeedsTasks() {
         let fields: BoundClassField[] = [];
@@ -142,7 +144,7 @@ export class NodeClass {
             fields = [...this.getClassFields(this.classStatement, this.fileMap).values()];
         }
 
-        for (let bf of fields.filter((bf) => (!bf.f.accessModifier || bf.f.accessModifier.kind === TokenKind.Public) && bf.f.name.text.toLocaleLowerCase() !== '__classname')) {
+        for (let bf of fields.filter((bf) => (!bf.f.tokens.accessModifier || bf.f.tokens.accessModifier.kind === TokenKind.Public) && bf.f.tokens.name.text.toLocaleLowerCase() !== '__className')) {
             let field = bf.f;
 
             let debounce = field.annotations?.find((a) => a.name.toLowerCase() === 'debounce') !== undefined;
@@ -242,7 +244,6 @@ ${bodyText}
 
         let members = [...this.getClassMembers(this.classStatement, this.fileMap).values()];
 
-        this.xmlFile.ast.componentElement.interfaceElement.elements = [];
         let elements = this.xmlFile.ast.componentElement.interfaceElement.elements;
         for (let member of this.nodeFields) {
             if (!this.getFieldInParents(member.name, program)) {
@@ -250,8 +251,8 @@ ${bodyText}
             }
         }
         for (let member of members.filter(this.classMemberFilter)) {
-            if (!this.getFunctionInParents(member.name.text, program)) {
-                elements.push(createSGInterfaceFunction(member.name.text));
+            if (!this.getFunctionInParents(member.tokens.name.text, program)) {
+                elements.push(createSGInterfaceFunction(member.tokens.name.text));
             }
         }
     }
@@ -261,11 +262,11 @@ ${bodyText}
         for (let member of members.filter(this.classMemberFilter)) {
             let params = (member as MethodStatement).func.parameters;
             if (params.length) {
-                let args = `${params.map((p) => p.name.text).join(',')} `;
-                text += this.makeFunction(member.name.text, this.getWrapperCallFuncParams(params), `        return m.${member.name.text}(${args})\n`);
+                let args = `${params.map((p) => p.tokens.name.text).join(',')} `;
+                text += this.makeFunction(member.tokens.name.text, this.getWrapperCallFuncParams(params), `        return m.${member.tokens.name.text}(${args})\n`);
             } else {
-                text += this.makeFunction(member.name.text, 'dummy = invalid', `
-            return m.${member.name.text}()`);
+                text += this.makeFunction(member.tokens.name.text, 'dummy = invalid', `
+            return m.${member.tokens.name.text}()`);
 
             }
         }
@@ -281,7 +282,7 @@ ${bodyText}
             if (typeof defaultValue === 'string') {
                 defaultValue = `"${defaultValue}"`;
             }
-            return p.name.text + ' = ' + (defaultValue !== undefined ? defaultValue : 'invalid');
+            return p.tokens.name.text + ' = ' + (defaultValue !== undefined ? defaultValue : 'invalid');
         }).join(',')
             } `;
     }
@@ -311,12 +312,12 @@ ${bodyText}
         for (let member of members.filter(this.classMemberFilter)) {
             let params = (member as MethodStatement).func.parameters;
             if (params.length) {
-                let args = `${params.map((p) => p.name.text).join(',')} `;
-                text += this.makeFunction(member.name.text, this.getWrapperCallFuncParams(params), `
-                return _getVM().${member.name.text}(${args})`);
+                let args = `${params.map((p) => p.tokens.name.text).join(',')} `;
+                text += this.makeFunction(member.tokens.name.text, this.getWrapperCallFuncParams(params), `
+                return _getVM().${member.tokens.name.text}(${args})`);
             } else {
-                text += this.makeFunction(member.name.text, 'dummy = invalid', `
-                return _getVM().${member.name.text}()`);
+                text += this.makeFunction(member.tokens.name.text, 'dummy = invalid', `
+                return _getVM().${member.tokens.name.text}()`);
 
             }
         }
@@ -343,31 +344,23 @@ ${bodyText}
     }
     private getSimpleNodeTaskFileXmlText(nodeFile: NodeClass): string {
         return `<?xml version="1.0" encoding="UTF-8" ?>
-    <component
-    name="${nodeFile.name}"
-    extends="${nodeFile.extendsName}" >
-    <interface>
-    <field id="args" type="assocarray" />
-        <field id="output" type="assocarray" />
+    <component name="${nodeFile.name}" extends="${nodeFile.extendsName}">
+        <interface>
+            <field id="args" type="assocarray" />
+            <field id="output" type="assocarray" />
             <function name="exec" />
-                </interface>
-                <script type="text/brightscript" uri="pkg:/source/roku_modules/maestro/private/MaestroPluginUtils.brs" />
-                    <script uri="pkg:/${this.file.pkgPath}" />
-                    ${(this.needsTasks || this.observersWaitInit) ? '<script uri="pkg:/source/roku_modules/mc/Tasks.brs"/>' : ''}
-
-
-                    <script uri="pkg:/${this.brsPath}" />
-                        <children>
-                        </children>
-                        </component>
-                            `;
+        </interface>
+        <script type="text/brightscript" uri="pkg:/source/roku_modules/maestro/private/MaestroPluginUtils.brs" />
+        <script uri="pkg:/${this.file.pkgPath}" type="text/brightscript" />
+             ${(this.needsTasks || this.observersWaitInit) ? '<script uri="pkg:/source/roku_modules/mc/Tasks.brs"/>' : ''}<script uri="pkg:/${this.brsPath}" type="text/brightscript" />
+        <children>
+        </children>
+    </component>`;
     }
 
     private getSimpleNodeFileXmlText(): string {
         let text = `<?xml version="1.0" encoding="UTF-8" ?>
-    <component
-    name="${this.name}"
-    extends="${this.extendsName}" >
+    <component name="${this.name}" extends="${this.extendsName}" >
     <interface>
     </interface>
     <script uri="pkg:/${this.file.pkgPath}" />
@@ -395,9 +388,9 @@ ${bodyText}
         }
         for (let member of members.filter(this.classMemberFilter)) {
 
-            if (!this.getFunctionInParents(member.name.text, program)) {
+            if (!this.getFunctionInParents(member.tokens.name.text, program)) {
                 text += `
-    <function name="${member.name.text}" /> `;
+    <function name="${member.tokens.name.text}" /> `;
             }
         }
         text += `
@@ -541,8 +534,8 @@ ${bodyText}
                 let fields = cs?.fields;
                 let methods = cs?.methods;
                 for (let member of [...fields, ...methods]) {
-                    if (!results.has(member.name.text.toLowerCase())) {
-                        results.set(member.name.text.toLowerCase(), member);
+                    if (!results.has(member.tokens.name.text.toLowerCase())) {
+                        results.set(member.tokens.name.text.toLowerCase(), member);
                     }
                 }
             }
@@ -557,8 +550,8 @@ ${bodyText}
             for (let cs of classes) {
                 let fields = cs?.fields;
                 for (let member of [...fields]) {
-                    if (!results.has(member.name.text.toLowerCase())) {
-                        results.set(member.name.text.toLowerCase(), { cs: cs, f: member });
+                    if (!results.has(member.tokens.name.text.toLowerCase())) {
+                        results.set(member.tokens.name.text.toLowerCase(), { cs: cs, f: member });
                     }
                 }
             }
@@ -596,7 +589,7 @@ ${bodyText}
         for (let field of this.nodeFields.filter((f) => f.classStatement === this.classStatement)) {
             if (field.observerAnnotation) {
                 let observerArgs = field.observerAnnotation.getArguments();
-                let observerFunc = this.classStatement.methods.find((m) => m.name.text === observerArgs[0]);
+                let observerFunc = this.classStatement.methods.find((m) => m.tokens.name.text === observerArgs[0]);
                 if (observerArgs?.length !== 1) {
                     addNodeClassCallbackNotDefined(this.file, field.name, field.observerAnnotation.range.start.line, field.observerAnnotation.range.start.character);
 
@@ -613,7 +606,7 @@ ${bodyText}
 
         for (let method of this.classStatement.methods.filter(this.classMemberFilter)) {
             if (method.func.parameters.length > 5) {
-                addTooManyPublicParams(this.file, method.name.text, this.classStatement.getName(ParseMode.BrighterScript), method.name.range.start.line, method.name.range.start.character);
+                addTooManyPublicParams(this.file, method.tokens.name.text, this.classStatement.getName(ParseMode.BrighterScript), method.tokens.name.range.start.line, method.tokens.name.range.start.character);
             }
         }
     }
@@ -621,10 +614,10 @@ ${bodyText}
     public replacePublicMFieldRefs(fileMap: ProjectFileMap) {
         let allTopFields = getAllFields(fileMap, this.classStatement, TokenKind.Public);
         allTopFields.set('id', true as any);
-        allTopFields.delete('__classname');
+        allTopFields.delete('__className');
         let logVisitor = createVisitor({
             DottedGetExpression: (de) => {
-                if (isVariableExpression(de.obj) && de.obj.name.text === 'm' && allTopFields.get(de.name.text.toLowerCase())) {
+                if (isVariableExpression(de.obj) && de.obj.tokens.name.text === 'm' && allTopFields.get(de.tokens.name.text.toLowerCase())) {
                     try {
                         // eslint-disable-next-line
                         (de as any)['obj'] = new RawCodeStatement(`m.top`, this.file, de.range);
@@ -634,7 +627,7 @@ ${bodyText}
                 }
             },
             DottedSetStatement: (ds) => {
-                if (isVariableExpression(ds.obj) && ds.obj.name.text === 'm' && allTopFields.get(ds.name.text.toLowerCase())) {
+                if (isVariableExpression(ds.obj) && ds.obj.tokens.name.text === 'm' && allTopFields.get(ds.tokens.name.text.toLowerCase())) {
                     try {
                         // eslint-disable-next-line
                         (ds as any)['obj'] = new RawCodeStatement(`m.top`, this.file, ds.range);
@@ -655,7 +648,7 @@ ${bodyText}
         }
 
         let nodeFields = [];
-        for (let bf of fields.filter((bf) => (!bf.f.accessModifier || bf.f.accessModifier.kind === TokenKind.Public) && bf.f.name.text.toLocaleLowerCase() !== '__classname')) {
+        for (let bf of fields.filter((bf) => (!bf.f.tokens.accessModifier || bf.f.tokens.accessModifier.kind === TokenKind.Public) && bf.f.tokens.name.text.toLocaleLowerCase() !== '__className')) {
             let field = bf.f;
             let fieldType = this.getFieldType(field);
             let isEnum = false;
@@ -664,7 +657,7 @@ ${bodyText}
                 if (fieldType) {
                     isEnum = true;
                 } else {
-                    addNodeClassFieldNoFieldType(file, field.name.text, field.range.start.line, field.range.start.character);
+                    addNodeClassFieldNoFieldType(file, field.tokens.name.text, field.range.start.line, field.range.start.character);
                     continue;
                 }
             }
