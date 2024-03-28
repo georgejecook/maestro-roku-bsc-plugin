@@ -1,9 +1,8 @@
 import type { BrsFile, BscType, MethodStatement, ClassStatement, DottedGetExpression, Editor, EnumType, Expression, FunctionStatement, LiteralExpression, Statement, InterfaceType } from 'brighterscript';
-import { isEnumMemberStatement, Range, createVariableExpression, isDottedGetExpression, isVariableExpression, BinaryExpression, Block, createStringLiteral, createToken, IfStatement, ImportStatement, isAALiteralExpression, isArrayLiteralExpression, isMethodStatement, isClassStatement, isCommentStatement, isImportStatement, isIntegerType, isLiteralBoolean, isLiteralNumber, isLiteralString, isLongIntegerType, isUnaryExpression, Lexer, ParseMode, Parser, Position, TokenKind, createBooleanLiteral, createIntegerLiteral, createFloatLiteral, createLongIntegerLiteral, createInvalidLiteral, Body } from 'brighterscript';
+import { isEnumMemberStatement, Range, createVariableExpression, isDottedGetExpression, isVariableExpression, BinaryExpression, Block, createStringLiteral, createToken, IfStatement, ImportStatement, isAALiteralExpression, isArrayLiteralExpression, isMethodStatement, isClassStatement, isImportStatement, isIntegerType, isLiteralBoolean, isLiteralNumber, isLiteralString, isLongIntegerType, isUnaryExpression, Lexer, ParseMode, Parser, Position, TokenKind, createBooleanLiteral, createIntegerLiteral, createFloatLiteral, createLongIntegerLiteral, createInvalidLiteral, Body } from 'brighterscript';
 import * as rokuDeploy from 'roku-deploy';
 import { createAA, createArray, createRange } from './utils/Utils';
 import { BscTypeKind } from 'brighterscript/dist/types/BscTypeKind';
-import { SymbolTypeFlag } from 'brighterscript/dist/SymbolTableFlag';
 
 export function spliceString(str: string, index: number, count: number, add: string): string {
     // We cannot pass negative indexes directly to the 2nd slicing operation.
@@ -237,16 +236,12 @@ export function expressionToString(expr: Expression): string {
         return expr.tokens.value.text.toLowerCase() === 'true' ? 'true' : 'false';
     }
     if (isArrayLiteralExpression(expr)) {
-        return `[${expr.elements
-            .filter(e => !isCommentStatement(e))
-            .map(e => expressionToString(e))}]`;
+        return `[${expr.elements.map(e => expressionToString(e))}]`;
     }
     if (isAALiteralExpression(expr)) {
         let text = `{${expr.elements.reduce((acc, e) => {
-            if (!isCommentStatement(e)) {
                 const sep = acc === '' ? '' : ', ';
                 acc += `${sep}${e.tokens.key.text}: ${expressionToString(e.value)}`;
-            }
             return acc;
         }, '')}}`;
         return text;
@@ -276,14 +271,11 @@ export function expressionToValue(expr: Expression): any | undefined {
     }
     if (isArrayLiteralExpression(expr)) {
         return expr.elements
-            .filter(e => !isCommentStatement(e))
             .map(e => expressionToValue(e));
     }
     if (isAALiteralExpression(expr)) {
         return expr.elements.reduce((acc, e) => {
-            if (!isCommentStatement(e)) {
                 acc[e.tokens.key.text] = expressionToValue(e.value);
-            }
             return acc;
         }, {});
     }
@@ -291,7 +283,7 @@ export function expressionToValue(expr: Expression): any | undefined {
 }
 
 function numberExpressionToValue(expr: LiteralExpression, operator = '') {
-    const exprType = expr.getType({ flags: SymbolTypeFlag.runtime });
+    const exprType = expr.getType();
     if (isIntegerType(exprType) || isLongIntegerType(exprType)) {
         return parseInt(operator + expr.tokens.value.text);
     } else {

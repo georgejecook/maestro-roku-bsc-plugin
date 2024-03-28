@@ -1,13 +1,11 @@
 /* eslint-disable @typescript-eslint/indent */
-import type { AnnotationExpression, BrsFile, MethodStatement, ClassStatement, CommentStatement, DottedGetExpression, EnumMemberStatement, FieldStatement, FunctionParameterExpression, Program, XmlFile, SGElement } from 'brighterscript';
+import type { AnnotationExpression, BrsFile, MethodStatement, ClassStatement, DottedGetExpression, EnumMemberStatement, FieldStatement, FunctionParameterExpression, Program, XmlFile, SGElement } from 'brighterscript';
 import { isEnumMemberStatement, isDottedGetExpression, isEnumStatement, isNewExpression, TokenKind, isMethodStatement, ParseMode, createVisitor, isVariableExpression, WalkMode, isAALiteralExpression, isArrayLiteralExpression, isIntegerType, isLiteralExpression, isLiteralNumber, isLongIntegerType, isUnaryExpression, util, createSGInterfaceField, createSGInterfaceFunction } from 'brighterscript';
 import type { ProjectFileMap } from '../files/ProjectFileMap';
 import { expressionToString, expressionToValue, getAllDottedGetParts } from '../Utils';
 import { addNodeClassCallbackNotDefined, addNodeClassCallbackNotFound, addNodeClassCallbackWrongParams, addNodeClassFieldNoFieldType, addNodeClassNoExtendNodeFound, addNodeClassUnknownClassType, addNodeTaskMustExtendTaskComponent, addTooManyPublicParams } from '../utils/Diagnostics';
 import { RawCodeStatement } from '../utils/RawCodeStatement';
 import { getAllFields } from '../utils/Utils';
-import { SymbolTypeFlag } from 'brighterscript/dist/SymbolTableFlag';
-
 
 // eslint-disable-next-line
 const path = require('path');
@@ -701,13 +699,13 @@ ${bodyText}
             }
             // console.log('fieldType', fieldType);
         } else if (isLiteralExpression(field.initialValue)) {
-            fieldType = field.initialValue.getType({ flags: SymbolTypeFlag.runtime }).toTypeString();
+            fieldType = field.initialValue.getType().toTypeString();
         } else if (isAALiteralExpression(field.initialValue)) {
             fieldType = 'assocarray';
         } else if (isArrayLiteralExpression(field.initialValue)) {
             fieldType = 'array';
         } else if (isUnaryExpression(field.initialValue) && isLiteralNumber(field.initialValue.right)) {
-            const rightType = field.initialValue.right.getType({ flags: SymbolTypeFlag.runtime });
+            const rightType = field.initialValue.right.getType();
             if (isIntegerType(rightType) || isLongIntegerType(rightType)) {
                 fieldType = 'integer';
             } else {
@@ -754,10 +752,10 @@ ${bodyText}
         return this.getEnumTypeFromValue(enumValue);
     }
 
-    getEnumTypeFromValue(enumValue: CommentStatement | EnumMemberStatement) {
+    getEnumTypeFromValue(enumValue:  EnumMemberStatement) {
         if (isEnumMemberStatement(enumValue)) {
             if (isLiteralExpression(enumValue.value)) {
-                return enumValue.value.getType({ flags: SymbolTypeFlag.runtime }).toTypeString();
+                return enumValue.value.getType().toTypeString();
             } else if (isAALiteralExpression(enumValue.value)) {
                 return 'assocarray';
             } else if (isArrayLiteralExpression(enumValue.value)) {

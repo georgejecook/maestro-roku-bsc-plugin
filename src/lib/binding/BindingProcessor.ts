@@ -24,7 +24,8 @@ import { BrsTranspileState } from 'brighterscript/dist/parser/BrsTranspileState'
 import { SourceNode } from 'source-map';
 import type { MaestroConfig } from '../files/MaestroConfig';
 import { isFunctionStatement, createSGAttribute, util, Lexer, Parser, ParseMode } from 'brighterscript';
-import type { FunctionStatement, BrsFile, XmlFile, Editor, Program, IfStatement } from 'brighterscript';
+import type { FunctionStatement, BrsFile, XmlFile, Editor, Program, IfStatement, TranspileResult } from 'brighterscript';
+
 import { SGScript } from 'brighterscript/dist/parser/SGTypes';
 
 export class BindingProcessor {
@@ -109,8 +110,8 @@ export class BindingProcessor {
             ), file.bscFile as XmlFile);
             let text = '';
             let state = new BrsTranspileState(brsFile);
-            text += new SourceNode(null, null, state.srcPath, bindingInitStatement.transpile(state)).toString() + '\n';
-            text += new SourceNode(null, null, state.srcPath, staticBindingStatement.transpile(state)).toString() + '\n';
+            text += new SourceNode(null, null, state.srcPath, (bindingInitStatement.transpile(state) as TranspileResult).toString() + '\n');
+            text += new SourceNode(null, null, state.srcPath, (staticBindingStatement.transpile(state)as TranspileResult).toString() + '\n');
             return text;
         }
     }

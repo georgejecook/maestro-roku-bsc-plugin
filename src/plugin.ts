@@ -34,7 +34,8 @@ import {
     FunctionParameterExpression,
     isNamespaceStatement,
     isExpressionStatement,
-    FunctionExpression
+    FunctionExpression,
+    SymbolTypeFlag
 } from 'brighterscript';
 import type{
     BrsFile,
@@ -61,7 +62,7 @@ import type{
     SerializeFileEvent,
     BeforeSerializeFileEvent,
     BeforeProgramValidateEvent,
-    BeforeFileRemoveEvent
+    BeforeFileRemoveEvent,
 } from 'brighterscript';
 import { ProjectFileMap } from './lib/files/ProjectFileMap';
 import type { MaestroConfig } from './lib/files/MaestroConfig';
@@ -79,7 +80,6 @@ import { createCallExpression, getAllAnnotations, getAllFields } from './lib/uti
 import { getSGMembersLookup } from './SGApi';
 import { BrsTranspileState } from 'brighterscript/dist/parser/BrsTranspileState';
 import { typeToValueExpression } from './lib/Utils';
-import { SymbolTypeFlag } from 'brighterscript/dist/SymbolTableFlag';
 
 interface FunctionInfo {
     minArgs: number;
@@ -504,7 +504,7 @@ export class MaestroPlugin implements CompilerPlugin {
 
                 event.file.parser.ast.statements.map(statement => {
                     if (isFunctionExpression(statement)) {
-                        const returnType = statement.returnTypeExpression?.getType({ flags: SymbolTypeFlag.runtime });
+                        const returnType = statement.returnTypeExpression?.getType({flags: SymbolTypeFlag.runtime});
                         if (returnType && !isVoidType(returnType) && !isDynamicType(returnType)) {
                             const parentFunctionExpression: FunctionExpression = statement.findAncestor(isFunctionExpression);
                             const name = statement.functionStatement.getName(ParseMode.BrighterScript) ?? parentFunctionExpression.functionStatement.getName(ParseMode.BrighterScript);
@@ -972,7 +972,7 @@ export class MaestroPlugin implements CompilerPlugin {
                         if (field?.initialValue) {
                             defaultValueExpression = field.initialValue;
                         } else if (field.tokens.as) {
-                            defaultValueExpression = typeToValueExpression(field.typeExpression.getType({ flags: SymbolTypeFlag.typetime }));
+                            defaultValueExpression = typeToValueExpression(field.typeExpression.getType({flags: SymbolTypeFlag.runtime}));
                         }
                     } catch (error) {
                         console.error(error);

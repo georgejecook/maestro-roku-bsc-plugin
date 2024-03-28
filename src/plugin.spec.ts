@@ -2756,8 +2756,7 @@ describe('MaestroPlugin', () => {
                     { code: 'MSTO1042', message: 'Inject annotation on VM.fieldA must supply one argument' },
                     { code: 'MSTO1042', message: 'Inject annotation on VM.fieldB must supply one argument' },
                     { code: 'MSTO1042', message: 'Inject annotation on VM.fieldC must supply one argument' },
-                    //TODO why is this diagnostic missing?
-                    // { code: 'MSTO1043', message: 'cannot inject ChildVM into field VM.fieldE. It is not in scope' },
+                    { code: 'MSTO1043', message: 'cannot inject ChildVM into field VM.fieldE. It is not in scope' },
                     { code: 'MSTO1043', message: 'cannot inject notInScope into field VM.fieldD. It is not in scope' },
                     { code: 'MSTO1056' },
                     { code: 'MSTO1056' },
