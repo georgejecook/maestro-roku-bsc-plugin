@@ -685,11 +685,11 @@ ${bodyText}
         let fieldTypeNormal = util.getAllDottedGetPartsAsString(field.typeExpression) ?? '';
         let fieldType = fieldTypeNormal.toLowerCase();
         if (fieldType) {
-            if (fieldType === 'roassociativearray') {
+            if (fieldType === 'roassociativearray' || fieldType === "mc.types.assocarray") {
                 fieldType = 'assocarray';
-            } else if (fieldType.startsWith('rosgnode')) {
+            } else if (fieldType.startsWith('rosgnode') || fieldType === 'mc.types.node') {
                 fieldType = 'node';
-            } else if (fieldType === 'roarray') {
+            } else if (fieldType === 'roarray' || fieldType === 'mc.types.array') {
                 fieldType = 'array';
             } else if (this.getInterfaceFromFieldType(fieldType)) {
                 fieldType = 'assocarray';

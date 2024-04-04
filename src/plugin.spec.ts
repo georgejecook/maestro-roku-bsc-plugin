@@ -1372,6 +1372,9 @@ describe('MaestroPlugin', () => {
                     public arrTyped as roArray
                     public aaTyped as roAssociativeArray
                     public nodeTyped as roSGNode
+                    public mcTypesAssocArray as mc.types.assocarray
+                    public mcTypesArray as mc.types.array
+                    public mcTypesNode as mc.types.node
 
                     function new()
                     end function
@@ -1404,6 +1407,9 @@ describe('MaestroPlugin', () => {
                     <field id="arrTyped" type="array" />
                     <field id="aaTyped" type="assocarray" />
                     <field id="nodeTyped" type="node" />
+                    <field id="mcTypesAssocArray" type="assocarray" />
+                    <field id="mcTypesArray" type="array" />
+                    <field id="mcTypesNode" type="node" />
                 </interface>
                 <script uri="pkg:/source/comp.brs" type="text/brightscript" />
                 <script uri="pkg:/components/maestro/generated/Comp.brs" type="text/brightscript" />
@@ -1429,6 +1435,9 @@ describe('MaestroPlugin', () => {
                 m.top.arrTyped = invalid
                 m.top.aaTyped = invalid
                 m.top.nodeTyped = invalid
+                m.top.mcTypesAssocArray = invalid
+                m.top.mcTypesArray = invalid
+                m.top.mcTypesNode = invalid
 
                 instance = __Comp_builder()
                 instance.delete("top")

@@ -203,6 +203,10 @@ export function typeToValueExpression(type: BscType): Expression {
             switch ((type as InterfaceType).name?.toLowerCase()) {
                 case 'roarray':
                     return createArray();
+                case 'mc.types.roarray':
+                    return createArray();
+                case 'mc.types.assocarray':
+                    return createAA();
                 case 'roassociativearray':
                     return createAA();
             }

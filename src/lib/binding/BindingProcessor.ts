@@ -190,13 +190,12 @@ export class BindingProcessor {
                     m_createNodeVars()
                 end function
             `);
-            // astEditor.arrayPush(file.parser.ast.statements, initFunc);
-            // astEditor.edit((data) => {
-            //     data.oldValue = file.parser.ast.statements.find((s) => isFunctionStatement(s) && s.tokens.name.text.toLowerCase() === 'init');
-            //     file.parser.references.functionStatementLookup.set('init', initFunc);
-            // }, (data) => {
-            //     file.parser.references.functionStatementLookup.set('init', data.oldValue);
-            // });
+            astEditor.edit((data) => {
+                data.oldValue = file.parser.ast.statements.find((s) => isFunctionStatement(s) && s.tokens.name.text.toLowerCase() === 'init');
+                file['_cachedLookups'].functionStatementMap.set('init', initFunc);
+            }, (data) => {
+                file['_cachedLookups'].functionStatementMap.set('init', data.oldValue);
+            });
             astEditor.arrayPush(file.parser.ast.statements, initFunc);
         }
     }
