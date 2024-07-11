@@ -20,8 +20,8 @@
   "typescript.format.insertSpaceAfterFunctionKeywordForAnonymousFunctions": true,
   "files.trimTrailingWhitespace": true,
   "editor.codeActionsOnSave": {
-    "source.fixAll": true
-  },
+    "source.fixAll": "explicit"
+},
   "cSpell.words": ["MSTO", "undent"]
   // "eslint.format.enable": true
 }
