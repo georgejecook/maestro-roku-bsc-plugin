@@ -2801,6 +2801,318 @@ describe('MaestroPlugin', () => {
                 end function`);
             });
         });
+
+
+        describe('reflection file', () => {
+            it('generates file', async () => {
+                plugin.maestroConfig = {
+                    extraValidation: {},
+                    addFrameworkFiles: false,
+                    mvvm: {},
+                    processXMLFiles: true,
+                    nodeClasses: {}
+                };
+
+                plugin.afterProgramCreate(program);
+                program.setFile('source/classes.bs', `
+                    class Test_1
+                    end class
+                `);
+                program.setFile('source/namespaced-classes.bs', `
+                    namespace ns
+                        class NSTest_1
+                        end class
+                    end namespace
+                `);
+
+                program.validate();
+                await builder.transpile();
+                const c: string = getContents('source/roku_modules/maestro/reflection/Reflection.brs');
+                const endString = `function mr_getClass(name)
+    name = name.replace(".", "_")
+    if false
+        ? "maestro reflection"
+    else if name = "Test_1"
+        return Test_1
+    else if name = "ns_NSTest_1"
+        return ns_NSTest_1
+    else
+        return false
+    end if
+end function
+
+function mr_getClass2(name)
+    if false
+    end if
+end function
+
+function mr_getClass3(name)
+    if false
+    end if
+end function
+
+function mr_getClass4(name)
+    if false
+    end if
+end function
+
+function mr_getAllXMLCompNames(name)
+    return {
+    }
+end function`;
+                expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+                expect(c.substring(c.length - endString.length).toString()).to.eql(endString);
+            });
+            it('generates file, not splitting function up when there are more than 250 if statements', async () => {
+                plugin.maestroConfig = {
+                    extraValidation: {},
+                    addFrameworkFiles: false,
+                    mvvm: {},
+                    processXMLFiles: true,
+                    nodeClasses: {}
+                };
+
+                plugin.afterProgramCreate(program);
+                const classesText = Array.from({ length: 250 }).map((_, i) => `class Test_${i}\nend class`).join('\n');
+                program.setFile('source/classes.bs', classesText);
+
+                const nsClassesText = `
+                namespace ns
+                    ${Array.from({ length: 250 }).map((_, i) => `class NSTest_${i}\nend class`).join('\n')}
+                end namespace
+            `;
+                program.setFile('source/namespaced-classes.bs', nsClassesText);
+
+                program.validate();
+                await builder.transpile();
+                const c: string = getContents('source/roku_modules/maestro/reflection/Reflection.brs');
+                const endString = `  else if name = "ns_NSTest_249"
+        return ns_NSTest_249
+    else
+        return false
+    end if
+end function
+
+function mr_getClass3(name)
+    if false
+    end if
+end function
+
+function mr_getClass4(name)
+    if false
+    end if
+end function
+
+function mr_getAllXMLCompNames(name)
+    return {
+    }
+end function`;
+                expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+                expect(
+                    c.substring(c.length - endString.length).toString()
+                ).to.eql(endString);
+            });
+
+            it('generates file, splitting function up when there are 400 classes', async () => {
+                plugin.maestroConfig = {
+                    extraValidation: {},
+                    addFrameworkFiles: false,
+                    mvvm: {},
+                    processXMLFiles: true,
+                    nodeClasses: {}
+                };
+
+                plugin.afterProgramCreate(program);
+                const classesText = Array.from({ length: 200 }).map((_, i) => `class Test_${i}\nend class`).join('\n');
+                program.setFile('source/classes.bs', classesText);
+
+                const nsClassesText = `
+                namespace ns
+                    ${Array.from({ length: 200 }).map((_, i) => `class NSTest_${i}\nend class`).join('\n')}
+                end namespace
+            `;
+                program.setFile('source/namespaced-classes.bs', nsClassesText);
+
+                program.validate();
+                await builder.transpile();
+                const c: string = getContents('source/roku_modules/maestro/reflection/Reflection.brs');
+                const endString = `else if name = "ns_NSTest_199"
+        return ns_NSTest_199
+    else
+        return false
+    end if
+end function
+
+function mr_getClass3(name)
+    if false
+    end if
+end function
+
+function mr_getClass4(name)
+    if false
+    end if
+end function
+
+function mr_getAllXMLCompNames(name)
+    return {
+    }
+end function`;
+                expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+                expect(
+                    c.substring(c.length - endString.length).toString()
+                ).to.eql(endString);
+            });
+        });
+
+        it('generates file, splitting function up when there are 1000 classes', async () => {
+            plugin.maestroConfig = {
+                extraValidation: {},
+                addFrameworkFiles: false,
+                mvvm: {},
+                processXMLFiles: true,
+                nodeClasses: {}
+            };
+
+            plugin.afterProgramCreate(program);
+            const classesText = Array.from({ length: 500 }).map((_, i) => `class Test_${i}\nend class`).join('\n');
+            program.setFile('source/classes.bs', classesText);
+
+            const nsClassesText = `
+                namespace ns
+                    ${Array.from({ length: 500 }).map((_, i) => `class NSTest_${i}\nend class`).join('\n')}
+                end namespace
+            `;
+            program.setFile('source/namespaced-classes.bs', nsClassesText);
+
+            program.validate();
+            await builder.transpile();
+            const c: string = getContents('source/roku_modules/maestro/reflection/Reflection.brs');
+            const endString = ` else if name = "ns_NSTest_496"
+        return ns_NSTest_496
+    else if name = "ns_NSTest_497"
+        return ns_NSTest_497
+    else if name = "ns_NSTest_498"
+        return ns_NSTest_498
+    else if name = "ns_NSTest_499"
+        return ns_NSTest_499
+    else
+        return false
+    end if
+end function
+
+function mr_getAllXMLCompNames(name)
+    return {
+    }
+end function`;
+            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+            expect(
+                c.substring(c.length - endString.length).toString()
+            ).to.eql(endString);
+        });
+
+        it('generates file, and generates xml comp types function map', async () => {
+            plugin.maestroConfig = {
+                extraValidation: {},
+                addFrameworkFiles: false,
+                mvvm: {},
+                processXMLFiles: true,
+                nodeClasses: {}
+            };
+
+            // Call the afterProgramCreate to initialize the plugin
+            plugin.afterProgramCreate(program);
+
+            // Set up the XML component names in the fileMap
+            const allXMLComponentFiles = plugin.fileMap.allXMLComponentFiles;
+            Array.from({ length: 50 }).forEach((_, i) => {
+                allXMLComponentFiles[`XMLComp_${i}`] = {} as any;
+            });
+
+            plugin.afterProgramCreate(program);
+
+            program.validate();
+            await builder.transpile();
+            const c: string = getContents('source/roku_modules/maestro/reflection/Reflection.brs');
+            const endString = `function mr_getClass(name)
+    name = name.replace(".", "_")
+    if false
+    end if
+end function
+
+function mr_getClass2(name)
+    if false
+    end if
+end function
+
+function mr_getClass3(name)
+    if false
+    end if
+end function
+
+function mr_getClass4(name)
+    if false
+    end if
+end function
+
+function mr_getAllXMLCompNames(name)
+    return {
+     "XMLComp_0": true
+     "XMLComp_1": true
+     "XMLComp_2": true
+     "XMLComp_3": true
+     "XMLComp_4": true
+     "XMLComp_5": true
+     "XMLComp_6": true
+     "XMLComp_7": true
+     "XMLComp_8": true
+     "XMLComp_9": true
+     "XMLComp_10": true
+     "XMLComp_11": true
+     "XMLComp_12": true
+     "XMLComp_13": true
+     "XMLComp_14": true
+     "XMLComp_15": true
+     "XMLComp_16": true
+     "XMLComp_17": true
+     "XMLComp_18": true
+     "XMLComp_19": true
+     "XMLComp_20": true
+     "XMLComp_21": true
+     "XMLComp_22": true
+     "XMLComp_23": true
+     "XMLComp_24": true
+     "XMLComp_25": true
+     "XMLComp_26": true
+     "XMLComp_27": true
+     "XMLComp_28": true
+     "XMLComp_29": true
+     "XMLComp_30": true
+     "XMLComp_31": true
+     "XMLComp_32": true
+     "XMLComp_33": true
+     "XMLComp_34": true
+     "XMLComp_35": true
+     "XMLComp_36": true
+     "XMLComp_37": true
+     "XMLComp_38": true
+     "XMLComp_39": true
+     "XMLComp_40": true
+     "XMLComp_41": true
+     "XMLComp_42": true
+     "XMLComp_43": true
+     "XMLComp_44": true
+     "XMLComp_45": true
+     "XMLComp_46": true
+     "XMLComp_47": true
+     "XMLComp_48": true
+     "XMLComp_49": true
+    }
+end function`;
+            expect(builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error)).to.be.empty;
+            expect(
+                c.substring(c.length - endString.length).toString()
+            ).to.eql(endString);
+        });
     });
 
     describe('Tranpsiles import processing', () => {
