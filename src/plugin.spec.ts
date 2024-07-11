@@ -3963,6 +3963,364 @@ describe('MaestroPlugin', () => {
             `);
         });
     });
+
+    //
+    describe('notification substitution support', () => {
+        beforeEach(() => {
+            plugin.maestroConfig.updateAsFunctionCalls = true;
+            plugin.maestroConfig.updateObserveCalls = true;
+            plugin.maestroConfig.allowNotificationAnnotations = true;
+        });
+
+        it('does nothing outside of a class', async () => {
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+            @onNotification("test")
+            function notInClass()
+                    m.observe(node.field, m.callbackFunction)
+                    m.observe(m.node.field, m.callbackFunction)
+                    m.observe(m.nodes[0].field, m.callbackFunction)
+                    m.observe(m.nodes["indexed"].field, m.callbackFunction)
+                    m.observe(m.nodes["indexed"].field, m.callbackFunction)
+                end function
+            `);
+            program.validate();
+            await builder.transpile();
+            //ignore diagnostics - need to import core
+
+            expect(
+                getContents('source/comp.brs')
+            ).to.eql(undent`
+                function notInClass()
+                    m.observe(node.field, m.callbackFunction)
+                    m.observe(m.node.field, m.callbackFunction)
+                    m.observe(m.nodes[0].field, m.callbackFunction)
+                    m.observe(m.nodes["indexed"].field, m.callbackFunction)
+                    m.observe(m.nodes["indexed"].field, m.callbackFunction)
+                end function
+            `);
+        });
+
+        it('fails validation if onNotification annotation is added on a method class that is not a node', async () => {
+            plugin.maestroConfig.allowNotificationAnnotations = true;
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                class Comp
+                    function initialize()
+                    end function
+                    private json
+                    @onNotification("test")
+                    function classMethod(arg1 as mc.notification)
+                    end function
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            let d = builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error && d.code !== 1044);
+            expect(d[0].code).to.equal('MSTO1071');
+        });
+        it('fails validation if onNotification annotation are disabled', async () => {
+            plugin.maestroConfig.allowNotificationAnnotations = false;
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                @node("Comp", "Group")
+                class Comp
+                    function initialize()
+                    end function
+                    private json
+                    @onNotification("test")
+                    function classMethod(arg1 as mc.notification)
+                    end function
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            let d = builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error && d.code !== 1044);
+            expect(d[0].code).to.equal('MSTO1068');
+        });
+
+        it('fails validation if onNotification annotation is set on a method with no parameters', async () => {
+            plugin.maestroConfig.allowNotificationAnnotations = true;
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                @node("Comp", "Group")
+                class Comp
+                    function initialize()
+                    end function
+                    private json
+                    @onNotification("test")
+                    function classMethod()
+                    end function
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            let d = builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error);
+            expect(d[0].code).to.equal('MSTO1069');
+        });
+
+        it('fails validation if onNotification annotation is set on a method with more than one parameters', async () => {
+            plugin.maestroConfig.allowNotificationAnnotations = true;
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                @node("Comp", "Group")
+                class Comp
+                    function initialize()
+                    end function
+                    private json
+                    @onNotification("test")
+                    function classMethod(arg1 as dynamic, arg2 as dynamic)
+                    end function
+                end class
+            `);
+
+
+            program.validate();
+            await builder.transpile();
+            let d = builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error);
+            expect(d[0].code).to.equal('MSTO1069');
+        });
+
+        it('fails validation if onNotification annotation is set on a method with a parameter that is not mc.notification type', async () => {
+            plugin.maestroConfig.allowNotificationAnnotations = true;
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                @node("Comp", "Group")
+                class Comp
+                    private json
+                    @onNotification("test")
+                    function classMethod(arg1 as dynamic)
+                    end function
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            let d = builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error);
+            expect(d[0].code).to.equal('MSTO1069');
+        });
+
+        it('converts notification annotations in observe notification calls in class initialize method if it exists', async () => {
+            plugin.maestroConfig.allowNotificationAnnotations = true;
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                @node("Comp", "Group")
+                class Comp
+                    private json
+                    function initialize()
+                    end function
+                    @onNotification("test")
+                    function classMethod(notification as mc.notification)
+                    end function
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            //ignore diagnostics - need to import core
+            expect(
+                getContents('components/maestro/generated/Comp.xml')
+            ).to.eql(undent`
+                <?xml version="1.0" encoding="UTF-8" ?>
+                <component name="Comp" extends="Group">
+                    <interface>
+                        <function name="initialize" />
+                        <function name="classMethod" />
+                    </interface>
+                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
+                    <children />
+                </component>
+            `);
+
+            expect(
+                getContents('components/maestro/generated/Comp.brs')
+            ).to.eql(undent`
+                'import "pkg:/source/comp.bs"
+
+                function init()
+                    instance = __Comp_builder()
+                    instance.delete("top")
+                    instance.delete("global")
+                    top = m.top
+                    m.append(instance)
+                    m.__isVMCreated = true
+                    m.new()
+                    m.top = top
+                    m_wireUpObservers()
+                end function
+
+                function m_wireUpObservers()
+                end function
+
+                function __m_setTopField(field, value)
+                    if m.top.doesExist(field)
+                        m.top[field] = value
+                    end if
+                    return value
+                end function
+
+                function initialize(dummy = invalid)
+                    return m.initialize()
+                end function
+
+                function classMethod(notification = invalid)
+                    return m.classMethod(notification)
+                end function
+            `);
+            expect(
+                getContents('source/comp.brs')
+            ).to.eql(undent`
+                function __Comp_builder()
+                    instance = {}
+                    instance.new = sub()
+                        m.json = invalid
+                        m.__classname = "Comp"
+                    end sub
+                    instance.initialize = function()
+                        m.observeNotification("test", m.classMethod)
+                    end function
+                    instance.classMethod = function(notification)
+                    end function
+                    return instance
+                end function
+                function Comp()
+                    instance = __Comp_builder()
+                    instance.new()
+                    return instance
+                end function
+            `);
+        });
+
+        it('it fails if notification annotation is set on contructor', async () => {
+            plugin.maestroConfig.allowNotificationAnnotations = true;
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                @node("Comp", "Group")
+                class Comp
+                    private json
+                    @onNotification("test")
+                    sub new()
+                    end sub
+                    function classMethod(notification as mc.notification)
+                    end function
+                end class
+            `);
+
+            program.validate();
+            await builder.transpile();
+            //ignore diagnostics - need to import core
+
+            let d = builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error && d.code !== 1044);
+            expect(d[0].code).to.equal('MSTO1070');
+            expect(
+                getContents('components/maestro/generated/Comp.xml')
+            ).to.eql(undent`
+                <?xml version="1.0" encoding="UTF-8" ?>
+                <component name="Comp" extends="Group">
+                    <interface>
+                        <function name="classMethod" />
+                    </interface>
+                    <script type="text/brightscript" uri="pkg:/components/maestro/generated/Comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/comp.brs" />
+                    <script type="text/brightscript" uri="pkg:/source/bslib.brs" />
+                    <children />
+                </component>
+            `);
+
+            expect(
+                getContents('components/maestro/generated/Comp.brs')
+            ).to.eql(undent`
+                'import "pkg:/source/comp.bs"
+
+                function init()
+                    instance = __Comp_builder()
+                    instance.delete("top")
+                    instance.delete("global")
+                    top = m.top
+                    m.append(instance)
+                    m.__isVMCreated = true
+                    m.new()
+                    m.top = top
+                    m_wireUpObservers()
+                end function
+
+                function m_wireUpObservers()
+                end function
+
+                function __m_setTopField(field, value)
+                    if m.top.doesExist(field)
+                        m.top[field] = value
+                    end if
+                    return value
+                end function
+
+                function classMethod(notification = invalid)
+                    return m.classMethod(notification)
+                end function
+            `);
+            expect(
+                getContents('source/comp.brs')
+            ).to.eql(undent`
+                function __Comp_builder()
+                    instance = {}
+                    instance.new = sub()
+                        m.json = invalid
+                        m.__classname = "Comp"
+                    end sub
+                    instance.classMethod = function(notification)
+                    end function
+                    return instance
+                end function
+                function Comp()
+                    instance = __Comp_builder()
+                    instance.new()
+                    return instance
+                end function
+            `);
+        });
+
+        it('converts notification annotations in observe notification calls in class constructor if initialize method is missing', async () => {
+            plugin.maestroConfig.allowNotificationAnnotations = true;
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                @node("Comp", "Group")
+                class Comp
+                    private json
+                    sub new()
+                    end sub
+                    @onNotification("test")
+                    function classMethod(notification as mc.notification)
+                    end function
+                end class
+            `);
+
+            program.validate();
+            await builder.transpile();
+            //ignore diagnostics - need to import core
+            expect(
+                getContents('source/comp.brs')
+            ).to.eql(undent`
+                function __Comp_builder()
+                    instance = {}
+                    instance.new = sub()
+                        m.json = invalid
+                        m.__classname = "Comp"
+                        m.observeNotification("test", m.classMethod)
+                    end sub
+                    instance.classMethod = function(notification)
+                    end function
+                    return instance
+                end function
+                function Comp()
+                    instance = __Comp_builder()
+                    instance.new()
+                    return instance
+                end function
+            `);
+        });
+    });
+
+    //
     describe('get config', () => {
         it('it uses default annotations', () => {
             plugin.afterProgramCreate(program);
@@ -3974,6 +4332,7 @@ describe('MaestroPlugin', () => {
                 'node',
                 'observerswaitinitialize',
                 'observefield',
+                'onnotification',
                 'task',
                 'inject',
                 'alwaysnotify',
@@ -4099,6 +4458,66 @@ describe('MaestroPlugin', () => {
             expect(diagnostics).to.have.lengthOf(4);
             checkDiagnostic(diagnostics[0], 1065, 2);
             checkDiagnostic(diagnostics[1], 1065, 4);
+        });
+
+        it('fails validations if notification name is not present', async() => {
+            plugin.afterProgramCreate(program);
+            plugin.maestroConfig.allowNotificationAnnotations = true;
+            program.setFile('source/comp.bs', `
+                @node("Comp", "Group")
+                class Comp
+                    private json
+                    @onNotification()
+                    function classMethod()
+                    end function
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            //     //ignore diagnostics - need to import core
+
+            let d = builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error);
+            expect(d[0].code).to.equal('MSTO1066');
+        });
+
+        it('fails validations if notification annotation is not set on a method', async() => {
+            plugin.maestroConfig.allowNotificationAnnotations = true;
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+                @node("Comp", "Group")
+                class Comp
+                    @onNotification("test")
+                    private json
+                    function classMethod()
+                    end function
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            //     //ignore diagnostics - need to import core
+
+            let d = builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error);
+            expect(d[0].code).to.equal('MSTO1067');
+        });
+
+        it('fails validations if notification annotation is disabled', async() => {
+            plugin.maestroConfig.allowNotificationAnnotations = false;
+            plugin.afterProgramCreate(program);
+            program.setFile('source/comp.bs', `
+            @node("Comp", "Group")
+                class Comp
+                    private json
+                    @onNotification("test")
+                    function classMethod()
+                    end function
+                end class
+            `);
+            program.validate();
+            await builder.transpile();
+            //     //ignore diagnostics - need to import core
+
+            let d = builder.getDiagnostics().filter((d) => d.severity === DiagnosticSeverity.Error);
+            expect(d[0].code).to.equal('MSTO1068');
         });
     });
 
