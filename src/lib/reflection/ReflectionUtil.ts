@@ -28,31 +28,55 @@ export default class ReflectionUtil {
     }
 
     public updateClassLookupFunction(file: BrsFile) {
-        let func = file.ast.statements[0] as FunctionStatement;
-        let that = this;
-        if (func?.func?.body?.statements.length > 0) {
-            let classNames = this.fileMap.classNames.filter((n: string) => {
-                let file = this.fileMap.getFileForClass(n);
-                if (!file) {
-                    console.log('MISSING FILE for class:', n);
-                    return false;
-                } else {
-                    return that.shouldParseReflectionFile(file.bscFile);
-                }
-            }).map((n) => n.replace(/\./g, '_'));
-            let codeText = `if false
-            ? "maestro reflection"`;
-            for (let name of classNames) {
-                codeText += `\n else if name = "${name}"
-                    return ${name}`;
+        let classNames = this.fileMap.classNames.filter((n: string) => {
+            let file = this.fileMap.getFileForClass(n);
+            if (!file) {
+                console.log('MISSING FILE for class:', n);
+                return false;
+            } else {
+                return this.shouldParseReflectionFile(file.bscFile);
             }
-            codeText += '\n end if';
-            func.func.body.statements[1] = new RawCodeStatement(codeText);
+        }).map((n) => n.replace(/\./g, '_'));
+
+        let funcIndex = 0;
+        const maxFuncs = 4;
+        for (let i = 0; i < Math.min(classNames.length, maxFuncs * 250); i += 250) {
+            let chunk = classNames.slice(i, i + 250);
+            let isLastFunction = (i + 250) >= classNames.length;
+            let codeText = this.generateFunctionBody(chunk, isLastFunction, funcIndex);
+
+            let func = file.ast.statements[funcIndex] as FunctionStatement;
+            if (func?.func?.body?.statements.length > 0) {
+                func.func.body.statements[funcIndex === 0 ? 1 : 0] = new RawCodeStatement(codeText);
+            } else {
+                console.error(`Function at index ${funcIndex} does not have the expected structure.`);
+            }
+
+            funcIndex++;
         }
     }
 
+    generateFunctionBody(classNames: string[], isLastFunction: boolean, index: number): string {
+        let codeText = `if false\n    ? "maestro reflection"`;
+
+        for (let name of classNames) {
+            codeText += `\nelse if name = "${name}"\n    return ${name}`;
+        }
+
+        if (!isLastFunction) {
+            let nextFunctionName = `mr_getClass${index + 2}`;
+            codeText += `\nelse\n    return ${nextFunctionName}(name)`;
+        } else {
+            codeText += `\nelse\n    return false`;
+        }
+
+        codeText += `\nend if`;
+
+        return codeText;
+    }
+
     public updateXMLCompTypesFunction(file: BrsFile) {
-        let func = file.ast.statements[1] as FunctionStatement;
+        let func = file.ast.statements[4] as FunctionStatement;
         if (func) {
             let text = '{\n';
 
@@ -83,4 +107,6 @@ export default class ReflectionUtil {
         }
         return true;
     }
+
+
 }
