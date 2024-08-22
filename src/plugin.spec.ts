@@ -569,6 +569,26 @@ describe('MaestroPlugin', () => {
     });
 
     describe('node class tests', () => {
+
+        it('gives diagnostics for generated nodeclass components', () => {
+            plugin.afterProgramCreate(program);
+
+            program.setFile('source/VM.bs', `
+                @node("MyNodeClass", "Group")
+                class VM
+                    function new()
+                    end function
+                end class
+            `);
+            program.validate();
+            //the srcPath for this file should be relative to rootDir, not cwd
+            expect(
+                program.getFile('components/maestro/generated/MyNodeClass.xml').srcPath
+            ).to.eql(
+                s`${_rootDir}/components/maestro/generated/MyNodeClass.xml`
+            );
+        });
+
         it('parses a node class with no errors', async () => {
             plugin.afterProgramCreate(program);
             program.setFile('source/comp.bs', `
