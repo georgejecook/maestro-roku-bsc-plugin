@@ -28,7 +28,7 @@ export class FileFactory {
 
     public addFile<T extends BscFile>(destPath: string, contents: string) {
         try {
-            return this.program.setFile<T>({ src: path.resolve(destPath), dest: destPath }, contents);
+            return this.program.setFile<T>(destPath, contents);
         } catch (error) {
             console.error(`Error adding framework file: ${destPath} : ${error.message}`);
         }
