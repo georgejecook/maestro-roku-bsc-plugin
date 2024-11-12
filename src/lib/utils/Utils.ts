@@ -255,6 +255,7 @@ export let defaultAnnotations = new Set<string>([
     'None',
     'TestSuite',
     'Describe',
+    'Suite',
     'It',
     'Ignore',
     'Solo',
