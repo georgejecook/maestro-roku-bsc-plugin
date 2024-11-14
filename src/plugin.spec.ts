@@ -4681,6 +4681,7 @@ end function`;
                 'none',
                 'testsuite',
                 'describe',
+                'suite',
                 'it',
                 'ignore',
                 'solo',
@@ -4792,7 +4793,7 @@ end function`;
             checkDiagnostic(diagnostics[1], 1065, 4);
         });
 
-        it('fails validations if notification name is not present', async() => {
+        it('fails validations if notification name is not present', async () => {
             plugin.afterProgramCreate(program);
             plugin.maestroConfig.allowNotificationAnnotations = true;
             program.setFile('source/comp.bs', `
@@ -4812,7 +4813,7 @@ end function`;
             expect(d[0].code).to.equal('MSTO1066');
         });
 
-        it('fails validations if notification annotation is not set on a method', async() => {
+        it('fails validations if notification annotation is not set on a method', async () => {
             plugin.maestroConfig.allowNotificationAnnotations = true;
             plugin.afterProgramCreate(program);
             program.setFile('source/comp.bs', `
@@ -4832,7 +4833,7 @@ end function`;
             expect(d[0].code).to.equal('MSTO1067');
         });
 
-        it('fails validations if notification annotation is disabled', async() => {
+        it('fails validations if notification annotation is disabled', async () => {
             plugin.maestroConfig.allowNotificationAnnotations = false;
             plugin.afterProgramCreate(program);
             program.setFile('source/comp.bs', `
