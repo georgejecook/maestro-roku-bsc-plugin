@@ -119,8 +119,8 @@ export class BindingProcessor {
             ), file.bscFile as XmlFile);
             let text = '';
             let state = new BrsTranspileState(brsFile);
-            text += new SourceNode(null, null, state.srcPath, bindingInitStatement.transpile(state)).toString() + '\n';
-            text += new SourceNode(null, null, state.srcPath, staticBindingStatement.transpile(state)).toString() + '\n';
+            text += new SourceNode(null, null, state.srcPath, bindingInitStatement.transpile(state) as any).toString() + '\n';
+            text += new SourceNode(null, null, state.srcPath, staticBindingStatement.transpile(state) as any).toString() + '\n';
             return text;
         }
     }
